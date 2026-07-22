@@ -2,7 +2,9 @@
 
 import { MODULE_ID, MENUS, SETTINGS, log } from "./constants";
 import { NoodlrSettingsApp } from "./apps/settings-app";
+import { NoodlrMemoryApp } from "./apps/memory-app";
 import { registerFeatureProviderSettings } from "./providers/config";
+import { registerRagSettings } from "./rag/config";
 
 export function registerSettings(): void {
   game.settings.register(MODULE_ID, SETTINGS.enabled, {
@@ -38,6 +40,9 @@ export function registerSettings(): void {
     default: "",
   });
 
+  // Memory (RAG) settings + the dedicated Memory window.
+  registerRagSettings();
+
   // The dedicated configuration window (a "tab" in the settings sidebar).
   game.settings.registerMenu(MODULE_ID, MENUS.config, {
     name: "NOODLR.Settings.Menu.Name",
@@ -45,6 +50,15 @@ export function registerSettings(): void {
     hint: "NOODLR.Settings.Menu.Hint",
     icon: "fa-solid fa-dragon",
     type: NoodlrSettingsApp,
+    restricted: true,
+  });
+
+  game.settings.registerMenu(MODULE_ID, MENUS.memory, {
+    name: "NOODLR.Rag.Menu.Name",
+    label: "NOODLR.Rag.Menu.Label",
+    hint: "NOODLR.Rag.Menu.Hint",
+    icon: "fa-solid fa-brain",
+    type: NoodlrMemoryApp,
     restricted: true,
   });
 

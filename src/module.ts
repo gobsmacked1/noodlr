@@ -6,11 +6,13 @@ import { MODULE_ID, KEYBINDINGS, log } from "./constants";
 import { registerSettings } from "./settings";
 import { NoodlrChatPanel } from "./apps/chat-panel";
 import { NoodlrSettingsApp } from "./apps/settings-app";
+import { NoodlrMemoryApp } from "./apps/memory-app";
 
 /** Public surface other code (macros, console, future features) can call. */
 export interface NoodlrApi {
   openChat(): void;
   openSettings(): void;
+  openMemory(): void;
 }
 
 const api: NoodlrApi = {
@@ -19,6 +21,9 @@ const api: NoodlrApi = {
   },
   openSettings: () => {
     new NoodlrSettingsApp().render({ force: true });
+  },
+  openMemory: () => {
+    new NoodlrMemoryApp().render({ force: true });
   },
 };
 

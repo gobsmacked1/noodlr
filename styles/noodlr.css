@@ -143,3 +143,72 @@
   font-style: italic;
   font-size: 0.85rem;
 }
+
+/* ---- Memory (RAG) window ---- */
+.noodlr-memory {
+  padding: 0.75rem;
+  overflow-y: auto;
+}
+
+.noodlr-memory__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.noodlr-memory__status {
+  margin-left: auto;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.noodlr-memory__status.is-online {
+  background: rgba(40, 160, 60, 0.2);
+}
+
+.noodlr-memory__status.is-offline {
+  background: rgba(200, 40, 40, 0.15);
+}
+
+.noodlr-memory__toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.noodlr-memory__section {
+  margin: 0.75rem 0;
+  border: 1px solid var(--color-border-light-tertiary, #666);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+}
+
+.noodlr-memory__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.noodlr-memory__table th,
+.noodlr-memory__table td {
+  text-align: left;
+  padding: 0.2rem 0.4rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  vertical-align: middle;
+}
+
+.noodlr-memory__count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.noodlr-memory__upload {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.noodlr-danger {
+  color: #a11;
+}

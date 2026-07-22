@@ -17,6 +17,20 @@ export const SETTINGS = {
 /** Settings-menu keys (open dedicated ApplicationV2 config windows). */
 export const MENUS = {
   config: "noodlrConfig",
+  memory: "noodlrMemory",
+} as const;
+
+/** RAG (noodlr-memory) settings keys. */
+export const RAG_SETTINGS = {
+  serviceUrl: "rag.serviceUrl",
+  secret: "rag.secret",
+  enabled: "rag.enabled",
+  hybrid: "rag.hybrid",
+  agentMode: "rag.agentMode",
+  sendEmbedConfig: "rag.sendEmbedConfig",
+  tokenBudget: "rag.tokenBudget",
+  topK: "rag.topK",
+  querySilos: "rag.querySilos",
 } as const;
 
 /** Keybinding action ids. */

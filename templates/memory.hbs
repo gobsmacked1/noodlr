@@ -1,0 +1,104 @@
+{{! Noodlr Memory (RAG) window. }}
+<section class="noodlr-memory">
+  <header class="noodlr-memory__header">
+    <i class="fa-solid fa-brain"></i>
+    <h2>{{localize "NOODLR.Rag.WindowTitle"}}</h2>
+    <span class="noodlr-memory__status {{#if online}}is-online{{else}}is-offline{{/if}}">
+      {{#if enabled}}
+        {{#if online}}{{localize "NOODLR.Rag.Online"}} ({{backend}}){{else}}{{localize "NOODLR.Rag.OfflineShort"}}{{/if}}
+      {{else}}
+        {{localize "NOODLR.Rag.Disabled"}}
+      {{/if}}
+    </span>
+  </header>
+
+  <div class="noodlr-memory__toolbar">
+    <button type="button" data-action="testConnection">
+      <i class="fa-solid fa-plug"></i> {{localize "NOODLR.Rag.TestConnection"}}
+    </button>
+    <button type="button" data-action="refresh">
+      <i class="fa-solid fa-rotate"></i> {{localize "NOODLR.Rag.Refresh"}}
+    </button>
+  </div>
+
+  <fieldset class="noodlr-memory__section">
+    <legend>{{localize "NOODLR.Rag.SiloStatus"}}</legend>
+    <table class="noodlr-memory__table">
+      <thead>
+        <tr>
+          <th>{{localize "NOODLR.Rag.Silo"}}</th>
+          <th>{{localize "NOODLR.Rag.Items"}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each silos}}
+          <tr>
+            <td><code>{{this.id}}</code> — {{this.label}}</td>
+            <td class="noodlr-memory__count">{{this.count}}</td>
+            <td>
+              <button type="button" class="noodlr-danger" data-action="resetSilo" data-silo="{{this.id}}">
+                <i class="fa-solid fa-trash"></i> {{localize "NOODLR.Rag.Reset"}}
+              </button>
+            </td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </fieldset>
+
+  <fieldset class="noodlr-memory__section">
+    <legend>{{localize "NOODLR.Rag.IngestMatrix"}}</legend>
+    <p class="notes">{{localize "NOODLR.Rag.IngestHint"}}</p>
+    {{#if packs.length}}
+      <table class="noodlr-memory__table">
+        <thead>
+          <tr>
+            <th>{{localize "NOODLR.Rag.Compendium"}}</th>
+            <th>{{localize "NOODLR.Rag.Type"}}</th>
+            <th>{{localize "NOODLR.Rag.TargetSilo"}}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each packs}}
+            <tr>
+              <td>{{this.label}} {{#if this.locked}}<i class="fa-solid fa-lock" title="locked"></i>{{/if}}</td>
+              <td>{{this.type}}</td>
+              <td>
+                <select name="silo-{{this.id}}">
+                  {{#each ../siloOptions}}
+                    <option value="{{this.id}}">{{this.id}}</option>
+                  {{/each}}
+                </select>
+              </td>
+              <td>
+                <button type="button" data-action="ingestPack" data-pack="{{this.id}}">
+                  <i class="fa-solid fa-download"></i> {{localize "NOODLR.Rag.Ingest"}}
+                </button>
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    {{else}}
+      <p>{{localize "NOODLR.Rag.NoPacks"}}</p>
+    {{/if}}
+  </fieldset>
+
+  <fieldset class="noodlr-memory__section">
+    <legend>{{localize "NOODLR.Rag.Upload"}}</legend>
+    <p class="notes">{{localize "NOODLR.Rag.UploadHint"}}</p>
+    <div class="noodlr-memory__upload">
+      <input type="file" data-role="file" accept=".txt,.md,.csv,.json,.pdf" />
+      <select name="silo-file">
+        {{#each siloOptions}}
+          <option value="{{this.id}}">{{this.id}}</option>
+        {{/each}}
+      </select>
+      <button type="button" data-action="ingestFile">
+        <i class="fa-solid fa-upload"></i> {{localize "NOODLR.Rag.UploadButton"}}
+      </button>
+    </div>
+  </fieldset>
+</section>

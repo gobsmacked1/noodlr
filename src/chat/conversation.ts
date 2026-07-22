@@ -12,6 +12,7 @@ import {
   formatRollResultsForModel,
   resolveRollMacros,
 } from "../dice/roll-macros";
+import { retrieveContext } from "../rag/retrieval";
 
 export interface SendHooks {
   /** Display name of the speaker (maps to a Foundry user). */
@@ -53,6 +54,9 @@ export class Conversation {
     if (hooks.speakerName) userMsg.name = sanitizeName(hooks.speakerName);
     this.messages.push(userMsg);
 
+    // Retrieve campaign memory once per user turn (graceful null when disabled/offline).
+    const ragBlock = await retrieveContext(userText, hooks.signal);
+
     const allowContinuation =
       (game.settings.get(MODULE_ID, SETTINGS.chatContinueAfterRoll) as boolean) ?? true;
     let continuations = 0;
@@ -60,6 +64,7 @@ export class Conversation {
     for (;;) {
       const payload: ChatMessage[] = [
         { role: "system", content: getEffectiveChatSystemPrompt() },
+        ...(ragBlock ? [{ role: "system" as const, content: ragBlock }] : []),
         ...this.messages,
       ];
 
