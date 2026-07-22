@@ -186,7 +186,7 @@ Key engineering doctrines from it that shape the *module's* architecture:
 
 ### Phase 6 — Packaging & cutover
 
-- README, manifest + release URLs (release scheme: `https://math.secretdoor.app/gobsmacked1/noodlr/releases/download/v<version>/module.json`), version to 1.0.0 at parity.
+- README, manifest + release URLs (release scheme: `https://github.com/gobsmacked1/noodlr/releases/download/v<version>/module.zip`; manifest at `.../releases/latest/download/module.json`), version to 1.0.0 at parity.
 - New GitHub repo for noodlr-main; wipe the legacy repo; delete `C:\Project\noodlr` locally when no longer consulted.
 - Deferred/optional: `noodlr-vtt` external bridge with our own protocol and package — only if a real need emerges.
 
@@ -270,12 +270,22 @@ Known gaps: HP/condition extraction is best-effort per system (verify on your ta
 
 ## Phase 6 status (partial — 2026-07-22)
 
-Packaging groundwork done; remote/versioning deferred per user (initial runthrough without new GitHub repos, and we're pre-parity so version stays 0.1.0).
+Packaging done and shipped to GitHub. Version stays 0.1.0 (pre-parity, pre-smoke-test).
 
 - **README.md** written (thesis, principles, features, install, configure, console API, license).
-- `module.json` release URLs already follow the `math.secretdoor.app/gobsmacked1/noodlr` scheme.
+- **Host decision (2026-07-22):** canonical git + release host is **github.com/gobsmacked1**, not `math.secretdoor.app`. The secretdoor.app URL was a placeholder; `module.json` `url`/`manifest`/`download`/`readme` now point at GitHub. (User can revert to a self-hosted forge later; if so, re-point these four fields.)
+- **Repos live (public):** `github.com/gobsmacked1/noodlr` (this module) and `github.com/gobsmacked1/noodlr-memory` (the RAG service — was never actually a git repo locally before; `git init` + first commit + push done, with fresh `.gitignore`/`.gitattributes`).
+- **Release v0.1.0 cut:** `module.zip` (dist/ + templates/ + styles/ + lang/ + module.json + LICENSE + README, 90 KB) and `module.json` attached as assets. Install-by-manifest verified reachable: `https://github.com/gobsmacked1/noodlr/releases/latest/download/module.json` returns the correct manifest (id=noodlr, v0.1.0).
 - Legacy `C:\Project\noodlr` is already empty on this host; nothing to delete.
-- Deferred: create the GitHub repo + push; produce the `module.zip` release artifact; bump to 1.0.0 once smoke-tested at parity in a live world.
+- Deferred: bump to 1.0.0 once smoke-tested at parity in a live world.
+
+## Deployment facts (target Foundry server — provided by user 2026-07-22)
+
+- Host `DEMIURGE` (Linux). Foundry service `foundryvtt` runs as account **`superuser`** from **`/opt/foundryvtt`**; world/module data under `/opt/foundryvtt/data/Data`.
+- **Module install path:** `/opt/foundryvtt/data/Data/modules/noodlr` (install-by-manifest in Foundry drops it here automatically).
+- **External deps** (e.g. `noodlr-memory`) deploy to **`/opt/<service-name>`** → `/opt/noodlr-memory`.
+- **Cursor agent worker:** runs as user `cursorbot` under systemd unit `cursor-worker.service` (name `noodlr-cursorbot`, workerId `afb4e5c1-...`), survives reboot (verified). Its serving directory is **`/opt`**, so a Cloud Agent driving this worker has `/opt` as workspace root. Drive it from cursor.com/agents, not from this chat.
+- Give the worker scoped power to bounce Foundry via a sudoers drop-in (`cursorbot ALL=(root) NOPASSWD: /usr/bin/systemctl {start,stop,restart,status} foundryvtt`).
 
 ## Cross-phase note: nothing has been run inside Foundry yet
 
@@ -291,5 +301,5 @@ DialogV2, MediaRecorder cycling, and the socket relay are the highest-risk unver
 
 - Lorebook storage shape (world-scoped JournalEntry vs module setting vs flat file in world data) — decide in Phase 3.
 - Multi-GM/assistant-GM permissions model for Chronicle review and silo resets.
-- `noodlr.app` domain not yet acquired/configured; release hosting currently via `math.secretdoor.app`.
+- `noodlr.app` domain not yet acquired/configured; git + releases now hosted on `github.com/gobsmacked1` (see Phase 6 status). Revisit if a self-hosted forge / custom domain is preferred.
 - Safety tooling (lines-and-veils / X-card equivalent) is *not* in the DM prompt; decide whether it becomes a module feature or stays a Session-Zero practice.
