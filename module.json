@@ -1,0 +1,31 @@
+{
+  "id": "noodlr",
+  "title": "Noodlr — AI Dungeon Master",
+  "description": "An AI Dungeon Master for Foundry VTT: reliable RAG memory, Foundry-authoritative game state, and deliberate restraint. Game-system-agnostic by design.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "14",
+    "maximum": "14"
+  },
+  "authors": [
+    {
+      "name": "gobsmacked1"
+    }
+  ],
+  "esmodules": ["dist/noodlr.js"],
+  "styles": ["styles/noodlr.css"],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "url": "https://math.secretdoor.app/gobsmacked1/noodlr",
+  "manifest": "https://math.secretdoor.app/gobsmacked1/noodlr/releases/latest/download/module.json",
+  "download": "https://math.secretdoor.app/gobsmacked1/noodlr/releases/download/v0.1.0/module.zip",
+  "readme": "https://math.secretdoor.app/gobsmacked1/noodlr",
+  "license": "MIT",
+  "flags": {}
+}

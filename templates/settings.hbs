@@ -1,0 +1,18 @@
+{{! Noodlr settings window — Phase 0 stub. Tabbed provider/memory/prompt config later. }}
+<section class="noodlr-settings">
+  <header class="noodlr-settings__header">
+    <i class="fa-solid fa-dragon"></i>
+    <h2>{{moduleTitle}} — {{localize "NOODLR.Settings.Title"}}</h2>
+  </header>
+
+  <p class="noodlr-settings__intro">{{localize "NOODLR.Settings.Intro"}}</p>
+
+  <dl class="noodlr-settings__status">
+    <dt>{{localize "NOODLR.Settings.Version"}}</dt>
+    <dd>{{version}}</dd>
+    <dt>{{localize "NOODLR.Settings.Enabled.Name"}}</dt>
+    <dd>{{#if enabled}}✓{{else}}✕{{/if}}</dd>
+  </dl>
+
+  <p class="noodlr-settings__note">{{localize "NOODLR.Settings.PhaseNote"}}</p>
+</section>

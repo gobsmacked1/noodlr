@@ -1,0 +1,25 @@
+{{! Noodlr chat panel — Phase 0 stub. Real streaming chat UI arrives in Phase 1. }}
+<section class="noodlr-chat">
+  <header class="noodlr-chat__header">
+    <i class="fa-solid fa-dragon"></i>
+    <span>{{localize "NOODLR.ChatPanel.Heading"}}</span>
+  </header>
+
+  <div class="noodlr-chat__log" data-role="log">
+    <p class="noodlr-chat__placeholder">{{localize "NOODLR.ChatPanel.Placeholder"}}</p>
+  </div>
+
+  <footer class="noodlr-chat__composer">
+    <textarea
+      data-role="input"
+      rows="2"
+      placeholder="{{localize "NOODLR.ChatPanel.InputPlaceholder"}}"
+      disabled
+    ></textarea>
+    <button type="button" disabled>
+      <i class="fa-solid fa-paper-plane"></i>
+    </button>
+  </footer>
+
+  <p class="noodlr-chat__version">v{{version}}</p>
+</section>

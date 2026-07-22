@@ -1,0 +1,72 @@
+/* Noodlr — minimal styling for the Phase 0 stubs. */
+
+.noodlr-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+
+.noodlr-chat__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.noodlr-chat__log {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-light-tertiary, #666);
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.noodlr-chat__placeholder {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.noodlr-chat__composer {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.noodlr-chat__composer textarea {
+  flex: 1;
+  resize: vertical;
+}
+
+.noodlr-chat__version {
+  margin: 0;
+  text-align: right;
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.noodlr-settings {
+  padding: 0.75rem;
+}
+
+.noodlr-settings__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.noodlr-settings__status {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0.75rem 0;
+}
+
+.noodlr-settings__status dt {
+  font-weight: 600;
+}
+
+.noodlr-settings__note {
+  opacity: 0.7;
+  font-style: italic;
+}

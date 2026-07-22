@@ -1,0 +1,28 @@
+// Durable identifiers and keys. Keep this the single source of truth for the module id
+// and setting/menu keys so nothing drifts between registration and lookup.
+
+export const MODULE_ID = "noodlr" as const;
+export const MODULE_TITLE = "Noodlr" as const;
+
+/** World/client setting keys (values are the persisted keys — do not rename lightly). */
+export const SETTINGS = {
+  /** Whether the module's features are active in this world. */
+  enabled: "enabled",
+  /** Chat feature system-prompt override (the DM prompt is the default). */
+  chatSystemPrompt: "chatSystemPrompt",
+} as const;
+
+/** Settings-menu keys (open dedicated ApplicationV2 config windows). */
+export const MENUS = {
+  config: "noodlrConfig",
+} as const;
+
+/** Keybinding action ids. */
+export const KEYBINDINGS = {
+  toggleChatPanel: "toggleChatPanel",
+} as const;
+
+/** Small helper for consistent, greppable console output. */
+export function log(...args: unknown[]): void {
+  console.log(`${MODULE_TITLE} |`, ...args);
+}

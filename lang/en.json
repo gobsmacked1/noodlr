@@ -1,0 +1,24 @@
+{
+  "NOODLR.ChatPanel.Title": "Noodlr — Dungeon Master",
+  "NOODLR.ChatPanel.Heading": "Noodlr Dungeon Master",
+  "NOODLR.ChatPanel.Placeholder": "The chat co-pilot is not wired up yet. Streaming DM chat, real dice, and RAG memory arrive in Phase 1+.",
+  "NOODLR.ChatPanel.InputPlaceholder": "Talk to the DM… (coming soon)",
+
+  "NOODLR.Settings.Title": "Configuration",
+  "NOODLR.Settings.Intro": "Noodlr is an AI Dungeon Master for Foundry VTT: reliable RAG memory, Foundry-authoritative game state, and deliberate restraint.",
+  "NOODLR.Settings.Version": "Version",
+  "NOODLR.Settings.PhaseNote": "Phase 0 scaffold. Provider, Memory (RAG), Prompts, TTS, Image, and Transcription tabs are coming in later phases.",
+
+  "NOODLR.Settings.Enabled.Name": "Enable Noodlr",
+  "NOODLR.Settings.Enabled.Hint": "Turn Noodlr's features on or off for this world.",
+
+  "NOODLR.Settings.ChatSystemPrompt.Name": "Chat system prompt override",
+  "NOODLR.Settings.ChatSystemPrompt.Hint": "Optional. Overrides the built-in Dungeon Master system prompt. Leave empty to use the default.",
+
+  "NOODLR.Settings.Menu.Name": "Noodlr Configuration",
+  "NOODLR.Settings.Menu.Label": "Configure Noodlr",
+  "NOODLR.Settings.Menu.Hint": "Open the Noodlr configuration window.",
+
+  "NOODLR.Keybindings.ToggleChatPanel.Name": "Toggle Noodlr chat panel",
+  "NOODLR.Keybindings.ToggleChatPanel.Hint": "Open or close the Noodlr Dungeon Master chat panel."
+}
