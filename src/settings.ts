@@ -8,6 +8,7 @@ import { NoodlrChronicleApp } from "./apps/chronicle-app";
 import { registerFeatureProviderSettings } from "./providers/config";
 import { registerRagSettings } from "./rag/config";
 import { registerPromptSettings } from "./prompt/settings";
+import { registerMediaSettings } from "./media/config";
 
 export function registerSettings(): void {
   game.settings.register(MODULE_ID, SETTINGS.enabled, {
@@ -48,6 +49,9 @@ export function registerSettings(): void {
 
   // Prompt architecture (lorebook, author's note, post-history, chronicle).
   registerPromptSettings();
+
+  // Media features (TTS, Image, push-to-log transcription).
+  registerMediaSettings();
 
   // The dedicated configuration window (a "tab" in the settings sidebar).
   game.settings.registerMenu(MODULE_ID, MENUS.config, {

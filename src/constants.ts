@@ -45,6 +45,31 @@ export const DEFAULT_COMBAT_REMINDER =
   "COMBAT ACTIVE — review the latest ⚔️ tracker block, rebuild it every turn with arithmetic shown inline, and track HP, conditions, and resources exactly.\n" +
   "Player characters can die; honor fair outcomes and never fudge dice or soften failure.";
 
+/** Module socket name for client<->GM relay (push-to-log transcripts). */
+export const SOCKET = "module.noodlr" as const;
+
+/** Media feature settings keys (TTS / Image / Transcription / push-to-log). */
+export const MEDIA_SETTINGS = {
+  // TTS
+  ttsEnabled: "tts.enabled",
+  ttsVoice: "tts.voice",
+  ttsAutoRead: "tts.autoRead",
+  // Image
+  imageSystemPrompt: "image.systemPrompt",
+  imageExpandPrompt: "image.expandPrompt",
+  imageSteps: "image.steps",
+  imageCfg: "image.cfg",
+  imageSampler: "image.sampler",
+  imageSeed: "image.seed",
+  imageNegative: "image.negative",
+  imageSize: "image.size",
+  // Push-to-log transcription
+  pushToLogPostChat: "transcription.postChat",
+  pushToLogIngest: "transcription.ingest",
+  pushToLogIngestInterval: "transcription.ingestInterval",
+  pushToLogSegmentSeconds: "transcription.segmentSeconds",
+} as const;
+
 /** RAG (noodlr-memory) settings keys. */
 export const RAG_SETTINGS = {
   serviceUrl: "rag.serviceUrl",

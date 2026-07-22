@@ -10,6 +10,8 @@ import { getFeatureConfig } from "../providers/config";
 import { isConfigured } from "../providers/types";
 import { renderMarkdown } from "../util/markdown";
 import type { ResolvedRoll } from "../dice/roll-macros";
+import { getTtsAutoRead } from "../media/config";
+import { speak } from "../media/tts";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -119,6 +121,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
         onAssistantDone: (finalText: string, _rolls: ResolvedRoll[]) => {
           if (bodyEl) bodyEl.innerHTML = renderMarkdown(finalText);
           this.#scrollToBottom();
+          if (getTtsAutoRead()) void speak(finalText);
         },
       });
     } catch (err) {
