@@ -190,6 +190,16 @@
   "NOODLR.Media.SceneArtPrompt": "Describe the scene to illustrate:",
   "NOODLR.Media.SceneArtButton": "Generate",
 
+  "NOODLR.Combat.PromptName": "Combat NPC-turn system prompt",
+  "NOODLR.Combat.PromptHint": "Used when Noodlr runs a non-player combatant's turn. Blank uses the built-in default.",
+  "NOODLR.Combat.RunTurn": "Noodlr: run current NPC turn",
+  "NOODLR.Combat.Running": "Noodlr: running {name}'s turn…",
+  "NOODLR.Combat.Failed": "NPC turn failed: {error}",
+  "NOODLR.Combat.NoCombat": "No active combat.",
+  "NOODLR.Combat.NoCombatant": "No current combatant.",
+  "NOODLR.Combat.IsPC": "The current combatant is a player character — Noodlr won't act for PCs.",
+  "NOODLR.Combat.NotConfigured": "Chat provider is not configured.",
+
   "NOODLR.Keybindings.ToggleChatPanel.Name": "Toggle Noodlr chat panel",
   "NOODLR.Keybindings.ToggleChatPanel.Hint": "Open or close the Noodlr Dungeon Master chat panel."
 }

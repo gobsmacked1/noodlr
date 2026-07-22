@@ -9,6 +9,7 @@ import { registerFeatureProviderSettings } from "./providers/config";
 import { registerRagSettings } from "./rag/config";
 import { registerPromptSettings } from "./prompt/settings";
 import { registerMediaSettings } from "./media/config";
+import { registerCombatSettings } from "./combat/config";
 
 export function registerSettings(): void {
   game.settings.register(MODULE_ID, SETTINGS.enabled, {
@@ -52,6 +53,9 @@ export function registerSettings(): void {
 
   // Media features (TTS, Image, push-to-log transcription).
   registerMediaSettings();
+
+  // Combat co-pilot (AI-run NPC turn prompt).
+  registerCombatSettings();
 
   // The dedicated configuration window (a "tab" in the settings sidebar).
   game.settings.registerMenu(MODULE_ID, MENUS.config, {

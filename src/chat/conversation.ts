@@ -14,6 +14,7 @@ import {
 import { retrieveContext } from "../rag/retrieval";
 import { assemblePrompt } from "../prompt/assembler";
 import { captureChronicle } from "../prompt/chronicle";
+import { buildCombatStateBlock } from "../combat/tracker";
 
 export interface SendHooks {
   /** Display name of the speaker (maps to a Foundry user). */
@@ -57,6 +58,8 @@ export class Conversation {
 
     // Retrieve campaign memory once per user turn (graceful null when disabled/offline).
     const ragBlock = await retrieveContext(userText, hooks.signal);
+    // Ground-truth combat state (null outside combat).
+    const foundryState = buildCombatStateBlock();
 
     const allowContinuation =
       (game.settings.get(MODULE_ID, SETTINGS.chatContinueAfterRoll) as boolean) ?? true;
@@ -67,6 +70,7 @@ export class Conversation {
         history: this.messages,
         scanText: userText,
         ragBlock,
+        foundryState,
       });
 
       hooks.onAssistantStart?.();

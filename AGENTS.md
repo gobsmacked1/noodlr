@@ -257,7 +257,18 @@ Media features. All three provider shapes reuse the shared per-feature provider 
 
 Known gaps: no in-Foundry/live-endpoint test; MediaRecorder segment cycling and the socket relay need verification; generated images aren't saved to disk (data URL only); per-NPC voice assignment deferred.
 
-Next: Phase 5 (combat co-pilot — ground-truth tracker block + AI NPC turns).
+## Phase 5 status (completed 2026-07-22)
+
+Combat co-pilot — no rules engine; narrate + delegate. Not yet tested in a live combat.
+
+- **Ground-truth ⚔️ block** (`combat/tracker.ts`): `buildCombatStateBlock()` rebuilds the tracker from `game.combat` each turn (round, init order, current→next, per-combatant HP/conditions/defeated). System-agnostic best-effort HP extraction (dnd5e + common shapes); PCs show exact HP, enemies show tiers (fresh/wounded/bloodied/near death); positions left as narrative zones (no Cartesian). Injected via the assembler's `foundryState` slot (conversation passes it every turn) — the module, not the model's last message, is the source of truth.
+- **AI NPC turns** (`combat/npc-turn.ts`): `runCurrentNpcTurn()` runs the current combatant if it's non-PC — decides + narrates one action, emits `{{roll:...}}` (never prose dice), leaves mechanical application to real dice + the table's automation, posts to Foundry chat under the combatant's alias. Refuses to act for PCs. Uses the Combat system-prompt override (`combat/config.ts`, editable in settings; default in `constants.ts`).
+- **Rules during combat**: `retrieval.ts` force-adds the `rules` silo to queries whenever combat is active.
+- GM scene-control button + API `runNpcTurn()`.
+
+Known gaps: HP/condition extraction is best-effort per system (verify on your target system); no auto-run on turn change (deliberate — GM triggers); positions aren't zone-mapped; no live test.
+
+Next: Phase 6 (packaging/README; GitHub remote deferred per user).
 
 ## Open decisions / risks
 

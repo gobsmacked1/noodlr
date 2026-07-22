@@ -13,6 +13,7 @@ import { speak, stopSpeaking } from "./media/tts";
 import { generateSceneImage } from "./media/image";
 import { createPushToLogButton, pushToLog, type TranscriptPayload } from "./media/push-to-log";
 import { showSceneImage } from "./media/display";
+import { runCurrentNpcTurn } from "./combat/npc-turn";
 
 /** Public surface other code (macros, console, future features) can call. */
 export interface NoodlrApi {
@@ -25,6 +26,7 @@ export interface NoodlrApi {
   stopSpeaking(): void;
   generateSceneImage(description: string): Promise<void>;
   togglePushToLog(): void;
+  runNpcTurn(): Promise<void>;
 }
 
 const api: NoodlrApi = {
@@ -50,6 +52,7 @@ const api: NoodlrApi = {
     await showSceneImage(img.src, img.prompt);
   },
   togglePushToLog: () => pushToLog.toggle(),
+  runNpcTurn: () => runCurrentNpcTurn(),
 };
 
 Hooks.once("init", () => {
@@ -97,6 +100,15 @@ Hooks.on("getSceneControlButtons", (controls: any) => {
       visible: Boolean(game.user?.isGM),
       onClick: () => void promptSceneImage(),
       onChange: () => void promptSceneImage(),
+    },
+    {
+      name: "noodlr-npc-turn",
+      title: "NOODLR.Combat.RunTurn",
+      icon: "fa-solid fa-hand-fist",
+      button: true,
+      visible: Boolean(game.user?.isGM),
+      onClick: () => void runCurrentNpcTurn(),
+      onChange: () => void runCurrentNpcTurn(),
     },
   ];
 

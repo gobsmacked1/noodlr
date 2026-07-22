@@ -12,6 +12,8 @@ import {
 } from "./config";
 import { decomposeQuery } from "./agent-mode";
 import type { RagHit } from "./client";
+import { isCombatActive } from "../combat/tracker";
+import { isSiloId } from "./silos";
 
 /** Rough token estimate (~4 chars/token) — good enough for budgeting. */
 function estimateTokens(text: string): number {
@@ -31,6 +33,8 @@ export async function retrieveContext(query: string, signal?: AbortSignal): Prom
 
   const client = getRagClient();
   const silos = getQuerySilos();
+  // During combat, always consult the rules silo (adjudication is frequent).
+  if (isCombatActive() && isSiloId("rules") && !silos.includes("rules")) silos.push("rules");
   const { topK, hybrid, tokenBudget } = getRagTuning();
   const embed = getEmbedOverride();
   const agentMode = (game.settings.get(MODULE_ID, RAG_SETTINGS.agentMode) as boolean) ?? false;

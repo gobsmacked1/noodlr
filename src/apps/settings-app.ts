@@ -9,6 +9,8 @@ import { getFeatureConfig } from "../providers/config";
 import { chatCompletion, ChatClientError } from "../providers/chat-client";
 import { isConfigured } from "../providers/types";
 import { getAuthorNote, getCombatReminder, getPostHistory } from "../prompt/settings";
+import { getCombatSystemPrompt } from "../combat/config";
+import { COMBAT_SETTINGS, DEFAULT_COMBAT_PROMPT } from "../constants";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -53,6 +55,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       authorNote: getAuthorNote(),
       postHistory: getPostHistory(),
       combatReminder: getCombatReminder(),
+      combatPrompt: getCombatSystemPrompt(),
     };
   }
 
@@ -83,6 +86,14 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       MODULE_ID,
       SETTINGS.combatReminder,
       reminder.length > 0 ? reminder : DEFAULT_COMBAT_REMINDER,
+    );
+
+    // Combat NPC-turn prompt: store empty to fall back to the built-in default.
+    const combatPrompt = String(formData.object.combatPrompt ?? "").trim();
+    await game.settings.set(
+      MODULE_ID,
+      COMBAT_SETTINGS.systemPrompt,
+      combatPrompt === DEFAULT_COMBAT_PROMPT.trim() ? "" : combatPrompt,
     );
 
     ui.notifications?.info(game.i18n.localize("NOODLR.Settings.Saved"));
