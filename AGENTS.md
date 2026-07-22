@@ -268,7 +268,24 @@ Combat co-pilot — no rules engine; narrate + delegate. Not yet tested in a liv
 
 Known gaps: HP/condition extraction is best-effort per system (verify on your target system); no auto-run on turn change (deliberate — GM triggers); positions aren't zone-mapped; no live test.
 
-Next: Phase 6 (packaging/README; GitHub remote deferred per user).
+## Phase 6 status (partial — 2026-07-22)
+
+Packaging groundwork done; remote/versioning deferred per user (initial runthrough without new GitHub repos, and we're pre-parity so version stays 0.1.0).
+
+- **README.md** written (thesis, principles, features, install, configure, console API, license).
+- `module.json` release URLs already follow the `math.secretdoor.app/gobsmacked1/noodlr` scheme.
+- Legacy `C:\Project\noodlr` is already empty on this host; nothing to delete.
+- Deferred: create the GitHub repo + push; produce the `module.zip` release artifact; bump to 1.0.0 once smoke-tested at parity in a live world.
+
+## Cross-phase note: nothing has been run inside Foundry yet
+
+All six phases are validated only via `tsc --noEmit`, `eslint`, `esbuild`, prettier, a
+verbatim-prompt diff, and UTF-8/LF checks — there is no Foundry world in this build env.
+First in-app session should smoke-test, in order: module loads + settings tabs render;
+chat streams against a real provider; `{{roll:}}` executes; RAG connects + ingests +
+retrieves; lorebook/author's-note/post-history inject; Chronicle capture+promote; TTS/
+image/push-to-log; combat block + NPC turn. Scene-control button shapes, FormDataExtended,
+DialogV2, MediaRecorder cycling, and the socket relay are the highest-risk unverified spots.
 
 ## Open decisions / risks
 
