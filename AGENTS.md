@@ -197,9 +197,20 @@ Key engineering doctrines from it that shape the *module's* architecture:
 - Windows host gotcha: the file-Write tool intermittently emits new files as UTF-16LE — after creating any file, verify the first bytes are UTF-8 and convert if needed. Watch CRLF/LF (.gitattributes) since Foundry servers are often Linux.
 - Never store secrets in this file or in module settings defaults.
 
+## Phase 0 status (completed 2026-07-22)
+
+Installable skeleton exists and builds clean. Decisions locked this phase:
+
+- **Foundry target:** v14 is current stable (14.365, verified 2026-07-22). `module.json` `compatibility` = min 13 / verified 14 / max 14. ApplicationV2 (`foundry.applications.api.ApplicationV2` + `HandlebarsApplicationMixin`) is the standard; original `Application` deprecates in v16 — build only on AppV2.
+- **Foundry types:** self-authored minimal ambient globals in `src/types/foundry.d.ts` (loose `any`). Deliberately no community types package — it lags the live API and this is a clean-room project.
+- **Build/tooling:** TypeScript (strict) + esbuild bundle `src/module.ts` → `dist/noodlr.js` (ESM, sourcemap, unminified for now). Scripts: `build`, `watch`, `check` (tsc --noEmit), `lint` (eslint 9 flat + typescript-eslint), `format` (prettier printWidth 100, LF). `dist/` gitignored; `.gitattributes` forces LF.
+- **Wired so far:** `init`/`ready` hooks, `enabled` + `chatSystemPrompt` world settings, a restricted settings-menu → `NoodlrSettingsApp`, a `getSceneControlButtons` launcher (defensive array/record handling) + `Ctrl+Shift+N` keybinding, both opening the stub `NoodlrChatPanel`. Module API exposed at `game.modules.get("noodlr").api`.
+- All files verified UTF-8/LF. Fresh git repo initialized (branch `main`), first commit landed. GitHub remote not yet created.
+
+Next: Phase 1 (provider layer + streaming Chat MVP).
+
 ## Open decisions / risks
 
-- Foundry version target and ApplicationV2 migration status — verify at Phase 0.
 - Lorebook storage shape (world-scoped JournalEntry vs module setting vs flat file in world data) — decide in Phase 3.
 - Multi-GM/assistant-GM permissions model for Chronicle review and silo resets.
 - `noodlr.app` domain not yet acquired/configured; release hosting currently via `math.secretdoor.app`.
