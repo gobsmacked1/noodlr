@@ -3,8 +3,11 @@
 import { MODULE_ID, MENUS, SETTINGS, log } from "./constants";
 import { NoodlrSettingsApp } from "./apps/settings-app";
 import { NoodlrMemoryApp } from "./apps/memory-app";
+import { NoodlrLorebookApp } from "./apps/lorebook-app";
+import { NoodlrChronicleApp } from "./apps/chronicle-app";
 import { registerFeatureProviderSettings } from "./providers/config";
 import { registerRagSettings } from "./rag/config";
+import { registerPromptSettings } from "./prompt/settings";
 
 export function registerSettings(): void {
   game.settings.register(MODULE_ID, SETTINGS.enabled, {
@@ -43,6 +46,9 @@ export function registerSettings(): void {
   // Memory (RAG) settings + the dedicated Memory window.
   registerRagSettings();
 
+  // Prompt architecture (lorebook, author's note, post-history, chronicle).
+  registerPromptSettings();
+
   // The dedicated configuration window (a "tab" in the settings sidebar).
   game.settings.registerMenu(MODULE_ID, MENUS.config, {
     name: "NOODLR.Settings.Menu.Name",
@@ -59,6 +65,24 @@ export function registerSettings(): void {
     hint: "NOODLR.Rag.Menu.Hint",
     icon: "fa-solid fa-brain",
     type: NoodlrMemoryApp,
+    restricted: true,
+  });
+
+  game.settings.registerMenu(MODULE_ID, MENUS.lorebook, {
+    name: "NOODLR.Lorebook.Menu.Name",
+    label: "NOODLR.Lorebook.Menu.Label",
+    hint: "NOODLR.Lorebook.Menu.Hint",
+    icon: "fa-solid fa-book",
+    type: NoodlrLorebookApp,
+    restricted: true,
+  });
+
+  game.settings.registerMenu(MODULE_ID, MENUS.chronicle, {
+    name: "NOODLR.Chronicle.Menu.Name",
+    label: "NOODLR.Chronicle.Menu.Label",
+    hint: "NOODLR.Chronicle.Menu.Hint",
+    icon: "fa-solid fa-scroll",
+    type: NoodlrChronicleApp,
     restricted: true,
   });
 

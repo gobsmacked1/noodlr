@@ -3,11 +3,12 @@
 // application (Providers, Memory/RAG, Prompts, TTS, Image, Transcription) grows from
 // here in later phases.
 
-import { MODULE_ID, MODULE_TITLE, SETTINGS } from "../constants";
+import { MODULE_ID, MODULE_TITLE, SETTINGS, DEFAULT_COMBAT_REMINDER } from "../constants";
 import { DM_SYSTEM_PROMPT, SYSTEM_PROMPT_MAX_LENGTH } from "../prompts/dm-system-prompt";
 import { getFeatureConfig } from "../providers/config";
 import { chatCompletion, ChatClientError } from "../providers/chat-client";
 import { isConfigured } from "../providers/types";
+import { getAuthorNote, getCombatReminder, getPostHistory } from "../prompt/settings";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -49,6 +50,9 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       systemPrompt: override.trim().length > 0 ? override : DM_SYSTEM_PROMPT,
       usingDefault: override.trim().length === 0,
       maxLength: SYSTEM_PROMPT_MAX_LENGTH,
+      authorNote: getAuthorNote(),
+      postHistory: getPostHistory(),
+      combatReminder: getCombatReminder(),
     };
   }
 
@@ -63,6 +67,24 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     // Storing empty means "use the built-in default"; collapse an unmodified default too.
     const toStore = trimmed.trim() === DM_SYSTEM_PROMPT.trim() ? "" : trimmed;
     await game.settings.set(MODULE_ID, SETTINGS.chatSystemPrompt, toStore);
+
+    await game.settings.set(
+      MODULE_ID,
+      SETTINGS.authorNote,
+      String(formData.object.authorNote ?? ""),
+    );
+    await game.settings.set(
+      MODULE_ID,
+      SETTINGS.postHistory,
+      String(formData.object.postHistory ?? ""),
+    );
+    const reminder = String(formData.object.combatReminder ?? "").trim();
+    await game.settings.set(
+      MODULE_ID,
+      SETTINGS.combatReminder,
+      reminder.length > 0 ? reminder : DEFAULT_COMBAT_REMINDER,
+    );
+
     ui.notifications?.info(game.i18n.localize("NOODLR.Settings.Saved"));
     this.render();
   }

@@ -1,0 +1,38 @@
+{{! Noodlr Chronicle review queue. }}
+<section class="noodlr-chronicle">
+  <header class="noodlr-chronicle__header">
+    <i class="fa-solid fa-scroll"></i>
+    <h2>{{localize "NOODLR.Chronicle.Title"}}</h2>
+  </header>
+
+  <p class="notes">{{localize "NOODLR.Chronicle.Intro"}}</p>
+
+  {{#if hasItems}}
+    <ul class="noodlr-chronicle__list">
+      {{#each items}}
+        <li class="noodlr-chronicle__item">
+          <div class="noodlr-chronicle__fact">{{this.text}}</div>
+          <div class="noodlr-chronicle__meta">{{this.when}}</div>
+          <div class="noodlr-chronicle__controls">
+            <button type="button" data-action="promoteLorebook" data-id="{{this.id}}">
+              <i class="fa-solid fa-book"></i> {{localize "NOODLR.Chronicle.ToLorebook"}}
+            </button>
+            <select name="silo-{{this.id}}">
+              {{#each ../siloOptions}}
+                <option value="{{this.id}}">{{this.id}}</option>
+              {{/each}}
+            </select>
+            <button type="button" data-action="ingestEvent" data-id="{{this.id}}">
+              <i class="fa-solid fa-database"></i> {{localize "NOODLR.Chronicle.ToMemory"}}
+            </button>
+            <button type="button" class="noodlr-danger" data-action="dismiss" data-id="{{this.id}}">
+              <i class="fa-solid fa-xmark"></i> {{localize "NOODLR.Chronicle.Dismiss"}}
+            </button>
+          </div>
+        </li>
+      {{/each}}
+    </ul>
+  {{else}}
+    <p>{{localize "NOODLR.Chronicle.Empty"}}</p>
+  {{/if}}
+</section>

@@ -28,11 +28,30 @@
       <button type="button" data-action="testConnection">
         <i class="fa-solid fa-plug"></i> {{localize "NOODLR.Settings.TestConnection"}}
       </button>
-      <button type="submit">
-        <i class="fa-solid fa-floppy-disk"></i> {{localize "NOODLR.Settings.Save"}}
-      </button>
     </div>
   </fieldset>
+
+  <fieldset class="noodlr-settings__section">
+    <legend>{{localize "NOODLR.Settings.ContextLegend"}}</legend>
+
+    <label class="noodlr-settings__label">{{localize "NOODLR.Prompt.AuthorNote.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Prompt.AuthorNote.Hint"}}</p>
+    <textarea name="authorNote" class="noodlr-settings__block" rows="3" spellcheck="true">{{authorNote}}</textarea>
+
+    <label class="noodlr-settings__label">{{localize "NOODLR.Prompt.PostHistory.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Prompt.PostHistory.Hint"}}</p>
+    <textarea name="postHistory" class="noodlr-settings__block" rows="3" spellcheck="true">{{postHistory}}</textarea>
+
+    <label class="noodlr-settings__label">{{localize "NOODLR.Prompt.CombatReminder.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Prompt.CombatReminder.Hint"}}</p>
+    <textarea name="combatReminder" class="noodlr-settings__block" rows="3" spellcheck="true">{{combatReminder}}</textarea>
+  </fieldset>
+
+  <div class="noodlr-settings__actions">
+    <button type="submit">
+      <i class="fa-solid fa-floppy-disk"></i> {{localize "NOODLR.Settings.Save"}}
+    </button>
+  </div>
 
   <p class="noodlr-settings__note">{{localize "NOODLR.Settings.PhaseNote"}}</p>
 </section>

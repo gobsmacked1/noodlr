@@ -212,3 +212,99 @@
 .noodlr-danger {
   color: #a11;
 }
+
+/* ---- Settings extra blocks ---- */
+.noodlr-settings__label {
+  display: block;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.noodlr-settings__block {
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  resize: vertical;
+}
+
+/* ---- Lorebook window ---- */
+.noodlr-lorebook {
+  padding: 0.75rem;
+  overflow-y: auto;
+}
+
+.noodlr-lorebook__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.noodlr-lorebook__header button {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.noodlr-lorebook__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.noodlr-lorebook__table th,
+.noodlr-lorebook__table td {
+  text-align: left;
+  padding: 0.2rem 0.4rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  vertical-align: middle;
+}
+
+.noodlr-lorebook__table tr.is-disabled {
+  opacity: 0.5;
+}
+
+.noodlr-lorebook__actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.noodlr-lorebook-editor .form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
+}
+
+/* ---- Chronicle window ---- */
+.noodlr-chronicle {
+  padding: 0.75rem;
+  overflow-y: auto;
+}
+
+.noodlr-chronicle__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.noodlr-chronicle__item {
+  border: 1px solid var(--color-border-light-tertiary, #666);
+  border-radius: 4px;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.noodlr-chronicle__fact {
+  font-weight: 500;
+}
+
+.noodlr-chronicle__meta {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  margin: 0.2rem 0;
+}
+
+.noodlr-chronicle__controls {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+}

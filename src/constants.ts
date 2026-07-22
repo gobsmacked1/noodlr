@@ -12,13 +12,38 @@ export const SETTINGS = {
   chatSystemPrompt: "chatSystemPrompt",
   /** After a turn with dice rolls, auto-continue once so the DM reacts to results. */
   chatContinueAfterRoll: "chatContinueAfterRoll",
+
+  // --- Prompt architecture (Phase 3) ---
+  /** Author's-note text: a session anchor injected at a configurable depth. */
+  authorNote: "authorNote",
+  /** How many messages from the end the author's note is injected before. */
+  authorNoteDepth: "authorNoteDepth",
+  /** Post-history instructions: a short always-last injection slot. */
+  postHistory: "postHistory",
+  /** The 2-line combat reminder swapped into post-history while combat is active. */
+  combatReminder: "combatReminder",
+  /** Overall context token budget for the assembled prompt. */
+  contextTokenBudget: "contextTokenBudget",
+  /** Auto-parse 📜 Chronicle lines from DM output into the review queue. */
+  chronicleAutoParse: "chronicleAutoParse",
+  /** Persisted lorebook entries (JSON array; world-scoped). */
+  lorebook: "lorebook",
+  /** Persisted Chronicle review queue (JSON array; world-scoped). */
+  chronicleQueue: "chronicleQueue",
 } as const;
 
 /** Settings-menu keys (open dedicated ApplicationV2 config windows). */
 export const MENUS = {
   config: "noodlrConfig",
   memory: "noodlrMemory",
+  lorebook: "noodlrLorebook",
+  chronicle: "noodlrChronicle",
 } as const;
+
+/** Default 2-line combat reminder (post-history) — see the DM prompt design notes. */
+export const DEFAULT_COMBAT_REMINDER =
+  "COMBAT ACTIVE — review the latest ⚔️ tracker block, rebuild it every turn with arithmetic shown inline, and track HP, conditions, and resources exactly.\n" +
+  "Player characters can die; honor fair outcomes and never fudge dice or soften failure.";
 
 /** RAG (noodlr-memory) settings keys. */
 export const RAG_SETTINGS = {

@@ -7,12 +7,16 @@ import { registerSettings } from "./settings";
 import { NoodlrChatPanel } from "./apps/chat-panel";
 import { NoodlrSettingsApp } from "./apps/settings-app";
 import { NoodlrMemoryApp } from "./apps/memory-app";
+import { NoodlrLorebookApp } from "./apps/lorebook-app";
+import { NoodlrChronicleApp } from "./apps/chronicle-app";
 
 /** Public surface other code (macros, console, future features) can call. */
 export interface NoodlrApi {
   openChat(): void;
   openSettings(): void;
   openMemory(): void;
+  openLorebook(): void;
+  openChronicle(): void;
 }
 
 const api: NoodlrApi = {
@@ -24,6 +28,12 @@ const api: NoodlrApi = {
   },
   openMemory: () => {
     new NoodlrMemoryApp().render({ force: true });
+  },
+  openLorebook: () => {
+    new NoodlrLorebookApp().render({ force: true });
+  },
+  openChronicle: () => {
+    new NoodlrChronicleApp().render({ force: true });
   },
 };
 

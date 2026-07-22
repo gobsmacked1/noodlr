@@ -233,7 +233,19 @@ Memory/RAG integration built against the live noodlr-memory HTTP contract (read 
 
 Known gaps: silo-status counts depend on the service's `stats()` shape (rendered defensively); scene-aware silo selection is still a fixed default set; retrieved block is injected at top rather than lorebook-style positioned (Phase 3); no in-Foundry/live-service test yet.
 
-Next: Phase 3 (SillyTavern-informed prompt architecture).
+## Phase 3 status (completed 2026-07-22)
+
+SillyTavern-informed prompt architecture. Lorebook storage decision: **world-scoped module setting holding a JSON array** (`type: Array`), synchronously readable at assembly time; revisit if lorebooks grow large. Not yet smoke-tested in Foundry.
+
+- **Context assembler** (`src/prompt/assembler.ts`): single ordered payload — system prompt · top lorebook · RAG · Foundry state (Phase 5 hook) · [history + author's note at depth] · bottom lorebook · post-history. One token budget (`contextTokenBudget`, default 12000, ~4ch/token via `util/tokens.ts`); history trimmed oldest-first to fit fixed blocks. Replaces the ad-hoc payload in `conversation.ts`.
+- **Lorebook** (`prompt/lorebook.ts` + `apps/lorebook-app.ts`): keyword (plaintext or `/regex/flags`) + constant activation, position top/bottom, order, enabled. CRUD via a DialogV2 single-entry editor. Vector activation is a stored flag, not yet wired.
+- **Author's note / post-history / combat reminder**: edited in the settings window (textareas); depth + context budget + chronicle toggle are native settings. Combat reminder auto-swaps into the post-history slot when `game.combat?.started` (computed at assembly time — no hooks needed).
+- **Chronicle pipeline** (`prompt/chronicle.ts` + `apps/chronicle-app.ts`): parses `📜 Chronicle:` lines from DM output into a world-scoped review queue; GM promotes to a lorebook entry and/or ingests as a `kind:"event"` memory (importance/entities/ts) into a chosen silo, or dismisses. Capture runs after each assistant turn (toggle `chronicleAutoParse`).
+- New settings menus: "Edit Lorebook", "Review Chronicle". API: `openLorebook()`, `openChronicle()`.
+
+Known gaps: no vector-activated lorebook entries yet; author's note/post-history are plain text (no per-entry token budgets beyond the global one); FormDataExtended path in the lorebook editor is defensive but unverified in v14; no in-Foundry test.
+
+Next: Phase 4 (media — TTS, Image, push-to-log transcription).
 
 ## Open decisions / risks
 

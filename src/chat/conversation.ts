@@ -6,13 +6,14 @@ import { MODULE_ID, SETTINGS } from "../constants";
 import { getFeatureConfig } from "../providers/config";
 import { ChatClientError, streamChatCompletion } from "../providers/chat-client";
 import { type ChatMessage, isConfigured } from "../providers/types";
-import { getEffectiveChatSystemPrompt } from "./system-prompt";
 import {
   type ResolvedRoll,
   formatRollResultsForModel,
   resolveRollMacros,
 } from "../dice/roll-macros";
 import { retrieveContext } from "../rag/retrieval";
+import { assemblePrompt } from "../prompt/assembler";
+import { captureChronicle } from "../prompt/chronicle";
 
 export interface SendHooks {
   /** Display name of the speaker (maps to a Foundry user). */
@@ -62,11 +63,11 @@ export class Conversation {
     let continuations = 0;
 
     for (;;) {
-      const payload: ChatMessage[] = [
-        { role: "system", content: getEffectiveChatSystemPrompt() },
-        ...(ragBlock ? [{ role: "system" as const, content: ragBlock }] : []),
-        ...this.messages,
-      ];
+      const payload = assemblePrompt({
+        history: this.messages,
+        scanText: userText,
+        ragBlock,
+      });
 
       hooks.onAssistantStart?.();
       let raw = "";
@@ -81,6 +82,9 @@ export class Conversation {
       const { text: resolved, rolls } = await resolveRollMacros(raw);
       this.messages.push({ role: "assistant", content: resolved });
       hooks.onAssistantDone?.(resolved, rolls);
+
+      // Anti-amnesia: queue any 📜 Chronicle facts for GM review.
+      await captureChronicle(resolved);
 
       if (rolls.length > 0 && allowContinuation && continuations < MAX_CONTINUATIONS) {
         continuations++;

@@ -1,0 +1,48 @@
+{{! Noodlr Lorebook / World Info manager. }}
+<section class="noodlr-lorebook">
+  <header class="noodlr-lorebook__header">
+    <i class="fa-solid fa-book"></i>
+    <h2>{{localize "NOODLR.Lorebook.Title"}}</h2>
+    <button type="button" data-action="addEntry">
+      <i class="fa-solid fa-plus"></i> {{localize "NOODLR.Lorebook.Add"}}
+    </button>
+  </header>
+
+  <p class="notes">{{localize "NOODLR.Lorebook.Intro"}}</p>
+
+  {{#if entries.length}}
+    <table class="noodlr-lorebook__table">
+      <thead>
+        <tr>
+          <th>{{localize "NOODLR.Lorebook.ColName"}}</th>
+          <th>{{localize "NOODLR.Lorebook.ColKeys"}}</th>
+          <th>{{localize "NOODLR.Lorebook.ColPos"}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each entries}}
+          <tr class="{{#unless this.enabled}}is-disabled{{/unless}}">
+            <td>
+              {{this.name}}
+              {{#if this.constant}}<i class="fa-solid fa-thumbtack" title="constant"></i>{{/if}}
+              {{#unless this.enabled}}<i class="fa-solid fa-eye-slash" title="disabled"></i>{{/unless}}
+            </td>
+            <td><code>{{this.keys}}</code></td>
+            <td>{{this.position}}</td>
+            <td class="noodlr-lorebook__actions">
+              <button type="button" data-action="editEntry" data-id="{{this.id}}" title="{{localize "NOODLR.Lorebook.Edit"}}">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button type="button" class="noodlr-danger" data-action="deleteEntry" data-id="{{this.id}}" title="{{localize "NOODLR.Lorebook.Delete"}}">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <p>{{localize "NOODLR.Lorebook.Empty"}}</p>
+  {{/if}}
+</section>
