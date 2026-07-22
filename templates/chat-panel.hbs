@@ -1,13 +1,13 @@
-{{! Noodlr chat panel — Phase 0 stub. Real streaming chat UI arrives in Phase 1. }}
+{{! Noodlr chat panel. Static shell; bubbles are added imperatively (see chat-panel.ts). }}
 <section class="noodlr-chat">
-  <header class="noodlr-chat__header">
-    <i class="fa-solid fa-dragon"></i>
-    <span>{{localize "NOODLR.ChatPanel.Heading"}}</span>
-  </header>
+  {{#unless configured}}
+    <div class="noodlr-chat__banner">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      {{localize "NOODLR.ChatPanel.NotConfigured"}}
+    </div>
+  {{/unless}}
 
-  <div class="noodlr-chat__log" data-role="log">
-    <p class="noodlr-chat__placeholder">{{localize "NOODLR.ChatPanel.Placeholder"}}</p>
-  </div>
+  <div class="noodlr-chat__log" data-role="log"></div>
 
   <footer class="noodlr-chat__composer">
     <textarea
@@ -16,7 +16,7 @@
       placeholder="{{localize "NOODLR.ChatPanel.InputPlaceholder"}}"
       disabled
     ></textarea>
-    <button type="button" disabled>
+    <button type="button" data-role="send" title="{{localize "NOODLR.ChatPanel.Send"}}" disabled>
       <i class="fa-solid fa-paper-plane"></i>
     </button>
   </footer>

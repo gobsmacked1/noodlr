@@ -10,6 +10,8 @@ export const SETTINGS = {
   enabled: "enabled",
   /** Chat feature system-prompt override (the DM prompt is the default). */
   chatSystemPrompt: "chatSystemPrompt",
+  /** After a turn with dice rolls, auto-continue once so the DM reacts to results. */
+  chatContinueAfterRoll: "chatContinueAfterRoll",
 } as const;
 
 /** Settings-menu keys (open dedicated ApplicationV2 config windows). */

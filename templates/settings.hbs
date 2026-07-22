@@ -1,18 +1,38 @@
-{{! Noodlr settings window — Phase 0 stub. Tabbed provider/memory/prompt config later. }}
+{{! Noodlr settings window (form). Chat system-prompt editor + provider test. }}
 <section class="noodlr-settings">
   <header class="noodlr-settings__header">
     <i class="fa-solid fa-dragon"></i>
     <h2>{{moduleTitle}} — {{localize "NOODLR.Settings.Title"}}</h2>
+    <span class="noodlr-settings__version">v{{version}}</span>
   </header>
 
   <p class="noodlr-settings__intro">{{localize "NOODLR.Settings.Intro"}}</p>
 
-  <dl class="noodlr-settings__status">
-    <dt>{{localize "NOODLR.Settings.Version"}}</dt>
-    <dd>{{version}}</dd>
-    <dt>{{localize "NOODLR.Settings.Enabled.Name"}}</dt>
-    <dd>{{#if enabled}}✓{{else}}✕{{/if}}</dd>
-  </dl>
+  <fieldset class="noodlr-settings__section">
+    <legend>{{localize "NOODLR.Settings.ChatPromptLegend"}}</legend>
+    <p class="notes">
+      {{localize "NOODLR.Settings.ChatPromptHint"}}
+      {{#if usingDefault}}<em>({{localize "NOODLR.Settings.UsingDefault"}})</em>{{/if}}
+    </p>
+    <textarea
+      name="systemPrompt"
+      class="noodlr-settings__prompt"
+      rows="18"
+      maxlength="{{maxLength}}"
+      spellcheck="true"
+    >{{systemPrompt}}</textarea>
+    <div class="noodlr-settings__actions">
+      <button type="button" data-action="resetPrompt">
+        <i class="fa-solid fa-rotate-left"></i> {{localize "NOODLR.Settings.ResetPrompt"}}
+      </button>
+      <button type="button" data-action="testConnection">
+        <i class="fa-solid fa-plug"></i> {{localize "NOODLR.Settings.TestConnection"}}
+      </button>
+      <button type="submit">
+        <i class="fa-solid fa-floppy-disk"></i> {{localize "NOODLR.Settings.Save"}}
+      </button>
+    </div>
+  </fieldset>
 
   <p class="noodlr-settings__note">{{localize "NOODLR.Settings.PhaseNote"}}</p>
 </section>

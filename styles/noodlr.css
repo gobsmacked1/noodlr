@@ -1,5 +1,6 @@
-/* Noodlr — minimal styling for the Phase 0 stubs. */
+/* Noodlr — styling for the chat panel and settings window. */
 
+/* ---- Chat panel ---- */
 .noodlr-chat {
   display: flex;
   flex-direction: column;
@@ -8,24 +9,73 @@
   padding: 0.5rem;
 }
 
-.noodlr-chat__header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
+.noodlr-chat__banner {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #b58900;
+  background: rgba(181, 137, 0, 0.15);
+  border-radius: 4px;
+  font-size: 0.85rem;
 }
 
 .noodlr-chat__log {
   flex: 1;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   border: 1px solid var(--color-border-light-tertiary, #666);
   border-radius: 4px;
   padding: 0.5rem;
 }
 
-.noodlr-chat__placeholder {
+.noodlr-chat__msg {
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.noodlr-chat__msg--user {
+  background: rgba(70, 130, 180, 0.12);
+  align-self: flex-end;
+  max-width: 85%;
+}
+
+.noodlr-chat__msg--assistant {
+  background: rgba(0, 0, 0, 0.06);
+  max-width: 95%;
+}
+
+.noodlr-chat__msg--error {
+  background: rgba(200, 40, 40, 0.12);
+  border: 1px solid rgba(200, 40, 40, 0.5);
+}
+
+.noodlr-chat__author {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   opacity: 0.7;
-  font-style: italic;
+  margin-bottom: 0.15rem;
+}
+
+.noodlr-chat__body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.noodlr-chat__body p {
+  margin: 0 0 0.5rem;
+}
+
+.noodlr-chat__body p:last-child {
+  margin-bottom: 0;
+}
+
+.noodlr-chat__body code {
+  background: rgba(0, 0, 0, 0.12);
+  padding: 0 0.2em;
+  border-radius: 3px;
 }
 
 .noodlr-chat__composer {
@@ -38,13 +88,19 @@
   resize: vertical;
 }
 
+.noodlr-chat__composer button {
+  flex: 0 0 auto;
+  width: 3rem;
+}
+
 .noodlr-chat__version {
   margin: 0;
   text-align: right;
-  font-size: 0.75rem;
-  opacity: 0.6;
+  font-size: 0.7rem;
+  opacity: 0.5;
 }
 
+/* ---- Settings window ---- */
 .noodlr-settings {
   padding: 0.75rem;
 }
@@ -55,18 +111,35 @@
   gap: 0.5rem;
 }
 
-.noodlr-settings__status {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.25rem 1rem;
-  margin: 0.75rem 0;
+.noodlr-settings__version {
+  margin-left: auto;
+  font-size: 0.75rem;
+  opacity: 0.6;
 }
 
-.noodlr-settings__status dt {
-  font-weight: 600;
+.noodlr-settings__section {
+  margin: 0.75rem 0;
+  border: 1px solid var(--color-border-light-tertiary, #666);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+}
+
+.noodlr-settings__prompt {
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  resize: vertical;
+}
+
+.noodlr-settings__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
 }
 
 .noodlr-settings__note {
   opacity: 0.7;
   font-style: italic;
+  font-size: 0.85rem;
 }

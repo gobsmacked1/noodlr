@@ -2,11 +2,24 @@
 
 import { MODULE_ID, MENUS, SETTINGS, log } from "./constants";
 import { NoodlrSettingsApp } from "./apps/settings-app";
+import { registerFeatureProviderSettings } from "./providers/config";
 
 export function registerSettings(): void {
   game.settings.register(MODULE_ID, SETTINGS.enabled, {
     name: "NOODLR.Settings.Enabled.Name",
     hint: "NOODLR.Settings.Enabled.Hint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
+  // Chat provider (OpenRouter / custom OpenAI-compatible). Shown in native settings.
+  registerFeatureProviderSettings("chat");
+
+  game.settings.register(MODULE_ID, SETTINGS.chatContinueAfterRoll, {
+    name: "NOODLR.Settings.ChatContinueAfterRoll.Name",
+    hint: "NOODLR.Settings.ChatContinueAfterRoll.Hint",
     scope: "world",
     config: true,
     type: Boolean,
