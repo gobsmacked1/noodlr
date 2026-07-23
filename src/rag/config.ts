@@ -19,7 +19,16 @@ export function registerRagSettings(): void {
     ...worldStr,
     default: "http://127.0.0.1:3010",
   });
-  game.settings.register(MODULE_ID, S.secret, { ...worldStr, default: "" });
+  // Client scope (NOT world): the shared secret lives only on the GM's own client and is
+  // never synced to player browsers. Only the GM talks to noodlr-memory (see retrieval.ts),
+  // so each GM/assistant-GM enters the secret once on their machine. World-scoped settings are
+  // broadcast to every client — a secret must never be one.
+  game.settings.register(MODULE_ID, S.secret, {
+    scope: "client" as const,
+    config: false,
+    type: String,
+    default: "",
+  });
   game.settings.register(MODULE_ID, S.hybrid, { ...worldBool, default: true });
   game.settings.register(MODULE_ID, S.agentMode, { ...worldBool, default: false });
   game.settings.register(MODULE_ID, S.sendEmbedConfig, { ...worldBool, default: false });

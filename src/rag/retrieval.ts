@@ -28,6 +28,10 @@ let offlineNotified = false;
  */
 export async function retrieveContext(query: string, signal?: AbortSignal): Promise<string | null> {
   if (!isRagEnabled()) return null;
+  // GM-only gate: memory is a GM-gated resource. Only the GM's client ever contacts
+  // noodlr-memory, so the shared secret stays off player machines and shared chat isn't
+  // written N times over. A player-initiated generation simply runs without a memory block.
+  if (!game.user?.isGM) return null;
   const trimmed = query.trim();
   if (!trimmed) return null;
 
