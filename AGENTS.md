@@ -97,7 +97,7 @@ Standalone Node >= 20 HTTP service; the module talks to it over HTTP only.
 What it provides:
 
 - **Per-purpose collections (silos), each independently resettable:** `chat`, `lore`, `rules`, `sheets`, `npc_state`, `factions`, `scenes`, `quests`, `docs`. Rationale: a table recovering from story breakage resets one aspect (e.g. `npc_state`) instead of wiping and re-ingesting the whole world.
-- **Pluggable vector backends:** `vectra` (file-based, zero-setup), `chroma`, `qdrant` (env `VECTOR_BACKEND`).
+- **Pluggable vector backends:** `lancedb` (embedded Node SDK, **default** as of 2026-07-23), `vectra` (file-based), `qdrant`, `chroma` (env `VECTOR_BACKEND`).
 - **Embedding providers:** `openrouter` (default model `perplexity/pplx-embed-v1-4b`), `custom` (any OpenAI-compatible `/v1/embeddings` — Ollama/vLLM/llama.cpp/LM Studio), `transformers` (fully in-process, no server/key), `mock` (offline tests). Local and remote embeddings are both first-class.
 - **Prose/table-aware chunker:** roll tables and stat blocks stay atomic (RPG sources are not novels; naive chunking is immersion-breaking). `kind:"event"` docs are atomic.
 - **Hybrid retrieval:** dense + BM25 sparse fused by Reciprocal Rank Fusion; re-ranked by `importance` + `recency`; multi-query (Agent Mode) fusion with entity soft-boosting.
@@ -287,6 +287,60 @@ Packaging done and shipped to GitHub. Version stays 0.1.0 (pre-parity, pre-smoke
 - **Cursor agent worker:** runs as user `cursorbot` under systemd unit `cursor-worker.service` (name `noodlr-cursorbot`, workerId `afb4e5c1-...`), survives reboot (verified). Its serving directory is **`/opt`**, so a Cloud Agent driving this worker has `/opt` as workspace root. Drive it from cursor.com/agents, not from this chat.
 - Give the worker scoped power to bounce Foundry via a sudoers drop-in (`cursorbot ALL=(root) NOPASSWD: /usr/bin/systemctl {start,stop,restart,status} foundryvtt`).
 
+## First smoke-test feedback + fixes (2026-07-23) — v0.1.1 & v0.2.0
+
+User installed v0.1.0 in a live Foundry world and filed an issues log. Two releases cut:
+
+**v0.1.1 — critical functional fixes (the core loop now works):**
+- **Chat responses were never rendered.** Root cause in `src/providers/chat-client.ts`: the SSE
+  reader only split frames on `\n\n` (missed `\r\n\r\n` from proxies) so everything fell to the
+  end-of-stream flush, which then hit `data: [DONE]` and `return`ed — discarding all accumulated
+  text. Rewrote the parser (CRLF-normalized; `[DONE]` no longer eats content) + added a
+  non-`event-stream` JSON fallback for custom servers that ignore `stream:true`. This also fixed
+  Test Connection showing nothing.
+- **Scene-control dragon icon missing.** v13/v14 `getSceneControlButtons` gives a
+  `Record<string, SceneControl>`; a custom group MUST set `activeTool`, tools need `order`, and
+  the callback is `onChange` (not the removed `onClick`). Old code used `onClick` + the v12 array
+  shape and buried tools under Token controls. Now Noodlr is its own top-level group (dragon) with
+  Chat / Scene Art (GM) / Run NPC Turn (GM). `openChat` reuses the existing panel instance.
+- **Windows ran off-screen.** Global CSS caps every `.application.noodlr` to the viewport with
+  `overflow:auto` on `.window-content`.
+
+**v0.2.0 — configuration UX overhaul:**
+- **All provider/media/RAG settings moved out of Foundry's native settings list to `config:false`**
+  and rendered in our own windows. This removed the anonymous, repeated "Provider/URL/key/model"
+  rows and the native unmasked-key text field.
+- **API keys + RAG secret are write-only in the DOM.** `getProviderView`/`hasKey` never send the
+  stored key to the browser; fields show a "saved" placeholder and only overwrite when a new value
+  is typed (`saveProviderFromForm`, `saveRagSecret`; `apiKeyClear`/`secretClear` to wipe).
+  Residual limitation: a GM client can still read the raw world setting via console —
+  proper fix (proxy provider calls through noodlr-memory so the browser never holds keys) is a
+  deferred decision, noted below.
+- **Main config grouped by feature** (Chat / TTS / Image / Transcription), each Provider→Model→
+  (custom URL)→Key, with layman "what / needs / if skipped" help on every field (`NOODLR.Feature.*`,
+  `NOODLR.Help.*`). Added the missing **image positive/style prompt** (`image.positive`, prepended
+  before the subject in `media/image.ts`); grouped the TTS base URL with TTS; removed the redundant
+  `enabled` module setting.
+- **Live OpenRouter model list** via public `GET /models` (no key needed) → `<datalist>`
+  (`src/providers/models.ts`, wired by `src/apps/provider-ui.ts`). Custom endpoints keep free-text.
+- **New consolidated "Memory & Knowledge" window** (`memory-config-app.ts` + `memory-config.hbs`,
+  menu `MENUS.memory`): service URL + write-only secret, hybrid/Agent-Mode, embeddings block,
+  transcript ingestion, and buttons opening Manage Memory / Lorebook / Chronicle. The separate
+  lorebook/chronicle sidebar menus were removed (reachable from here + the module API).
+- Form save robustness: both handlers wrap `formData.object` in `foundry.utils.expandObject` so
+  dotted field names (`chat.provider`) nest regardless of FormDataExtended version behavior.
+
+**noodlr-memory: LanceDB is now the default backend.** User chose LanceDB over Chroma/Qdrant and
+stood up a Python FastAPI+LanceDB PoC (`/opt/lancedb_app/main.py` → `/opt/lancedb_data`); they did
+not want a Python client as the interface. So we **embedded LanceDB inside noodlr-memory via the
+official `@lancedb/lancedb` Node SDK** — the service now owns the Lance directory directly and the
+Python PoC is retired. New `src/stores/lance-store.js` (one table per collection, metadata as a
+JSON column for a stable Arrow schema, cosine distance, per-table write serialization);
+`VECTOR_BACKEND=lancedb` default; `LANCEDB_URI` (default `<DATA_DIR>/lancedb`, set to
+`/opt/lancedb_data`). Validated against the real native module (a 12-check smoke run + a new
+`test/lance.test.js`; full suite 14/14 green on this Windows host). **Only one process may write a
+LanceDB dir** — the Python server must be stopped.
+
 ## Cross-phase note: nothing has been run inside Foundry yet
 
 All six phases are validated only via `tsc --noEmit`, `eslint`, `esbuild`, prettier, a
@@ -303,3 +357,5 @@ DialogV2, MediaRecorder cycling, and the socket relay are the highest-risk unver
 - Multi-GM/assistant-GM permissions model for Chronicle review and silo resets.
 - `noodlr.app` domain not yet acquired/configured; git + releases now hosted on `github.com/gobsmacked1` (see Phase 6 status). Revisit if a self-hosted forge / custom domain is preferred.
 - Safety tooling (lines-and-veils / X-card equivalent) is *not* in the DM prompt; decide whether it becomes a module feature or stays a Session-Zero practice.
+- **API-key exposure (deferred hardening):** keys are write-only in the DOM (v0.2.0), but a GM client can still read the raw world setting via console. True isolation would proxy all provider calls through `noodlr-memory` so the browser never holds keys — bigger change; decide if/when worth it.
+- **LanceDB single-writer:** noodlr-memory must be the sole writer of `LANCEDB_URI`. The user's Python FastAPI PoC (`/opt/lancedb_app`) against `/opt/lancedb_data` must be stopped/retired before pointing the service there.
