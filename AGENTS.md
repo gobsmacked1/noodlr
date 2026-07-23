@@ -287,6 +287,20 @@ Packaging done and shipped to GitHub. Version stays 0.1.0 (pre-parity, pre-smoke
 - **Cursor agent worker:** runs as user `cursorbot` under systemd unit `cursor-worker.service` (name `noodlr-cursorbot`, workerId `afb4e5c1-...`), survives reboot (verified). Its serving directory is **`/opt`**, so a Cloud Agent driving this worker has `/opt` as workspace root. Drive it from cursor.com/agents, not from this chat.
 - Give the worker scoped power to bounce Foundry via a sudoers drop-in (`cursorbot ALL=(root) NOPASSWD: /usr/bin/systemctl {start,stop,restart,status} foundryvtt`).
 
+## Second smoke-test round (2026-07-23) — v0.2.1 & v0.2.2
+
+- **v0.2.1:** GM-gated memory + client-scope RAG secret (see Open decisions). noodlr-memory gained
+  an optional Unix-socket listener (`NOODLR_MEMORY_SOCKET`) for nginx reverse-proxy deploys.
+- **v0.2.2:** Added a **Test voice output** control under the TTS section (140-char input; inline
+  status line reports success/HTTP error, and specifically calls out the fetch `TypeError` case as
+  the browser-origin trap — mixed content HTTPS→HTTP, missing CORS, or unreachable). Same
+  browser-origin lesson as memory/TTS: the module's `fetch` runs client-side, so a *local* TTS
+  endpoint that "works on its own" often fails from an HTTPS Foundry page; put it behind the reverse
+  proxy. **Standing suspicion when users report "chat doesn't render / no dragon icon": stale
+  install.** Both were fixed in v0.1.1 and the current scene-controls code matches the v13 API
+  example verbatim; symptom set (mic present, no dragon, no chat) == running v0.1.0. Always confirm
+  the loaded module version first.
+
 ## First smoke-test feedback + fixes (2026-07-23) — v0.1.1 & v0.2.0
 
 User installed v0.1.0 in a live Foundry world and filed an issues log. Two releases cut:

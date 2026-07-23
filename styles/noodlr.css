@@ -425,3 +425,47 @@
 .noodlr-scene-art img {
   display: block;
 }
+
+/* Inline "input + button" row (e.g. the Test TTS control). */
+.noodlr-inline-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.noodlr-inline-controls input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.noodlr-inline-controls button {
+  flex: 0 0 auto;
+}
+
+/* Dynamic status line under an inline test control. Empty until a test runs. */
+.noodlr-test-status {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  min-height: 1em;
+}
+
+.noodlr-test-status:empty {
+  display: none;
+}
+
+.noodlr-test-status--pending {
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.noodlr-test-status--ok {
+  color: #2e7d32;
+}
+
+.noodlr-test-status--warn {
+  color: #b26a00;
+}
+
+.noodlr-test-status--error {
+  color: #b00020;
+}

@@ -23,7 +23,8 @@ import {
   type ProviderFormData,
 } from "../providers/config";
 import { chatCompletion, ChatClientError } from "../providers/chat-client";
-import { isConfigured } from "../providers/types";
+import { isConfigured, resolveBaseUrl } from "../providers/types";
+import { synthesizeSpeech, TtsError } from "../media/tts";
 import { getImageParams, getTtsEnabled, getTtsVoice, getTtsAutoRead } from "../media/config";
 import { getPushToLogConfig } from "../media/config";
 import { getAuthorNote, getCombatReminder, getPostHistory } from "../prompt/settings";
@@ -55,6 +56,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     actions: {
       resetPrompt: NoodlrSettingsApp.#onResetPrompt,
       testConnection: NoodlrSettingsApp.#onTestConnection,
+      testTts: NoodlrSettingsApp.#onTestTts,
     },
   };
 
@@ -225,6 +227,58 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     } catch (err) {
       const msg = err instanceof ChatClientError ? err.message : String(err);
       ui.notifications?.error(game.i18n.format("NOODLR.Settings.TestFail", { error: msg }));
+    }
+  }
+
+  /**
+   * Synthesize a short phrase with the SAVED TTS config and report the outcome inline under
+   * the field. TTS breaks in ways the provider can't tell you about from the browser — a
+   * local endpoint that "works on its own" often fails here on mixed content (HTTPS page ->
+   * HTTP endpoint) or CORS, so we detect the tell-tale fetch TypeError and explain it.
+   */
+  static async #onTestTts(this: NoodlrSettingsApp): Promise<void> {
+    const root = this.#root();
+    const statusEl = root?.querySelector<HTMLElement>('[data-role="tts-test-status"]');
+    const input = root?.querySelector<HTMLInputElement>('[data-role="tts-test-input"]');
+    const setStatus = (kind: "pending" | "ok" | "warn" | "error", msg: string) => {
+      if (!statusEl) return;
+      statusEl.className = `noodlr-test-status noodlr-test-status--${kind}`;
+      statusEl.textContent = msg;
+    };
+
+    const cfg = getFeatureConfig("tts");
+    if (!isConfigured(cfg)) {
+      setStatus("warn", game.i18n.localize("NOODLR.Media.TtsTest.NotConfigured"));
+      return;
+    }
+
+    const text =
+      (input?.value ?? "").trim().slice(0, 140) ||
+      game.i18n.localize("NOODLR.Media.TtsTest.Sample");
+    const endpoint = `${resolveBaseUrl(cfg)}/audio/speech`;
+    setStatus("pending", game.i18n.format("NOODLR.Media.TtsTest.Working", { endpoint }));
+
+    try {
+      const blob = await synthesizeSpeech(text);
+      const kb = Math.max(1, Math.round(blob.size / 1024));
+      // Play it so the audio path is exercised end-to-end too.
+      const objectUrl = URL.createObjectURL(blob);
+      const audio = new Audio(objectUrl);
+      audio.addEventListener("ended", () => URL.revokeObjectURL(objectUrl));
+      void audio.play().catch(() => URL.revokeObjectURL(objectUrl));
+      setStatus(
+        "ok",
+        game.i18n.format("NOODLR.Media.TtsTest.Ok", { kb, type: blob.type || "audio" }),
+      );
+    } catch (err) {
+      if (err instanceof TtsError) {
+        setStatus("error", err.message);
+      } else if (err instanceof TypeError) {
+        // fetch() rejects with TypeError for CORS / mixed-content / DNS / connection refused.
+        setStatus("error", game.i18n.format("NOODLR.Media.TtsTest.Network", { endpoint }));
+      } else {
+        setStatus("error", String(err));
+      }
     }
   }
 }

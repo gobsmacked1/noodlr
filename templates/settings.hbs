@@ -120,6 +120,21 @@
       {{localize "NOODLR.Media.TtsAutoRead.Name"}}
     </label>
     <p class="notes">{{localize "NOODLR.Media.TtsAutoRead.Hint"}}</p>
+
+    {{! Inline self-test: synthesize a short phrase and report result/error right here. The
+        input uses data-role (not name) so the test text is never persisted with the form. }}
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.TtsTest.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.TtsTest.Hint"}}</p>
+      <div class="noodlr-inline-controls">
+        <input type="text" data-role="tts-test-input" maxlength="140"
+          placeholder="{{localize 'NOODLR.Media.TtsTest.Placeholder'}}" autocomplete="off" />
+        <button type="button" data-action="testTts">
+          <i class="fa-solid fa-volume-high"></i> {{localize "NOODLR.Media.TtsTest.Button"}}
+        </button>
+      </div>
+      <p class="noodlr-test-status" data-role="tts-test-status" aria-live="polite"></p>
+    </div>
   </fieldset>
 
   {{! ---- Scene Art (Image) ---- }}
