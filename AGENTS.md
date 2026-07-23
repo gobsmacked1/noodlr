@@ -287,6 +287,37 @@ Packaging done and shipped to GitHub. Version stays 0.1.0 (pre-parity, pre-smoke
 - **Cursor agent worker:** runs as user `cursorbot` under systemd unit `cursor-worker.service` (name `noodlr-cursorbot`, workerId `afb4e5c1-...`), survives reboot (verified). Its serving directory is **`/opt`**, so a Cloud Agent driving this worker has `/opt` as workspace root. Drive it from cursor.com/agents, not from this chat.
 - Give the worker scoped power to bounce Foundry via a sudoers drop-in (`cursorbot ALL=(root) NOPASSWD: /usr/bin/systemctl {start,stop,restart,status} foundryvtt`).
 
+## Media round (2026-07-23) — v0.2.3
+
+Image pipeline overhaul + media storage + dropdown UX (all requested after the second smoke test).
+- **Image "no output" root cause:** the old `display.ts` opened an ImagePopout **locally only** (no
+  `shareImage()`) and posted a chat card embedding a **base64 `data:` URL**, which Foundry strips
+  from chat HTML — so nothing showed. Replaced by `media/scene-art.ts`: generate → persist to disk →
+  `ImagePopout(...).render(true)` + `shareImage()` (broadcasts to all) → chat card referencing the
+  **file path** (never base64). `display.ts` deleted.
+- **Persistent media storage** (`media/storage.ts`): images saved via `FilePicker.upload("data", …)`
+  to a configurable folder, default **`assets/noodlr-out`** (v13 allows uploads to `assets/…` and new
+  top-level dirs, but blocks modules/systems/worlds/root — also keeps users from traversing up).
+  Auto-created on ready (GM). Config has a FilePicker **folder picker** (folder mode, `data` source).
+  **No audio is ever persisted** (transcription covers memory).
+- **Continuity ledger** (world setting `image.ledger`): entityKey → {seed, prompt(anchor), model,
+  path, ts}. `generateSceneImage(desc, {entityKey})` reuses a recurring entity's concrete seed +
+  appearance anchor so portraits/locations stay recognizable; new keyed entities get a concrete
+  random seed (not -1) so reuse is deterministic. Optional ingest of prompt/tags/path into the
+  `scenes` RAG silo (GM-gated).
+- **Chat triggers** (`chatMessage` hook, returns false to swallow the command): `Generate Image:
+  <scene>` (one-off) and `Generate Portrait: <Name>: <desc>` (keyed continuity). Gated by
+  `image.chatTrigger` (default on) and `image.allowPlayers` (default off — API cost). Player-triggered
+  images display but can't persist (no upload perm / can't write world settings) — continuity is a GM
+  concern by design.
+- **Dropdowns** (`provider-ui.ts`): injects "Fetch models" (all features) and "Fetch voices" (TTS)
+  buttons that read the provider/base-URL/**typed key** live from the form (no save needed) and fill a
+  per-feature `<datalist>`. OpenRouter models need no key; custom hits `{base}/models`; voices hit
+  `{base}/audio/voices` with a standard-name fallback.
+- **TTS local endpoint reminder:** `http://192.168.x` from an HTTPS Foundry page is mixed-content
+  blocked regardless of OpenAI-compat — proxy it behind nginx (like memory). The v0.2.2 Test field
+  surfaces this as the fetch `TypeError` case.
+
 ## Second smoke-test round (2026-07-23) — v0.2.1 & v0.2.2
 
 - **v0.2.1:** GM-gated memory + client-scope RAG secret (see Open decisions). noodlr-memory gained

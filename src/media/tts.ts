@@ -6,7 +6,42 @@ import { getFeatureConfig } from "../providers/config";
 import { isConfigured, resolveBaseUrl, type FeatureProviderConfig } from "../providers/types";
 import { getTtsVoice } from "./config";
 
-const FALLBACK_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+export const FALLBACK_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+
+/** Parse the several shapes an /audio/voices response can take into a flat name list. */
+function parseVoiceList(json: unknown): string[] {
+  const j = json as { voices?: unknown; data?: unknown };
+  const raw = j?.voices ?? j?.data ?? json;
+  if (Array.isArray(raw)) {
+    const names = raw
+      .map((v: unknown) =>
+        typeof v === "string" ? v : ((v as { id?: string; name?: string })?.id ?? (v as { name?: string })?.name),
+      )
+      .filter((v: unknown): v is string => typeof v === "string");
+    if (names.length > 0) return names;
+  }
+  return [];
+}
+
+/**
+ * Fetch voices from an explicit OpenAI-compatible base URL (used by the config "Fetch voices"
+ * button, which reads the values currently typed in the form). Falls back to the standard voice
+ * names on any failure. OpenRouter has no /audio/voices, so callers use the fallback there.
+ */
+export async function fetchVoiceList(baseUrl: string, apiKey?: string): Promise<string[]> {
+  const base = baseUrl.trim().replace(/\/?$/, "");
+  if (!base) return FALLBACK_VOICES;
+  try {
+    const headers: Record<string, string> = {};
+    if (apiKey && apiKey.trim()) headers["Authorization"] = `Bearer ${apiKey.trim()}`;
+    const res = await fetch(`${base}/audio/voices`, { headers });
+    if (!res.ok) return FALLBACK_VOICES;
+    const names = parseVoiceList(await res.json());
+    return names.length > 0 ? names : FALLBACK_VOICES;
+  } catch {
+    return FALLBACK_VOICES;
+  }
+}
 
 function authHeaders(cfg: FeatureProviderConfig): Record<string, string> {
   const h: Record<string, string> = {};
@@ -72,16 +107,8 @@ export async function listVoices(): Promise<string[]> {
       headers: authHeaders(cfg),
     });
     if (!res.ok) return FALLBACK_VOICES;
-    const json = await res.json();
-    // Accept several shapes: {voices:[...]}, [...], or {data:[{id|name}]}.
-    const raw = json?.voices ?? json?.data ?? json;
-    if (Array.isArray(raw)) {
-      const names = raw
-        .map((v: any) => (typeof v === "string" ? v : (v?.id ?? v?.name)))
-        .filter((v: unknown): v is string => typeof v === "string");
-      if (names.length > 0) return names;
-    }
-    return FALLBACK_VOICES;
+    const names = parseVoiceList(await res.json());
+    return names.length > 0 ? names : FALLBACK_VOICES;
   } catch {
     return FALLBACK_VOICES;
   }

@@ -8,6 +8,7 @@ import { getFeatureConfig } from "../providers/config";
 import { chatCompletion } from "../providers/chat-client";
 import { isConfigured, resolveBaseUrl, type FeatureProviderConfig } from "../providers/types";
 import { getImageParams } from "./config";
+import { getLedgerEntry } from "./storage";
 
 export class ImageError extends Error {}
 
@@ -43,27 +44,57 @@ async function expandPrompt(scene: string, systemPrompt: string): Promise<string
 export interface GeneratedImage {
   /** A data: URL (from b64_json) or a remote URL, ready to display. */
   src: string;
-  /** The final prompt used (post-expansion). */
+  /** The final prompt used (post-expansion, incl. style prefix and any entity anchor). */
   prompt: string;
+  /** The concrete seed sent to the provider (-1 means "provider randomized"). */
+  seed: number;
+  /** Model used. */
+  model: string;
+  /** The stable appearance/anchor text for the entity, if this was a keyed generation. */
+  anchor?: string;
 }
 
-/** Generate a scene image from a description. Returns a displayable src + final prompt. */
+/**
+ * Generate a scene image from a description. Returns a displayable src + the final prompt,
+ * seed, and model so the caller can persist it.
+ *
+ * Continuity: when `entityKey` is supplied and the ledger already has that entity, we reuse
+ * its stored appearance anchor + seed so a recurring character/location keeps a recognizable
+ * look. A brand-new keyed entity gets a concrete random seed (not -1) so future reuse is
+ * deterministic regardless of whether the provider echoes the seed back.
+ */
 export async function generateSceneImage(
   sceneDescription: string,
-  opts: { signal?: AbortSignal } = {},
+  opts: { signal?: AbortSignal; entityKey?: string } = {},
 ): Promise<GeneratedImage> {
   const cfg = getFeatureConfig("image");
   if (!isConfigured(cfg)) throw new ImageError("Image provider is not configured.");
   const params = getImageParams();
 
-  const subject = params.expand
-    ? await expandPrompt(sceneDescription, params.systemPrompt)
-    : sceneDescription;
+  const entry = opts.entityKey ? getLedgerEntry(opts.entityKey) : undefined;
+  const anchor = entry?.prompt?.trim() ?? "";
 
-  // Prepend the positive/style prefix so every image shares a consistent look, followed by
-  // the specific subject for this scene. (Style prefix + subject is a common SD technique.)
+  const baseSubject = params.expand
+    ? await expandPrompt(sceneDescription, params.systemPrompt)
+    : sceneDescription.trim();
+
+  // Compose the subject: a keyed entity's stable appearance anchor leads, then this scene's
+  // specifics (if any). Non-keyed generations are just the subject.
+  let subject: string;
+  if (anchor) subject = baseSubject ? `${anchor}. ${baseSubject}` : anchor;
+  else subject = baseSubject;
+
+  // Prepend the global positive/style prefix so all art shares a look (SD "style, subject").
   const style = params.positive.trim();
   const prompt = style ? `${style}, ${subject}` : subject;
+
+  // Resolve the seed: reuse the entity's, else the global fixed seed, else a concrete random
+  // seed for keyed entities (so it can be reused), else -1 for a one-off random image.
+  let seed: number;
+  if (entry) seed = entry.seed;
+  else if (params.seed >= 0) seed = params.seed;
+  else if (opts.entityKey) seed = Math.floor(Math.random() * 2 ** 31);
+  else seed = -1;
 
   const body: Record<string, unknown> = {
     model: cfg.model,
@@ -77,7 +108,7 @@ export async function generateSceneImage(
     sampler_name: params.sampler,
     negative_prompt: params.negative,
   };
-  if (params.seed >= 0) body.seed = params.seed;
+  if (seed >= 0) body.seed = seed;
 
   const res = await fetch(`${resolveBaseUrl(cfg)}/images/generations`, {
     method: "POST",
@@ -89,7 +120,14 @@ export async function generateSceneImage(
 
   const json = await res.json();
   const first = json?.data?.[0];
-  if (first?.b64_json) return { src: `data:image/png;base64,${first.b64_json}`, prompt };
-  if (first?.url) return { src: String(first.url), prompt };
+  // The anchor to persist for a keyed entity: keep the first-captured appearance stable
+  // (don't overwrite it with later scene-specific text).
+  const newAnchor = opts.entityKey ? anchor || baseSubject : undefined;
+  if (first?.b64_json) {
+    return { src: `data:image/png;base64,${first.b64_json}`, prompt, seed, model: cfg.model, anchor: newAnchor };
+  }
+  if (first?.url) {
+    return { src: String(first.url), prompt, seed, model: cfg.model, anchor: newAnchor };
+  }
   throw new ImageError("Image response contained no image data.");
 }

@@ -25,8 +25,16 @@ import {
 import { chatCompletion, ChatClientError } from "../providers/chat-client";
 import { isConfigured, resolveBaseUrl } from "../providers/types";
 import { synthesizeSpeech, TtsError } from "../media/tts";
-import { getImageParams, getTtsEnabled, getTtsVoice, getTtsAutoRead } from "../media/config";
+import {
+  getImageParams,
+  getTtsEnabled,
+  getTtsVoice,
+  getTtsAutoRead,
+  getImageChatTrigger,
+  getImageAllowPlayers,
+} from "../media/config";
 import { getPushToLogConfig } from "../media/config";
+import { getMediaFolder, getImagePersist } from "../media/storage";
 import { getAuthorNote, getCombatReminder, getPostHistory } from "../prompt/settings";
 import { getCombatSystemPrompt } from "../combat/config";
 import { wireProviderBlocks } from "./provider-ui";
@@ -57,6 +65,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       resetPrompt: NoodlrSettingsApp.#onResetPrompt,
       testConnection: NoodlrSettingsApp.#onTestConnection,
       testTts: NoodlrSettingsApp.#onTestTts,
+      browseMediaFolder: NoodlrSettingsApp.#onBrowseMediaFolder,
     },
   };
 
@@ -123,6 +132,10 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       imagePositive: img.positive,
       imageNegative: img.negative,
       imageSize: img.size,
+      imageMediaFolder: getMediaFolder(),
+      imagePersist: getImagePersist(),
+      imageChatTrigger: getImageChatTrigger(),
+      imageAllowPlayers: getImageAllowPlayers(),
 
       // Transcription capture options (ingest-to-memory lives in the Memory window)
       transcriptPostChat: getPushToLogConfig().postChat,
@@ -180,6 +193,13 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     await set(MEDIA_SETTINGS.imagePositive, String(o.image?.positive ?? ""));
     await set(MEDIA_SETTINGS.imageNegative, String(o.image?.negative ?? ""));
     await set(MEDIA_SETTINGS.imageSize, String(o.image?.size ?? "1024x1024").trim() || "1024x1024");
+    const folder = String(o.image?.mediaFolder ?? "")
+      .trim()
+      .replace(/^\/+|\/+$/g, "");
+    await set(MEDIA_SETTINGS.imageMediaFolder, folder || "assets/noodlr-out");
+    await set(MEDIA_SETTINGS.imagePersist, Boolean(o.image?.persist));
+    await set(MEDIA_SETTINGS.imageChatTrigger, Boolean(o.image?.chatTrigger));
+    await set(MEDIA_SETTINGS.imageAllowPlayers, Boolean(o.image?.allowPlayers));
 
     // Transcription capture options
     await set(MEDIA_SETTINGS.pushToLogPostChat, Boolean(o.transcription?.postChat));
@@ -228,6 +248,31 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       const msg = err instanceof ChatClientError ? err.message : String(err);
       ui.notifications?.error(game.i18n.format("NOODLR.Settings.TestFail", { error: msg }));
     }
+  }
+
+  /**
+   * Open Foundry's FilePicker in folder mode to choose/create the media output folder. The
+   * FilePicker is constrained to the "data" source, so users can't traverse above the data
+   * root — and v13 only permits uploads to allowed folders (assets/… or new top-level dirs).
+   */
+  static async #onBrowseMediaFolder(this: NoodlrSettingsApp): Promise<void> {
+    const input = this.#root()?.querySelector<HTMLInputElement>('input[name="image.mediaFolder"]');
+    const FP =
+      (foundry as unknown as { applications?: { apps?: { FilePicker?: unknown } } }).applications
+        ?.apps?.FilePicker ?? (globalThis as unknown as { FilePicker?: unknown }).FilePicker;
+    if (!FP || !input) {
+      ui.notifications?.warn(game.i18n.localize("NOODLR.Media.ImageFolder.NoPicker"));
+      return;
+    }
+    const picker = new (FP as new (opts: Record<string, unknown>) => unknown)({
+      type: "folder",
+      source: "data",
+      current: input.value.trim() || "assets/noodlr-out",
+      callback: (path: string) => {
+        input.value = String(path ?? "").replace(/^\/+|\/+$/g, "");
+      },
+    });
+    (picker as { render: (force: boolean) => void }).render(true);
   }
 
   /**

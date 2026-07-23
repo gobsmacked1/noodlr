@@ -184,6 +184,34 @@
       </div>
     </div>
     <p class="notes">{{localize "NOODLR.Media.ImageParamsNote"}}</p>
+
+    {{! ---- Delivery, storage & triggers ---- }}
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImageFolder.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.ImageFolder.Hint"}}</p>
+      <div class="noodlr-inline-controls">
+        <input type="text" name="image.mediaFolder" value="{{imageMediaFolder}}" placeholder="assets/noodlr-out" autocomplete="off" />
+        <button type="button" data-action="browseMediaFolder"><i class="fa-solid fa-folder-open"></i> {{localize "NOODLR.Media.ImageFolder.Browse"}}</button>
+      </div>
+    </div>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="image.persist" {{#if imagePersist}}checked{{/if}} />
+      {{localize "NOODLR.Media.ImagePersist.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.ImagePersist.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="image.chatTrigger" {{#if imageChatTrigger}}checked{{/if}} />
+      {{localize "NOODLR.Media.ImageChatTrigger.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.ImageChatTrigger.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="image.allowPlayers" {{#if imageAllowPlayers}}checked{{/if}} />
+      {{localize "NOODLR.Media.ImageAllowPlayers.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.ImageAllowPlayers.Hint"}}</p>
   </fieldset>
 
   {{! ---- Voice Transcription (push-to-log) ---- }}

@@ -78,6 +78,17 @@ export const MEDIA_SETTINGS = {
   imagePositive: "image.positive",
   imageNegative: "image.negative",
   imageSize: "image.size",
+  // Where generated images are written (relative to Foundry's data root). Default is an
+  // allowed top-level upload target in v13 (assets/…), created on load if missing.
+  imageMediaFolder: "image.mediaFolder",
+  // Persist generated images to disk + record their prompt/seed for continuity.
+  imagePersist: "image.persist",
+  // Enable the "Generate Image:" / "Generate Portrait:" chat-command trigger.
+  imageChatTrigger: "image.chatTrigger",
+  // Allow non-GM players to fire the chat trigger (off by default — it costs API money).
+  imageAllowPlayers: "image.allowPlayers",
+  // Continuity ledger: JSON map of entityKey -> { seed, prompt, model, path, ts }.
+  imageLedger: "image.ledger",
   // Push-to-log transcription
   pushToLogPostChat: "transcription.postChat",
   pushToLogIngest: "transcription.ingest",

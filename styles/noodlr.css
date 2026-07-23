@@ -442,6 +442,24 @@
   flex: 0 0 auto;
 }
 
+/* Compact "Fetch models / Fetch voices" button injected after a field, + its status text. */
+.noodlr-fetch-btn {
+  margin: 0.25rem 0.5rem 0 0;
+  width: auto;
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.5rem;
+}
+
+.noodlr-fetch-status {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.noodlr-fetch-status:empty {
+  display: none;
+}
+
 /* Dynamic status line under an inline test control. Empty until a test runs. */
 .noodlr-test-status {
   margin: 0.35rem 0 0;

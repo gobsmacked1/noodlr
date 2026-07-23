@@ -38,6 +38,14 @@ export function registerMediaSettings(): void {
   game.settings.register(MODULE_ID, M.imagePositive, { ...worldStr, default: "" });
   game.settings.register(MODULE_ID, M.imageNegative, { ...worldStr, default: "" });
   game.settings.register(MODULE_ID, M.imageSize, { ...worldStr, default: "1024x1024" });
+  game.settings.register(MODULE_ID, M.imageMediaFolder, {
+    ...worldStr,
+    default: "assets/noodlr-out",
+  });
+  game.settings.register(MODULE_ID, M.imagePersist, { ...worldBool, default: true });
+  game.settings.register(MODULE_ID, M.imageChatTrigger, { ...worldBool, default: true });
+  game.settings.register(MODULE_ID, M.imageAllowPlayers, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, M.imageLedger, { ...worldStr, default: "{}" });
 
   // --- Push-to-log transcription ---
   game.settings.register(MODULE_ID, M.pushToLogPostChat, { ...worldBool, default: true });
@@ -76,6 +84,11 @@ export function getImageParams(): {
     systemPrompt: (g(MEDIA_SETTINGS.imageSystemPrompt) as string) || "",
   };
 }
+
+export const getImageChatTrigger = () =>
+  Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.imageChatTrigger));
+export const getImageAllowPlayers = () =>
+  Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.imageAllowPlayers));
 
 export function getPushToLogConfig(): {
   postChat: boolean;

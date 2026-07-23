@@ -10,9 +10,10 @@ import { NoodlrMemoryApp } from "./apps/memory-app";
 import { NoodlrLorebookApp } from "./apps/lorebook-app";
 import { NoodlrChronicleApp } from "./apps/chronicle-app";
 import { speak, stopSpeaking } from "./media/tts";
-import { generateSceneImage } from "./media/image";
+import { createAndShareImage } from "./media/scene-art";
+import { ensureMediaFolder } from "./media/storage";
+import { getImageChatTrigger, getImageAllowPlayers } from "./media/config";
 import { createPushToLogButton, pushToLog, type TranscriptPayload } from "./media/push-to-log";
-import { showSceneImage } from "./media/display";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 
 /** Public surface other code (macros, console, future features) can call. */
@@ -50,10 +51,7 @@ const api: NoodlrApi = {
   },
   speak: (text: string) => void speak(text),
   stopSpeaking: () => stopSpeaking(),
-  generateSceneImage: async (description: string) => {
-    const img = await generateSceneImage(description);
-    await showSceneImage(img.src, img.prompt);
-  },
+  generateSceneImage: (description: string) => createAndShareImage({ description }),
   togglePushToLog: () => pushToLog.toggle(),
   runNpcTurn: () => runCurrentNpcTurn(),
 };
@@ -79,6 +77,41 @@ Hooks.once("ready", () => {
 
   // Floating push-to-log button (bottom-center) for every participant.
   createPushToLogButton();
+
+  // Ensure the media output folder exists (GM only — creating dirs needs upload permission).
+  if (game.user?.isGM) void ensureMediaFolder();
+});
+
+// Chat-command trigger for image generation:
+//   "Generate Image: <scene>"           -> one-off scene art (broadcast to all)
+//   "Generate Portrait: <Name>: <desc>" -> keyed to <Name> for continuity (reuses seed/look)
+// Returning false swallows the command so the literal text isn't posted as a chat message.
+Hooks.on("chatMessage", (_log: unknown, message: string): boolean => {
+  if (!getImageChatTrigger()) return true;
+  const text = (message ?? "").trim();
+  const isPortrait = /^generate\s+portrait\s*:/i.test(text);
+  const isImage = /^generate\s+image\s*:/i.test(text);
+  if (!isPortrait && !isImage) return true;
+
+  if (!game.user?.isGM && !getImageAllowPlayers()) {
+    ui.notifications?.warn(game.i18n.localize("NOODLR.Media.Image.GMOnly"));
+    return false;
+  }
+
+  if (isPortrait) {
+    const m = text.match(/^generate\s+portrait\s*:\s*([^:]+?)(?::\s*([\s\S]+))?\s*$/i);
+    const name = (m?.[1] ?? "").trim();
+    const desc = (m?.[2] ?? "").trim();
+    if (!name) {
+      ui.notifications?.warn(game.i18n.localize("NOODLR.Media.Image.NeedName"));
+      return false;
+    }
+    void createAndShareImage({ description: desc, entityKey: name, title: name });
+  } else {
+    const desc = (text.match(/^generate\s+image\s*:\s*([\s\S]+)$/i)?.[1] ?? "").trim();
+    if (desc) void createAndShareImage({ description: desc });
+  }
+  return false;
 });
 
 // Add a dedicated Noodlr control group (dragon icon) to the canvas toolbar.
@@ -152,8 +185,7 @@ async function promptSceneImage(): Promise<void> {
     });
     const text = String(description ?? "").trim();
     if (!text) return;
-    ui.notifications?.info("Noodlr: generating scene art…");
-    await api.generateSceneImage(text);
+    await createAndShareImage({ description: text });
   } catch (err) {
     log("scene image generation cancelled/failed:", err);
   }
