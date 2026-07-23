@@ -1,5 +1,17 @@
 /* Noodlr — styling for the chat panel and settings window. */
 
+/* ---- Global: never let a Noodlr window run off-screen ----
+   Players may be on laptops, tablets, or small displays; every Noodlr window caps to the
+   viewport and scrolls (both axes) rather than pushing controls out of reach. */
+.application.noodlr {
+  max-height: 95vh;
+  max-width: 98vw;
+}
+
+.application.noodlr .window-content {
+  overflow: auto;
+}
+
 /* ---- Chat panel ---- */
 .noodlr-chat {
   display: flex;

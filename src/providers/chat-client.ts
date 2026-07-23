@@ -92,27 +92,47 @@ export async function* streamChatCompletion(
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
+  const contentType = res.headers.get("content-type") ?? "";
   let buffer = "";
 
   try {
+    // Fallback: some OpenAI-compatible servers ignore `stream: true` and return a single
+    // JSON completion. If the response isn't an event stream, accumulate and parse it whole
+    // so the reply still reaches the user instead of vanishing.
+    if (!contentType.includes("text/event-stream")) {
+      let whole = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        whole += decoder.decode(value, { stream: true });
+      }
+      whole += decoder.decode();
+      const text = extractCompletionText(whole);
+      if (text) yield text;
+      return;
+    }
+
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      // Normalize CRLF so frame/line splitting is robust to proxies that emit \r\n
+      // (a bare "\n\n" scan misses "\r\n\r\n" frame boundaries).
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
 
       // SSE frames are separated by a blank line. Process complete frames only.
       let sepIndex: number;
       while ((sepIndex = buffer.indexOf("\n\n")) !== -1) {
         const frame = buffer.slice(0, sepIndex);
         buffer = buffer.slice(sepIndex + 2);
-        const delta = parseSseFrame(frame);
-        if (delta === DONE) return;
-        if (delta) yield delta;
+        const { content, done: isDone } = parseSseFrame(frame);
+        if (content) yield content;
+        if (isDone) return;
       }
     }
-    // Flush any trailing frame without a terminating blank line.
-    const delta = parseSseFrame(buffer);
-    if (delta && delta !== DONE) yield delta;
+    // Flush any trailing frame that lacked a terminating blank line.
+    buffer += decoder.decode();
+    const { content } = parseSseFrame(buffer.replace(/\r\n/g, "\n"));
+    if (content) yield content;
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") return;
     throw new ChatClientError(`Error reading stream: ${(err as Error).message}`);
@@ -121,26 +141,50 @@ export async function* streamChatCompletion(
   }
 }
 
-const DONE = Symbol("sse-done");
-
-/** Parse a single SSE frame; returns the content delta, DONE, or null. */
-function parseSseFrame(frame: string): string | typeof DONE | null {
+/**
+ * Parse one SSE frame. Accumulates every `data:` content piece in the frame and reports
+ * whether the terminating `[DONE]` sentinel appeared — critically WITHOUT discarding
+ * content that happens to share a frame with `[DONE]` (the previous bug: reaching `[DONE]`
+ * returned immediately and threw away already-parsed text, so nothing ever rendered).
+ */
+function parseSseFrame(frame: string): { content: string; done: boolean } {
   let content = "";
+  let done = false;
   for (const rawLine of frame.split("\n")) {
     const line = rawLine.trim();
     if (!line || line.startsWith(":")) continue; // comment / keep-alive
     if (!line.startsWith("data:")) continue;
     const data = line.slice(5).trim();
-    if (data === "[DONE]") return DONE;
-    try {
-      const json = JSON.parse(data);
-      const piece = json?.choices?.[0]?.delta?.content;
-      if (typeof piece === "string") content += piece;
-    } catch {
-      // Ignore unparseable keep-alive/partial lines.
+    if (data === "[DONE]") {
+      done = true;
+      continue;
     }
+    content += extractDeltaContent(data);
   }
-  return content || null;
+  return { content, done };
+}
+
+/** Extract streaming delta content from one SSE `data:` JSON payload. */
+function extractDeltaContent(data: string): string {
+  try {
+    const json = JSON.parse(data);
+    const piece = json?.choices?.[0]?.delta?.content;
+    return typeof piece === "string" ? piece : "";
+  } catch {
+    return ""; // keep-alive / partial line
+  }
+}
+
+/** Extract the full text from a non-streamed chat completion JSON body. */
+function extractCompletionText(body: string): string {
+  try {
+    const json = JSON.parse(body);
+    const choice = json?.choices?.[0];
+    const text = choice?.message?.content ?? choice?.delta?.content ?? json?.content;
+    return typeof text === "string" ? text : "";
+  } catch {
+    return "";
+  }
 }
 
 /** Non-streaming convenience wrapper: accumulate the full completion text. */

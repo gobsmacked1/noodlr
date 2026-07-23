@@ -5,6 +5,8 @@
   "NOODLR.ChatPanel.Send": "Send",
   "NOODLR.ChatPanel.Clear": "Clear conversation",
 
+  "NOODLR.Controls.GroupTitle": "Noodlr — AI Dungeon Master",
+
   "NOODLR.Provider.Provider.Name": "Provider",
   "NOODLR.Provider.Provider.Hint": "OpenRouter (API key) or a custom OpenAI-compatible endpoint.",
   "NOODLR.Provider.BaseUrl.Name": "Custom base URL",

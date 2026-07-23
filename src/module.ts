@@ -31,7 +31,10 @@ export interface NoodlrApi {
 
 const api: NoodlrApi = {
   openChat: () => {
-    new NoodlrChatPanel().render({ force: true });
+    // Reuse the existing panel (bring to front) instead of stacking duplicates.
+    const existing = foundry.applications.instances?.get("noodlr-chat-panel");
+    if (existing) void existing.render({ force: true });
+    else new NoodlrChatPanel().render({ force: true });
   },
   openSettings: () => {
     new NoodlrSettingsApp().render({ force: true });
@@ -78,56 +81,59 @@ Hooks.once("ready", () => {
   createPushToLogButton();
 });
 
-// Add a scene-control button so a GM can open the panel from the canvas toolbar.
-// Foundry v13+ passes controls as a keyed record; we add defensively to survive shape
-// differences across point releases.
-Hooks.on("getSceneControlButtons", (controls: any) => {
-  const tools = [
-    {
-      name: "noodlr-chat",
-      title: "NOODLR.ChatPanel.Title",
-      icon: "fa-solid fa-dragon",
-      button: true,
-      visible: true,
-      onClick: () => api.openChat(),
-      onChange: () => api.openChat(),
-    },
-    {
-      name: "noodlr-image",
-      title: "NOODLR.Media.SceneArtTitle",
-      icon: "fa-solid fa-image",
-      button: true,
-      visible: Boolean(game.user?.isGM),
-      onClick: () => void promptSceneImage(),
-      onChange: () => void promptSceneImage(),
-    },
-    {
-      name: "noodlr-npc-turn",
-      title: "NOODLR.Combat.RunTurn",
-      icon: "fa-solid fa-hand-fist",
-      button: true,
-      visible: Boolean(game.user?.isGM),
-      onClick: () => void runCurrentNpcTurn(),
-      onChange: () => void runCurrentNpcTurn(),
-    },
-  ];
-
+// Add a dedicated Noodlr control group (dragon icon) to the canvas toolbar.
+//
+// Foundry v13+ passes `controls` as a Record<string, SceneControl> keyed by name. A custom
+// group MUST define `activeTool` (a valid tool name) or Foundry throws when switching
+// controls; each tool needs an `order` and uses `onChange` (buttons resolve immediately).
+// (min compatibility is v13, so we target the record shape only.)
+Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
+  if (!controls || typeof controls !== "object") return;
   try {
-    if (Array.isArray(controls)) {
-      // Legacy array shape: attach to the token/notes group if present, else group 0.
-      const group = controls.find((c: any) => c.name === "token") ?? controls[0];
-      if (group) for (const tool of tools) (group.tools ??= []).push(tool);
-    } else if (controls && typeof controls === "object") {
-      // v13+ record shape: controls keyed by name, each with a tools record.
-      const group = controls.tokens ?? controls.token ?? Object.values(controls)[0];
-      if (group) {
-        group.tools ??= {};
-        for (const tool of tools) {
-          if (Array.isArray(group.tools)) group.tools.push(tool);
-          else group.tools[tool.name] = tool;
-        }
-      }
+    const isGM = Boolean(game.user?.isGM);
+
+    const tools: Record<string, any> = {
+      chat: {
+        name: "chat",
+        title: "NOODLR.ChatPanel.Title",
+        icon: "fa-solid fa-comments",
+        order: 1,
+        button: true,
+        visible: true,
+        onChange: () => api.openChat(),
+      },
+    };
+    if (isGM) {
+      tools.sceneArt = {
+        name: "sceneArt",
+        title: "NOODLR.Media.SceneArtTitle",
+        icon: "fa-solid fa-image",
+        order: 2,
+        button: true,
+        visible: true,
+        onChange: () => void promptSceneImage(),
+      };
+      tools.npcTurn = {
+        name: "npcTurn",
+        title: "NOODLR.Combat.RunTurn",
+        icon: "fa-solid fa-hand-fist",
+        order: 3,
+        button: true,
+        visible: true,
+        onChange: () => void runCurrentNpcTurn(),
+      };
     }
+
+    controls.noodlr = {
+      name: "noodlr",
+      title: "NOODLR.Controls.GroupTitle",
+      icon: "fa-solid fa-dragon",
+      order: Object.keys(controls).length,
+      visible: true,
+      // Buttons never become "active", but Foundry requires a valid tool name here.
+      activeTool: "chat",
+      tools,
+    };
   } catch (err) {
     log("could not add scene control buttons:", err);
   }
