@@ -1,0 +1,138 @@
+{{! Consolidated Memory & Knowledge configuration window. }}
+
+{{#*inline "providerBlock"}}
+  <div class="noodlr-field">
+    <label>{{localize "NOODLR.Provider.Provider.Name"}}</label>
+    <select name="{{id}}.provider" data-role="provider">
+      <option value="openrouter" {{#if isOpenrouter}}selected{{/if}}>OpenRouter</option>
+      <option value="custom" {{#if isCustom}}selected{{/if}}>{{localize "NOODLR.Provider.Custom"}}</option>
+    </select>
+  </div>
+  <div class="noodlr-field">
+    <label>{{localize "NOODLR.Provider.Model.Name"}}</label>
+    <input type="text" name="{{id}}.model" data-role="model" value="{{model}}" {{#if isOpenrouter}}list="noodlr-or-models"{{/if}} autocomplete="off" />
+  </div>
+  <div class="noodlr-field noodlr-custom-only">
+    <label>{{localize "NOODLR.Provider.BaseUrl.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Provider.BaseUrl.Hint"}}</p>
+    <input type="text" name="{{id}}.baseUrl" value="{{baseUrl}}" placeholder="http://127.0.0.1:11434/v1" autocomplete="off" />
+  </div>
+  <div class="noodlr-field">
+    <label>{{localize "NOODLR.Provider.ApiKey.Name"}}</label>
+    <input type="password" name="{{id}}.apiKey" value="" autocomplete="off"
+      placeholder="{{#if hasKey}}{{localize 'NOODLR.Provider.ApiKey.Saved'}}{{else}}{{localize 'NOODLR.Provider.ApiKey.None'}}{{/if}}" />
+    {{#if hasKey}}
+      <label class="noodlr-inline"><input type="checkbox" name="{{id}}.apiKeyClear" /> {{localize "NOODLR.Provider.ApiKey.Clear"}}</label>
+    {{/if}}
+  </div>
+{{/inline}}
+
+<section class="noodlr-settings">
+  <header class="noodlr-settings__header">
+    <i class="fa-solid fa-brain"></i>
+    <h2>{{moduleTitle}} — {{localize "NOODLR.Rag.ConfigTitle"}}</h2>
+    <span class="noodlr-settings__version">v{{version}}</span>
+  </header>
+
+  <p class="noodlr-settings__intro">{{localize "NOODLR.Rag.ConfigIntro"}}</p>
+
+  <datalist id="noodlr-or-models"></datalist>
+
+  {{! ---- Quick access to the sub-tools ---- }}
+  <div class="noodlr-memory-config__tools">
+    <button type="button" data-action="openManage"><i class="fa-solid fa-database"></i> {{localize "NOODLR.Rag.Manage.Label"}}</button>
+    <button type="button" data-action="openLorebook"><i class="fa-solid fa-book"></i> {{localize "NOODLR.Lorebook.Menu.Label"}}</button>
+    <button type="button" data-action="openChronicle"><i class="fa-solid fa-scroll"></i> {{localize "NOODLR.Chronicle.Menu.Label"}}</button>
+  </div>
+
+  {{! ---- Connection ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-plug"></i> {{localize "NOODLR.Rag.ConnectionLegend"}}</legend>
+    <ul class="noodlr-help">
+      <li><strong>{{localize "NOODLR.Help.What"}}</strong> {{localize "NOODLR.Feature.Memory.What"}}</li>
+      <li><strong>{{localize "NOODLR.Help.Requires"}}</strong> {{localize "NOODLR.Feature.Memory.Requires"}}</li>
+      <li><strong>{{localize "NOODLR.Help.Without"}}</strong> {{localize "NOODLR.Feature.Memory.Without"}}</li>
+    </ul>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="enabled" {{#if enabled}}checked{{/if}} />
+      {{localize "NOODLR.Rag.Enabled.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Rag.Enabled.Hint"}}</p>
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Rag.ServiceUrl.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Rag.ServiceUrl.Hint"}}</p>
+      <input type="text" name="serviceUrl" value="{{serviceUrl}}" placeholder="http://127.0.0.1:3010" autocomplete="off" />
+    </div>
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Rag.Secret.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Rag.Secret.Hint"}}</p>
+      <input type="password" name="secret" value="" autocomplete="off"
+        placeholder="{{#if hasSecret}}{{localize 'NOODLR.Provider.ApiKey.Saved'}}{{else}}{{localize 'NOODLR.Provider.ApiKey.None'}}{{/if}}" />
+      {{#if hasSecret}}
+        <label class="noodlr-inline"><input type="checkbox" name="secretClear" /> {{localize "NOODLR.Provider.ApiKey.Clear"}}</label>
+      {{/if}}
+    </div>
+
+    <div class="noodlr-settings__actions">
+      <button type="button" data-action="testConnection"><i class="fa-solid fa-plug"></i> {{localize "NOODLR.Rag.TestConnection"}}</button>
+    </div>
+  </fieldset>
+
+  {{! ---- Retrieval ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-magnifying-glass"></i> {{localize "NOODLR.Rag.RetrievalLegend"}}</legend>
+
+    <label class="noodlr-inline"><input type="checkbox" name="hybrid" {{#if hybrid}}checked{{/if}} /> {{localize "NOODLR.Rag.Hybrid.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Rag.Hybrid.Hint"}}</p>
+
+    <label class="noodlr-inline"><input type="checkbox" name="agentMode" {{#if agentMode}}checked{{/if}} /> {{localize "NOODLR.Rag.AgentMode.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Rag.AgentMode.Hint"}}</p>
+
+    <div class="noodlr-grid">
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Rag.TopK.Name"}}</label>
+        <input type="number" name="topK" value="{{topK}}" min="1" max="50" step="1" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Rag.TokenBudget.Name"}}</label>
+        <input type="number" name="tokenBudget" value="{{tokenBudget}}" min="100" max="20000" step="100" />
+      </div>
+    </div>
+  </fieldset>
+
+  {{! ---- Embeddings ---- }}
+  <fieldset class="noodlr-settings__section" data-feature="embeddings">
+    <legend><i class="fa-solid fa-vector-square"></i> {{localize "NOODLR.Rag.EmbeddingsLegend"}}</legend>
+    <ul class="noodlr-help">
+      <li><strong>{{localize "NOODLR.Help.What"}}</strong> {{localize "NOODLR.Feature.Embeddings.What"}}</li>
+      <li><strong>{{localize "NOODLR.Help.Requires"}}</strong> {{localize "NOODLR.Feature.Embeddings.Requires"}}</li>
+      <li><strong>{{localize "NOODLR.Help.Without"}}</strong> {{localize "NOODLR.Feature.Embeddings.Without"}}</li>
+    </ul>
+
+    <label class="noodlr-inline"><input type="checkbox" name="sendEmbedConfig" {{#if sendEmbedConfig}}checked{{/if}} /> {{localize "NOODLR.Rag.SendEmbedConfig.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Rag.SendEmbedConfig.Hint"}}</p>
+
+    {{> providerBlock embeddings}}
+  </fieldset>
+
+  {{! ---- Session transcript ingestion ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-microphone-lines"></i> {{localize "NOODLR.Rag.TranscriptLegend"}}</legend>
+
+    <label class="noodlr-inline"><input type="checkbox" name="transcriptIngest" {{#if transcriptIngest}}checked{{/if}} /> {{localize "NOODLR.Media.PushIngest.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Media.PushIngest.Hint"}}</p>
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.PushIngestInterval.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.PushIngestInterval.Hint"}}</p>
+      <input type="number" name="transcriptIngestInterval" value="{{transcriptIngestInterval}}" min="60" max="3600" step="30" />
+    </div>
+  </fieldset>
+
+  <div class="noodlr-settings__actions">
+    <button type="submit"><i class="fa-solid fa-floppy-disk"></i> {{localize "NOODLR.Settings.Save"}}</button>
+  </div>
+</section>

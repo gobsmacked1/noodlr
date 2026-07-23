@@ -2,9 +2,7 @@
 
 import { MODULE_ID, MENUS, SETTINGS, log } from "./constants";
 import { NoodlrSettingsApp } from "./apps/settings-app";
-import { NoodlrMemoryApp } from "./apps/memory-app";
-import { NoodlrLorebookApp } from "./apps/lorebook-app";
-import { NoodlrChronicleApp } from "./apps/chronicle-app";
+import { NoodlrMemoryConfigApp } from "./apps/memory-config-app";
 import { registerFeatureProviderSettings } from "./providers/config";
 import { registerRagSettings } from "./rag/config";
 import { registerPromptSettings } from "./prompt/settings";
@@ -12,23 +10,14 @@ import { registerMediaSettings } from "./media/config";
 import { registerCombatSettings } from "./combat/config";
 
 export function registerSettings(): void {
-  game.settings.register(MODULE_ID, SETTINGS.enabled, {
-    name: "NOODLR.Settings.Enabled.Name",
-    hint: "NOODLR.Settings.Enabled.Hint",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-
-  // Chat provider (OpenRouter / custom OpenAI-compatible). Shown in native settings.
+  // Chat provider (OpenRouter / custom OpenAI-compatible). Rendered in the config window.
   registerFeatureProviderSettings("chat");
 
   game.settings.register(MODULE_ID, SETTINGS.chatContinueAfterRoll, {
     name: "NOODLR.Settings.ChatContinueAfterRoll.Name",
     hint: "NOODLR.Settings.ChatContinueAfterRoll.Hint",
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true,
   });
@@ -57,7 +46,8 @@ export function registerSettings(): void {
   // Combat co-pilot (AI-run NPC turn prompt).
   registerCombatSettings();
 
-  // The dedicated configuration window (a "tab" in the settings sidebar).
+  // Two sidebar menus only: the main config window, and the consolidated Memory & Knowledge
+  // window (which itself opens the Manage Memory, Lorebook, and Chronicle sub-windows).
   game.settings.registerMenu(MODULE_ID, MENUS.config, {
     name: "NOODLR.Settings.Menu.Name",
     label: "NOODLR.Settings.Menu.Label",
@@ -72,25 +62,7 @@ export function registerSettings(): void {
     label: "NOODLR.Rag.Menu.Label",
     hint: "NOODLR.Rag.Menu.Hint",
     icon: "fa-solid fa-brain",
-    type: NoodlrMemoryApp,
-    restricted: true,
-  });
-
-  game.settings.registerMenu(MODULE_ID, MENUS.lorebook, {
-    name: "NOODLR.Lorebook.Menu.Name",
-    label: "NOODLR.Lorebook.Menu.Label",
-    hint: "NOODLR.Lorebook.Menu.Hint",
-    icon: "fa-solid fa-book",
-    type: NoodlrLorebookApp,
-    restricted: true,
-  });
-
-  game.settings.registerMenu(MODULE_ID, MENUS.chronicle, {
-    name: "NOODLR.Chronicle.Menu.Name",
-    label: "NOODLR.Chronicle.Menu.Label",
-    hint: "NOODLR.Chronicle.Menu.Hint",
-    icon: "fa-solid fa-scroll",
-    type: NoodlrChronicleApp,
+    type: NoodlrMemoryConfigApp,
     restricted: true,
   });
 

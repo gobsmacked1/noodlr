@@ -1,6 +1,7 @@
-// Memory (RAG) window: connection test, per-silo status + reset, a compendium ingest
+// Manage Memory window: connection test, per-silo status + reset, a compendium ingest
 // matrix (any pack -> chosen silo), and TXT/PDF upload. Connection/embedding/toggle
-// settings live in native module settings; this window handles the actions.
+// settings live in the Memory & Knowledge window; this window handles the data actions.
+// Opened from the Memory & Knowledge window's "Manage Memory" button.
 
 import { MODULE_ID } from "../constants";
 import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";

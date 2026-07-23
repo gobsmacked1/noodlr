@@ -1,4 +1,59 @@
-{{! Noodlr settings window (form). Chat system-prompt editor + provider test. }}
+{{! Noodlr main configuration window. Grouped BY FEATURE: each block lays out
+    Provider -> Model -> (custom URL) -> API key, with plain-language help. }}
+
+{{#*inline "help"}}
+  <ul class="noodlr-help">
+    <li><strong>{{localize "NOODLR.Help.What"}}</strong> {{what}}</li>
+    <li><strong>{{localize "NOODLR.Help.Requires"}}</strong> {{requires}}</li>
+    <li><strong>{{localize "NOODLR.Help.Without"}}</strong> {{without}}</li>
+  </ul>
+{{/inline}}
+
+{{#*inline "providerBlock"}}
+  <div class="noodlr-field">
+    <label>{{localize "NOODLR.Provider.Provider.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Provider.Provider.Hint"}}</p>
+    <select name="{{id}}.provider" data-role="provider">
+      <option value="openrouter" {{#if isOpenrouter}}selected{{/if}}>OpenRouter</option>
+      <option value="custom" {{#if isCustom}}selected{{/if}}>{{localize "NOODLR.Provider.Custom"}}</option>
+    </select>
+  </div>
+
+  <div class="noodlr-field">
+    <label>{{localize "NOODLR.Provider.Model.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Provider.Model.Hint"}}</p>
+    <input
+      type="text"
+      name="{{id}}.model"
+      data-role="model"
+      value="{{model}}"
+      {{#if isOpenrouter}}list="noodlr-or-models"{{/if}}
+      autocomplete="off"
+    />
+  </div>
+
+  <div class="noodlr-field noodlr-custom-only">
+    <label>{{localize "NOODLR.Provider.BaseUrl.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Provider.BaseUrl.Hint"}}</p>
+    <input type="text" name="{{id}}.baseUrl" value="{{baseUrl}}" placeholder="http://127.0.0.1:11434/v1" autocomplete="off" />
+  </div>
+
+  <div class="noodlr-field">
+    <label>{{localize "NOODLR.Provider.ApiKey.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Provider.ApiKey.Hint"}}</p>
+    <input
+      type="password"
+      name="{{id}}.apiKey"
+      value=""
+      autocomplete="off"
+      placeholder="{{#if hasKey}}{{localize 'NOODLR.Provider.ApiKey.Saved'}}{{else}}{{localize 'NOODLR.Provider.ApiKey.None'}}{{/if}}"
+    />
+    {{#if hasKey}}
+      <label class="noodlr-inline"><input type="checkbox" name="{{id}}.apiKeyClear" /> {{localize "NOODLR.Provider.ApiKey.Clear"}}</label>
+    {{/if}}
+  </div>
+{{/inline}}
+
 <section class="noodlr-settings">
   <header class="noodlr-settings__header">
     <i class="fa-solid fa-dragon"></i>
@@ -8,31 +63,137 @@
 
   <p class="noodlr-settings__intro">{{localize "NOODLR.Settings.Intro"}}</p>
 
-  <fieldset class="noodlr-settings__section">
-    <legend>{{localize "NOODLR.Settings.ChatPromptLegend"}}</legend>
-    <p class="notes">
-      {{localize "NOODLR.Settings.ChatPromptHint"}}
-      {{#if usingDefault}}<em>({{localize "NOODLR.Settings.UsingDefault"}})</em>{{/if}}
-    </p>
-    <textarea
-      name="systemPrompt"
-      class="noodlr-settings__prompt"
-      rows="18"
-      maxlength="{{maxLength}}"
-      spellcheck="true"
-    >{{systemPrompt}}</textarea>
+  <datalist id="noodlr-or-models"></datalist>
+
+  {{! ---- Dungeon Master Chat ---- }}
+  <fieldset class="noodlr-settings__section" data-feature="chat">
+    <legend><i class="fa-solid fa-comments"></i> {{chat.title}}</legend>
+    {{> help chat}}
+    {{> providerBlock chat}}
+
     <div class="noodlr-settings__actions">
-      <button type="button" data-action="resetPrompt">
-        <i class="fa-solid fa-rotate-left"></i> {{localize "NOODLR.Settings.ResetPrompt"}}
-      </button>
       <button type="button" data-action="testConnection">
         <i class="fa-solid fa-plug"></i> {{localize "NOODLR.Settings.TestConnection"}}
       </button>
     </div>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="chat.continueAfterRoll" {{#if continueAfterRoll}}checked{{/if}} />
+      {{localize "NOODLR.Settings.ChatContinueAfterRoll.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Settings.ChatContinueAfterRoll.Hint"}}</p>
+
+    <label class="noodlr-settings__label">{{localize "NOODLR.Settings.ChatPromptLegend"}}</label>
+    <p class="notes">
+      {{localize "NOODLR.Settings.ChatPromptHint"}}
+      {{#if usingDefault}}<em>({{localize "NOODLR.Settings.UsingDefault"}})</em>{{/if}}
+    </p>
+    <textarea name="systemPrompt" class="noodlr-settings__prompt" rows="14" maxlength="{{maxLength}}" spellcheck="true">{{systemPrompt}}</textarea>
+    <div class="noodlr-settings__actions">
+      <button type="button" data-action="resetPrompt">
+        <i class="fa-solid fa-rotate-left"></i> {{localize "NOODLR.Settings.ResetPrompt"}}
+      </button>
+    </div>
   </fieldset>
 
+  {{! ---- Voice (TTS) ---- }}
+  <fieldset class="noodlr-settings__section" data-feature="tts">
+    <legend><i class="fa-solid fa-volume-high"></i> {{tts.title}}</legend>
+    {{> help tts}}
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="tts.enabled" {{#if ttsEnabled}}checked{{/if}} />
+      {{localize "NOODLR.Media.TtsEnabled.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.TtsEnabled.Hint"}}</p>
+
+    {{> providerBlock tts}}
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.TtsVoice.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.TtsVoice.Hint"}}</p>
+      <input type="text" name="tts.voice" value="{{ttsVoice}}" autocomplete="off" />
+    </div>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="tts.autoRead" {{#if ttsAutoRead}}checked{{/if}} />
+      {{localize "NOODLR.Media.TtsAutoRead.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.TtsAutoRead.Hint"}}</p>
+  </fieldset>
+
+  {{! ---- Scene Art (Image) ---- }}
+  <fieldset class="noodlr-settings__section" data-feature="image">
+    <legend><i class="fa-solid fa-image"></i> {{image.title}}</legend>
+    {{> help image}}
+    {{> providerBlock image}}
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImagePositive.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.ImagePositive.Hint"}}</p>
+      <textarea name="image.positive" class="noodlr-settings__block" rows="2" spellcheck="true">{{imagePositive}}</textarea>
+    </div>
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImageNegative.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.ImageNegative.Hint"}}</p>
+      <textarea name="image.negative" class="noodlr-settings__block" rows="2" spellcheck="true">{{imageNegative}}</textarea>
+    </div>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="image.expand" {{#if imageExpand}}checked{{/if}} />
+      {{localize "NOODLR.Media.ImageExpand.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.ImageExpand.Hint"}}</p>
+
+    <div class="noodlr-grid">
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageSize.Name"}}</label>
+        <input type="text" name="image.size" value="{{imageSize}}" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageSteps.Name"}}</label>
+        <input type="number" name="image.steps" value="{{imageSteps}}" min="1" max="150" step="1" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageCfg.Name"}}</label>
+        <input type="number" name="image.cfg" value="{{imageCfg}}" min="0" max="30" step="0.5" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageSampler.Name"}}</label>
+        <input type="text" name="image.sampler" value="{{imageSampler}}" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageSeed.Name"}}</label>
+        <input type="number" name="image.seed" value="{{imageSeed}}" step="1" />
+      </div>
+    </div>
+    <p class="notes">{{localize "NOODLR.Media.ImageParamsNote"}}</p>
+  </fieldset>
+
+  {{! ---- Voice Transcription (push-to-log) ---- }}
+  <fieldset class="noodlr-settings__section" data-feature="transcription">
+    <legend><i class="fa-solid fa-microphone-lines"></i> {{transcription.title}}</legend>
+    {{> help transcription}}
+    {{> providerBlock transcription}}
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="transcription.postChat" {{#if transcriptPostChat}}checked{{/if}} />
+      {{localize "NOODLR.Media.PushPostChat.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.PushPostChat.Hint"}}</p>
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.PushSegment.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.PushSegment.Hint"}}</p>
+      <input type="number" name="transcription.segment" value="{{transcriptSegment}}" min="5" max="60" step="5" />
+    </div>
+    <p class="notes">{{localize "NOODLR.Media.PushIngestElsewhere"}}</p>
+  </fieldset>
+
+  {{! ---- Context & injections ---- }}
   <fieldset class="noodlr-settings__section">
-    <legend>{{localize "NOODLR.Settings.ContextLegend"}}</legend>
+    <legend><i class="fa-solid fa-layer-group"></i> {{localize "NOODLR.Settings.ContextLegend"}}</legend>
 
     <label class="noodlr-settings__label">{{localize "NOODLR.Prompt.AuthorNote.Name"}}</label>
     <p class="notes">{{localize "NOODLR.Prompt.AuthorNote.Hint"}}</p>
@@ -56,6 +217,4 @@
       <i class="fa-solid fa-floppy-disk"></i> {{localize "NOODLR.Settings.Save"}}
     </button>
   </div>
-
-  <p class="noodlr-settings__note">{{localize "NOODLR.Settings.PhaseNote"}}</p>
 </section>

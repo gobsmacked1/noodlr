@@ -8,82 +8,43 @@ import { DEFAULT_QUERY_SILOS, isSiloId, type SiloId } from "./silos";
 
 export function registerRagSettings(): void {
   const S = RAG_SETTINGS;
-  const L = (s: string) => `NOODLR.Rag.${s}`;
+  // All RAG settings are rendered in the consolidated Memory & Knowledge window
+  // (config:false), never the native settings list. The shared secret is write-only there.
+  const worldBool = { scope: "world" as const, config: false, type: Boolean };
+  const worldStr = { scope: "world" as const, config: false, type: String };
+  const worldNum = { scope: "world" as const, config: false, type: Number };
 
-  game.settings.register(MODULE_ID, S.enabled, {
-    name: L("Enabled.Name"),
-    hint: L("Enabled.Hint"),
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: false,
-  });
+  game.settings.register(MODULE_ID, S.enabled, { ...worldBool, default: false });
   game.settings.register(MODULE_ID, S.serviceUrl, {
-    name: L("ServiceUrl.Name"),
-    hint: L("ServiceUrl.Hint"),
-    scope: "world",
-    config: true,
-    type: String,
+    ...worldStr,
     default: "http://127.0.0.1:3010",
   });
-  game.settings.register(MODULE_ID, S.secret, {
-    name: L("Secret.Name"),
-    hint: L("Secret.Hint"),
-    scope: "world",
-    config: true,
-    type: String,
-    default: "",
-  });
-  game.settings.register(MODULE_ID, S.hybrid, {
-    name: L("Hybrid.Name"),
-    hint: L("Hybrid.Hint"),
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-  game.settings.register(MODULE_ID, S.agentMode, {
-    name: L("AgentMode.Name"),
-    hint: L("AgentMode.Hint"),
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: false,
-  });
-  game.settings.register(MODULE_ID, S.sendEmbedConfig, {
-    name: L("SendEmbedConfig.Name"),
-    hint: L("SendEmbedConfig.Hint"),
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: false,
-  });
-  game.settings.register(MODULE_ID, S.tokenBudget, {
-    name: L("TokenBudget.Name"),
-    hint: L("TokenBudget.Hint"),
-    scope: "world",
-    config: true,
-    type: Number,
-    default: 1500,
-  });
-  game.settings.register(MODULE_ID, S.topK, {
-    name: L("TopK.Name"),
-    hint: L("TopK.Hint"),
-    scope: "world",
-    config: true,
-    type: Number,
-    default: 5,
-  });
+  game.settings.register(MODULE_ID, S.secret, { ...worldStr, default: "" });
+  game.settings.register(MODULE_ID, S.hybrid, { ...worldBool, default: true });
+  game.settings.register(MODULE_ID, S.agentMode, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, S.sendEmbedConfig, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, S.tokenBudget, { ...worldNum, default: 1500 });
+  game.settings.register(MODULE_ID, S.topK, { ...worldNum, default: 5 });
   // Managed in the Memory window; empty = use DEFAULT_QUERY_SILOS.
-  game.settings.register(MODULE_ID, S.querySilos, {
-    scope: "world",
-    config: false,
-    type: String,
-    default: "",
-  });
+  game.settings.register(MODULE_ID, S.querySilos, { ...worldStr, default: "" });
 
   // Embedding provider (used only when sendEmbedConfig is on).
   registerFeatureProviderSettings("embeddings");
+}
+
+/** Whether a shared secret is stored (for a write-only "saved" placeholder in the UI). */
+export function hasRagSecret(): boolean {
+  return ((game.settings.get(MODULE_ID, RAG_SETTINGS.secret) as string) ?? "").trim().length > 0;
+}
+
+/** Write-only save of the shared secret: blank keeps the existing value; clear wipes it. */
+export async function saveRagSecret(newValue: string, clear: boolean): Promise<void> {
+  if (clear) {
+    await game.settings.set(MODULE_ID, RAG_SETTINGS.secret, "");
+    return;
+  }
+  const v = String(newValue ?? "").trim();
+  if (v.length > 0) await game.settings.set(MODULE_ID, RAG_SETTINGS.secret, v);
 }
 
 export function getRagConnection(): RagConnection {

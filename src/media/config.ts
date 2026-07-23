@@ -7,137 +7,43 @@ import { registerFeatureProviderSettings } from "../providers/config";
 
 export function registerMediaSettings(): void {
   const M = MEDIA_SETTINGS;
-  const L = (s: string) => `NOODLR.Media.${s}`;
 
   registerFeatureProviderSettings("tts");
   registerFeatureProviderSettings("image");
   registerFeatureProviderSettings("transcription");
 
+  // Media options are rendered in the Noodlr configuration windows (config:false), grouped
+  // with their feature so nothing floats free in the native settings list.
+  const worldBool = { scope: "world" as const, config: false, type: Boolean };
+  const worldStr = { scope: "world" as const, config: false, type: String };
+  const worldNum = { scope: "world" as const, config: false, type: Number };
+
   // --- TTS ---
-  game.settings.register(MODULE_ID, M.ttsEnabled, {
-    name: L("TtsEnabled.Name"),
-    hint: L("TtsEnabled.Hint"),
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: false,
-  });
-  game.settings.register(MODULE_ID, M.ttsVoice, {
-    name: L("TtsVoice.Name"),
-    hint: L("TtsVoice.Hint"),
-    scope: "world",
-    config: true,
-    type: String,
-    default: "",
-  });
+  game.settings.register(MODULE_ID, M.ttsEnabled, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, M.ttsVoice, { ...worldStr, default: "" });
   game.settings.register(MODULE_ID, M.ttsAutoRead, {
-    name: L("TtsAutoRead.Name"),
-    hint: L("TtsAutoRead.Hint"),
     scope: "client",
-    config: true,
+    config: false,
     type: Boolean,
     default: false,
   });
 
   // --- Image ---
-  game.settings.register(MODULE_ID, M.imageSystemPrompt, {
-    scope: "world",
-    config: false,
-    type: String,
-    default: "",
-  });
-  game.settings.register(MODULE_ID, M.imageExpandPrompt, {
-    name: L("ImageExpand.Name"),
-    hint: L("ImageExpand.Hint"),
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-  game.settings.register(MODULE_ID, M.imageSteps, {
-    name: L("ImageSteps.Name"),
-    hint: L("ImageSteps.Hint"),
-    scope: "world",
-    config: true,
-    type: Number,
-    default: 20,
-  });
-  game.settings.register(MODULE_ID, M.imageCfg, {
-    name: L("ImageCfg.Name"),
-    hint: L("ImageCfg.Hint"),
-    scope: "world",
-    config: true,
-    type: Number,
-    default: 7.0,
-  });
-  game.settings.register(MODULE_ID, M.imageSampler, {
-    name: L("ImageSampler.Name"),
-    hint: L("ImageSampler.Hint"),
-    scope: "world",
-    config: true,
-    type: String,
-    default: "Euler a",
-  });
-  game.settings.register(MODULE_ID, M.imageSeed, {
-    name: L("ImageSeed.Name"),
-    hint: L("ImageSeed.Hint"),
-    scope: "world",
-    config: true,
-    type: Number,
-    default: -1,
-  });
-  game.settings.register(MODULE_ID, M.imageNegative, {
-    name: L("ImageNegative.Name"),
-    hint: L("ImageNegative.Hint"),
-    scope: "world",
-    config: true,
-    type: String,
-    default: "",
-  });
-  game.settings.register(MODULE_ID, M.imageSize, {
-    name: L("ImageSize.Name"),
-    hint: L("ImageSize.Hint"),
-    scope: "world",
-    config: true,
-    type: String,
-    default: "1024x1024",
-  });
+  game.settings.register(MODULE_ID, M.imageSystemPrompt, { ...worldStr, default: "" });
+  game.settings.register(MODULE_ID, M.imageExpandPrompt, { ...worldBool, default: true });
+  game.settings.register(MODULE_ID, M.imageSteps, { ...worldNum, default: 20 });
+  game.settings.register(MODULE_ID, M.imageCfg, { ...worldNum, default: 7.0 });
+  game.settings.register(MODULE_ID, M.imageSampler, { ...worldStr, default: "Euler a" });
+  game.settings.register(MODULE_ID, M.imageSeed, { ...worldNum, default: -1 });
+  game.settings.register(MODULE_ID, M.imagePositive, { ...worldStr, default: "" });
+  game.settings.register(MODULE_ID, M.imageNegative, { ...worldStr, default: "" });
+  game.settings.register(MODULE_ID, M.imageSize, { ...worldStr, default: "1024x1024" });
 
   // --- Push-to-log transcription ---
-  game.settings.register(MODULE_ID, M.pushToLogPostChat, {
-    name: L("PushPostChat.Name"),
-    hint: L("PushPostChat.Hint"),
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-  game.settings.register(MODULE_ID, M.pushToLogIngest, {
-    name: L("PushIngest.Name"),
-    hint: L("PushIngest.Hint"),
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
-  game.settings.register(MODULE_ID, M.pushToLogIngestInterval, {
-    name: L("PushIngestInterval.Name"),
-    hint: L("PushIngestInterval.Hint"),
-    scope: "world",
-    config: true,
-    type: Number,
-    default: 300,
-    range: { min: 60, max: 3600, step: 30 },
-  });
-  game.settings.register(MODULE_ID, M.pushToLogSegmentSeconds, {
-    name: L("PushSegment.Name"),
-    hint: L("PushSegment.Hint"),
-    scope: "world",
-    config: true,
-    type: Number,
-    default: 20,
-    range: { min: 5, max: 60, step: 5 },
-  });
+  game.settings.register(MODULE_ID, M.pushToLogPostChat, { ...worldBool, default: true });
+  game.settings.register(MODULE_ID, M.pushToLogIngest, { ...worldBool, default: true });
+  game.settings.register(MODULE_ID, M.pushToLogIngestInterval, { ...worldNum, default: 300 });
+  game.settings.register(MODULE_ID, M.pushToLogSegmentSeconds, { ...worldNum, default: 20 });
 }
 
 export const getTtsEnabled = () => Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.ttsEnabled));
@@ -151,6 +57,7 @@ export function getImageParams(): {
   cfg: number;
   sampler: string;
   seed: number;
+  positive: string;
   negative: string;
   size: string;
   expand: boolean;
@@ -162,6 +69,7 @@ export function getImageParams(): {
     cfg: Number(g(MEDIA_SETTINGS.imageCfg)) || 7.0,
     sampler: (g(MEDIA_SETTINGS.imageSampler) as string) || "Euler a",
     seed: Number(g(MEDIA_SETTINGS.imageSeed)),
+    positive: (g(MEDIA_SETTINGS.imagePositive) as string) || "",
     negative: (g(MEDIA_SETTINGS.imageNegative) as string) || "",
     size: (g(MEDIA_SETTINGS.imageSize) as string) || "1024x1024",
     expand: Boolean(g(MEDIA_SETTINGS.imageExpandPrompt)),

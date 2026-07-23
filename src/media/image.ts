@@ -56,9 +56,14 @@ export async function generateSceneImage(
   if (!isConfigured(cfg)) throw new ImageError("Image provider is not configured.");
   const params = getImageParams();
 
-  const prompt = params.expand
+  const subject = params.expand
     ? await expandPrompt(sceneDescription, params.systemPrompt)
     : sceneDescription;
+
+  // Prepend the positive/style prefix so every image shares a consistent look, followed by
+  // the specific subject for this scene. (Style prefix + subject is a common SD technique.)
+  const style = params.positive.trim();
+  const prompt = style ? `${style}, ${subject}` : subject;
 
   const body: Record<string, unknown> = {
     model: cfg.model,

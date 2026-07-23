@@ -75,6 +75,7 @@ export const MEDIA_SETTINGS = {
   imageCfg: "image.cfg",
   imageSampler: "image.sampler",
   imageSeed: "image.seed",
+  imagePositive: "image.positive",
   imageNegative: "image.negative",
   imageSize: "image.size",
   // Push-to-log transcription
