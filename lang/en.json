@@ -379,7 +379,7 @@
   "NOODLR.Diagnostics.SelfTest.Hint": "Writes a uniquely-tagged marker document into the 'docs' silo, then searches it back — proving embeddings + storage + query all work end-to-end.",
   "NOODLR.Diagnostics.SelfTest.Running": "Running self-test…",
   "NOODLR.Diagnostics.SelfTest.Ok": "Pass: wrote {inserted} row(s) and read the marker back ({mode} search).",
-  "NOODLR.Diagnostics.SelfTest.NotFound": "Wrote the marker but the query didn't return it. Check the embedding model and that the 'docs' silo isn't misconfigured.",
+  "NOODLR.Diagnostics.SelfTest.NotFound": "Wrote the marker but the query (returned {hits} hit(s)) didn't include it. Check that the same embedding model is used for ingest and query, and that the 'docs' silo isn't misconfigured.",
   "NOODLR.Diagnostics.SelfTest.Fail": "Self-test failed: {error}",
   "NOODLR.Diagnostics.SelfTest.Disabled": "Memory is disabled — enable it first."
 }

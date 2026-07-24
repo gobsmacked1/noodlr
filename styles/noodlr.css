@@ -535,6 +535,39 @@
   color: #b00020;
 }
 
+/* Header "Save" button injected into the window title bar of long config pop-outs. */
+.noodlr-header-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0 0.25rem 0 auto; /* push to the right edge, before the window controls */
+  padding: 0 0.5rem;
+  height: calc(100% - 8px);
+  line-height: 1;
+  font-size: 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.noodlr-header-save:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+/* Unsaved-changes state: amber highlight + a leading dot so it's obvious there's pending work. */
+.noodlr-header-save.is-dirty {
+  background: #b26a00;
+  border-color: #ffb300;
+  color: #fff;
+  font-weight: 700;
+}
+.noodlr-header-save.is-dirty span::before {
+  content: "\2022 "; /* bullet */
+}
+
 /* Diagnostics window */
 .noodlr-diag-table,
 .noodlr-diag-status,

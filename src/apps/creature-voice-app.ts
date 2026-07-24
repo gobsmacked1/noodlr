@@ -11,6 +11,7 @@ import {
   type CreatureVoice,
 } from "../media/creature-voice";
 import { listVoices } from "../media/tts";
+import { installHeaderSaveButton } from "./header-save";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -50,6 +51,7 @@ export class NoodlrCreatureVoiceApp extends HandlebarsApplicationMixin(Applicati
   }
 
   _onRender(_context: unknown, _options: unknown): void {
+    installHeaderSaveButton(this);
     // Fill the shared voice datalist from the TTS endpoint (or the standard fallback names).
     void listVoices().then((voices) => {
       const dl = this.#root()?.querySelector<HTMLDataListElement>("#noodlr-creature-voices-list");

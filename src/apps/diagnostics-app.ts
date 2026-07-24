@@ -100,23 +100,28 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
     setStatus(game.i18n.localize("NOODLR.Diagnostics.SelfTest.Running"));
 
     const marker = `noodlr-selftest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // Ingest and query with the SAME distinctive text: self-similarity is ~1.0, so the marker is
+    // guaranteed to top the dense candidate pool even when `docs` already holds many documents.
+    // (Querying with a bare token embeds very differently from the stored sentence and can miss
+    // the candidate cut entirely — that was the earlier false negative.)
+    const markerText = `Noodlr diagnostics self-test ${marker}. This is a throwaway document safe to delete.`;
     try {
       const client = getRagClient();
       const embed = getEmbedOverride();
-      // 1) Write a uniquely-tagged document into the `docs` silo.
+      // 1) Write the tagged document into the `docs` silo.
       const ing = await client.ingest(
         "docs",
-        [{ text: `Noodlr self-test marker: ${marker}. Safe to delete.`, metadata: { selftest: true } }],
+        [{ text: markerText, metadata: { selftest: true } }],
         embed,
       );
-      // 2) Read it back by searching for the unique token. CRITICAL: pass the SAME embedding
-      // override used for ingest — otherwise the server embeds the query with a different model
-      // and the vectors live in a different space (false-negative "not found").
+      // 2) Read it back. CRITICAL: pass the SAME embedding override used for ingest — otherwise
+      // the server embeds the query with a different model (different vector space).
       const res = await client.query(
-        { collections: ["docs"], searchText: marker, topK: 5, embed },
+        { collections: ["docs"], searchText: markerText, topK: 5, embed },
         undefined,
       );
-      const found = (res.hits ?? []).some((h) => (h.text ?? "").includes(marker));
+      const hits = res.hits ?? [];
+      const found = hits.some((h) => (h.text ?? "").includes(marker));
       if (found) {
         setStatus(
           game.i18n.format("NOODLR.Diagnostics.SelfTest.Ok", {
@@ -126,7 +131,10 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
           true,
         );
       } else {
-        setStatus(game.i18n.localize("NOODLR.Diagnostics.SelfTest.NotFound"), false);
+        setStatus(
+          game.i18n.format("NOODLR.Diagnostics.SelfTest.NotFound", { hits: hits.length }),
+          false,
+        );
       }
     } catch (err) {
       const msg = err instanceof RagClientError ? err.message : String(err);

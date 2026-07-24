@@ -5,7 +5,7 @@
 //    (its src accepts video) to all participants + chat card. Reuses the image share helpers.
 
 import { log } from "../constants";
-import { getMusicConfig, getVideoConfig } from "./config";
+import { getMusicConfig, getVideoConfig, getImageParams } from "./config";
 import { generateMusic, MusicError } from "./music";
 import { generateVideo, VideoError } from "./video";
 import { saveMedia } from "./storage";
@@ -83,9 +83,21 @@ export async function createAndShareVideo(input: {
   const duration = clamp(input.seconds ?? cfg.duration, 6, 30);
   ui.notifications?.info(game.i18n.localize("NOODLR.Media.Video.Generating"));
 
+  // Reuse the image generator's Positive/Negative style so video matches the look of stills.
+  // The video API has no native negative_prompt field, so we fold it into the prompt text
+  // (best-effort — some models heed "Avoid:" phrasing, others ignore it).
+  const { positive, negative } = getImageParams();
+  const prompt = [
+    positive.trim() ? positive.trim() : null,
+    input.description.trim(),
+    negative.trim() ? `Avoid: ${negative.trim()}.` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   let result;
   try {
-    result = await generateVideo(input.description, {
+    result = await generateVideo(prompt, {
       duration,
       resolution: cfg.resolution,
       aspect: cfg.aspect,

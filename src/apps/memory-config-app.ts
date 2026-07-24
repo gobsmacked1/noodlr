@@ -19,6 +19,7 @@ import { RagClientError } from "../rag/client";
 import { getProviderView, saveProviderFromForm, type ProviderFormData } from "../providers/config";
 import { getPushToLogConfig } from "../media/config";
 import { wireProviderBlocks } from "./provider-ui";
+import { installHeaderSaveButton } from "./header-save";
 import { NoodlrMemoryApp } from "./memory-app";
 import { NoodlrLorebookApp } from "./lorebook-app";
 import { NoodlrChronicleApp } from "./chronicle-app";
@@ -100,6 +101,7 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
   _onRender(_context: unknown, _options: unknown): void {
     const root = this.#root();
     if (root) wireProviderBlocks(root);
+    installHeaderSaveButton(this);
   }
 
   static async #onSubmit(

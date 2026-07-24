@@ -44,6 +44,7 @@ import { NoodlrCreatureVoiceApp } from "./creature-voice-app";
 import { getAuthorNote, getCombatReminder, getPostHistory } from "../prompt/settings";
 import { getCombatSystemPrompt } from "../combat/config";
 import { wireProviderBlocks } from "./provider-ui";
+import { installHeaderSaveButton } from "./header-save";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -184,6 +185,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
   _onRender(_context: unknown, _options: unknown): void {
     const root = this.#root();
     if (root) wireProviderBlocks(root);
+    installHeaderSaveButton(this);
   }
 
   static async #onSubmit(

@@ -85,12 +85,14 @@ export async function generateVideo(
 
   let job: VideoJob = await res.json();
   const pollUrl = resolvePollUrl(base, job);
-  const deadline = Date.now() + 5 * 60 * 1000;
+  // Real generations routinely take 5–6 minutes (some longer), so poll patiently for up to 20
+  // minutes rather than giving up at 5 while OpenRouter is still rendering.
+  const deadline = Date.now() + 20 * 60 * 1000;
 
   while (job?.status && !TERMINAL.has(job.status)) {
-    if (Date.now() > deadline) throw new VideoError("Video generation timed out.");
+    if (Date.now() > deadline) throw new VideoError("Video generation timed out after 20 minutes.");
     opts.onStatus?.(job.status);
-    await sleep(4000);
+    await sleep(6000);
     const pr = await fetch(pollUrl, { headers, signal: opts.signal });
     if (!pr.ok) throw new VideoError(`Video poll error (${pr.status})`);
     job = await pr.json();

@@ -299,6 +299,26 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## Bugfix round 2 (2026-07-24) — v0.2.8
+
+- **Self-test STILL false-negative (v0.2.7 didn't fully fix it)** — passing embed on the query
+  wasn't enough. Real cause: the test ingested a full sentence but queried with the *bare* marker
+  token; those embed very differently, so in a populated `docs` silo the marker never made the
+  dense candidate pool (BM25 only runs over dense candidates in `rerankMulti`). Fix: ingest AND
+  query the SAME distinctive sentence — self-similarity ≈ 1.0 guarantees the marker tops the pool
+  regardless of silo size. NotFound message now reports the hit count (0 hits ⇒ store/vectorSearch
+  problem; >0 without the marker ⇒ ranking) for future diagnosis. (Real retrieval was never
+  affected — it queries with the user's actual text, normal semantic search.)
+- **Video timed out at 5 min while OpenRouter was still rendering** (real jobs take 5–6+ min).
+  Bumped the poll deadline to 20 min, cadence to 6s.
+- **Video now reuses the image Positive/Negative style** — `av-gen` prepends the image `positive`
+  prefix and appends `Avoid: <negative>.` (the video API has no native negative_prompt field;
+  best-effort in-prompt) so clips match the look of stills.
+- **Header Save button** (`apps/header-save.ts`) — injected into the title bar (right, before the
+  window controls) of the long form pop-outs (main settings, Memory config, creature voices) so
+  users needn't scroll to the footer. Turns amber with a leading "•" when the form has unsaved
+  edits; resets after submit. Footer Save still works.
+
 ## Bugfix round (2026-07-24) — v0.2.7
 
 Fixes from the v0.2.6 test:
