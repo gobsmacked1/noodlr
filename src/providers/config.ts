@@ -23,6 +23,9 @@ const DEFAULTS: Record<FeatureId, FeatureDefaults> = {
   tts: { provider: "openrouter", model: "microsoft/mai-voice-2" },
   image: { provider: "openrouter", model: "google/gemini-3.1-flash-lite-image" },
   transcription: { provider: "openrouter", model: "openai/whisper-large-v3-turbo" },
+  music: { provider: "openrouter", model: "google/lyria-3-clip-preview" },
+  video: { provider: "openrouter", model: "google/veo-3.1-fast" },
+  rerank: { provider: "openrouter", model: "cohere/rerank-4-fast" },
 };
 
 function key(feature: FeatureId, field: string): string {

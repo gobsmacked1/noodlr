@@ -6,8 +6,16 @@
 
 export type ProviderKind = "openrouter" | "custom";
 
-/** The five AI feature areas that each carry an independent provider config. */
-export type FeatureId = "chat" | "embeddings" | "tts" | "image" | "transcription";
+/** The AI feature areas that each carry an independent provider config. */
+export type FeatureId =
+  | "chat"
+  | "embeddings"
+  | "tts"
+  | "image"
+  | "transcription"
+  | "music"
+  | "video"
+  | "rerank";
 
 export interface FeatureProviderConfig {
   provider: ProviderKind;

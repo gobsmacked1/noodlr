@@ -299,18 +299,40 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
-### Planned but NOT yet built (awaiting decisions — see chat) — new pillars requested 2026-07-24
-- **Text-to-Music** (`output_modalities=audio`): thematic/combat music, 15–300s. New provider pillar.
-- **Text-to-Video** (`output_modalities=video`, experimental): 6–30s comic-relief/trap/tension clips.
-- **Rerank** (`output_modalities=rerank`): refine RAG results (cohere/rerank-4, nvidia). Decide whether
-  rerank runs in the module post-`/query` or inside noodlr-memory.
-- **TTS per-actor pitch dial**: size-based defaults (Tiny +20, Small +10, Med 0, Large −10, Huge −20,
-  Gargantuan −30 %), per-actor override. Blocked on: per-actor voice routing (TTS currently reads DM
-  text with no actor context) + a client-side pitch-shift method (Web Audio playbackRate changes pitch
-  AND speed; true pitch-only needs a shifter). OpenRouter/OpenAI `/audio/speech` has no pitch param.
-- RISK/DISCIPLINE: OpenRouter audio/video/rerank *generation* request/response shapes are NOT the
-  standard OpenAI shapes and are unverified — must confirm before coding (no fabricated APIs).
+## New-pillars round (2026-07-24) — v0.2.5
 
+Built the four items requested 2026-07-24 (user chose "build all", recommended options). Verified all
+OpenRouter shapes live before coding (no fabrication):
+- **Rerank** — `POST /api/v1/rerank` `{model,query,documents[],top_n}` → `{results:[{index,relevance_score,document}]}`.
+  `src/providers/rerank.ts`; integrated module-side in `rag/retrieval.ts::maybeRerank` (after `/query`,
+  before injection). Config lives in the **Memory window** (feature `rerank`, default cohere/rerank-4-fast)
+  per user's call — kept in the module so the model is visible/swappable to non-tech users, not hidden in
+  noodlr-memory. Settings `rag.rerankEnabled`, `rag.rerankTopN`.
+- **Music** — no dedicated endpoint; runs through `/chat/completions` with `modalities:["text","audio"]`,
+  `stream:true`, base64 in `delta.audio.data` (concat all, decode ONCE — chunk-aligned decode corrupts).
+  `src/media/music.ts` → `av-gen.ts::createAndPlayMusic` saves to `<mediaFolder>/music`, adds to a Foundry
+  **Playlist** (default "Noodlr Music") and plays. Chat: `Generate Music: <mood>`. Duration is a prompt
+  hint only (lyria clip is ~fixed length). Default `google/lyria-3-clip-preview`.
+- **Video** — async: `POST /api/v1/videos` → poll `polling_url` until `status=completed`, read
+  `unsigned_urls[0]`. `src/media/video.ts` → `av-gen.ts::createAndShareVideo` saves to `<mediaFolder>/video`,
+  broadcasts via `ImagePopout` (its src accepts video) + chat `<video>` card. Chat: `Generate Video: <scene>`.
+  Default `google/veo-3.1-fast`; 6–30s requested (provider may cap lower). Experimental.
+- **TTS creature voices** — pivoted from size-based pitch to a **creature-type → {voice, pitch}** table
+  (`src/media/creature-voice.ts`, user's D&D type/subtype list). Pitch is sent ONLY when
+  `tts.pitchSupported` is ticked (OpenAI/OpenRouter `/audio/speech` has no pitch field; strict servers
+  reject unknowns) — no client-side pitch shifting. Actor→type via dnd5e `system.details.type`
+  {value,subtype}. Wired into combat NPC turns (`combat/npc-turn.ts` speaks as the combatant when TTS on).
+  DM auto-read stays default-voiced (mixed narration = no single actor).
+
+Model dropdowns for all three new features filter by their modality (music=audio, video=video,
+rerank=rerank) via the v0.2.4 per-feature datalist wiring. `saveMedia()` in `storage.ts` generalizes the
+image saver (Blob or URL, subfolders, MIME→ext). Module API adds `generateMusic`/`generateVideo`.
+
+Follow-ups / caveats: music/video/rerank are UNTESTED against a live key (needs the GM's OpenRouter key);
+music duration not truly controllable via chat-completions; video local-save may hit CORS (falls back to
+provider URL for display). Watch for provider-specific body-field rejections.
+
+## ---
 ## Media round (2026-07-23) — v0.2.3
 
 Image pipeline overhaul + media storage + dropdown UX (all requested after the second smoke test).

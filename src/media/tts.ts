@@ -4,7 +4,7 @@
 
 import { getFeatureConfig } from "../providers/config";
 import { isConfigured, resolveBaseUrl, type FeatureProviderConfig } from "../providers/types";
-import { getTtsVoice } from "./config";
+import { getTtsVoice, getTtsPitchSupported } from "./config";
 
 export const FALLBACK_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
 
@@ -55,17 +55,22 @@ export class TtsError extends Error {}
 /** Synthesize speech to an audio Blob. */
 export async function synthesizeSpeech(
   text: string,
-  opts: { voice?: string; format?: string; signal?: AbortSignal } = {},
+  opts: { voice?: string; format?: string; pitch?: number; signal?: AbortSignal } = {},
 ): Promise<Blob> {
   const cfg = getFeatureConfig("tts");
   if (!isConfigured(cfg)) throw new TtsError("TTS provider is not configured.");
   const url = `${resolveBaseUrl(cfg)}/audio/speech`;
-  const body = {
+  const body: Record<string, unknown> = {
     model: cfg.model,
     input: text,
     voice: opts.voice ?? getTtsVoice() ?? "alloy",
     response_format: opts.format ?? "mp3",
   };
+  // Pitch is non-standard for OpenAI /audio/speech; only send it when the user has confirmed
+  // their endpoint accepts it, so strict servers don't reject the request.
+  if (typeof opts.pitch === "number" && opts.pitch !== 0 && getTtsPitchSupported()) {
+    body.pitch = opts.pitch;
+  }
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders(cfg) },
@@ -79,10 +84,14 @@ export async function synthesizeSpeech(
 let currentAudio: HTMLAudioElement | null = null;
 
 /** Synthesize and play. Stops any currently-playing Noodlr speech first. */
-export async function speak(text: string, voice?: string): Promise<void> {
+export async function speak(
+  text: string,
+  voiceOrOpts?: string | { voice?: string; pitch?: number },
+): Promise<void> {
   const trimmed = text.trim();
   if (!trimmed) return;
-  const blob = await synthesizeSpeech(trimmed, voice ? { voice } : {});
+  const opts = typeof voiceOrOpts === "string" ? { voice: voiceOrOpts } : (voiceOrOpts ?? {});
+  const blob = await synthesizeSpeech(trimmed, opts);
   stopSpeaking();
   const objectUrl = URL.createObjectURL(blob);
   const audio = new Audio(objectUrl);

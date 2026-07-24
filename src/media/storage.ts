@@ -53,35 +53,56 @@ export function slugify(s: string): string {
   );
 }
 
+/** Pick a file extension from a MIME type, defaulting to png (image path is the common case). */
+function extForType(type: string): string {
+  const t = type.toLowerCase();
+  if (t.includes("jpeg")) return "jpg";
+  if (t.includes("webp")) return "webp";
+  if (t.includes("gif")) return "gif";
+  if (t.includes("png")) return "png";
+  if (t.includes("mpeg") || t.includes("mp3")) return "mp3";
+  if (t.includes("wav")) return "wav";
+  if (t.includes("ogg") || t.includes("opus")) return "ogg";
+  if (t.includes("flac")) return "flac";
+  if (t.includes("mp4")) return "mp4";
+  if (t.includes("webm")) return "webm";
+  if (t.startsWith("audio/")) return "mp3";
+  if (t.startsWith("video/")) return "mp4";
+  return "png";
+}
+
 /**
- * Save an image (data: URL or remote URL) into the media folder. Returns the stored path
- * (relative to the data root, usable directly as an <img> src / ImagePopout src) or null on
- * failure — callers fall back to the in-memory src so display still works without persistence.
+ * Save media (a Blob, or a data:/http(s) URL that we fetch) into the media folder — optionally a
+ * subfolder like "music" or "video". Returns the stored path (relative to the data root, usable
+ * directly as a src) or null on failure — callers fall back to the in-memory src.
  */
-export async function saveImage(src: string, baseName: string): Promise<string | null> {
+export async function saveMedia(
+  src: string | Blob,
+  baseName: string,
+  opts: { subfolder?: string; ext?: string } = {},
+): Promise<string | null> {
   const fp = filePicker();
   if (!fp?.upload) return null;
   try {
-    // Both data: and http(s) URLs are fetchable to a Blob here; we request b64_json from
-    // providers so `src` is normally a same-origin data: URL (no CORS concern).
-    const blob = await (await fetch(src)).blob();
-    const ext = blob.type.includes("jpeg")
-      ? "jpg"
-      : blob.type.includes("webp")
-        ? "webp"
-        : blob.type.includes("gif")
-          ? "gif"
-          : "png";
+    // data: and http(s) URLs are both fetchable to a Blob; images arrive as same-origin data:
+    // URLs (b64_json) so no CORS concern. Video arrives as a remote URL (best-effort fetch).
+    const blob = typeof src === "string" ? await (await fetch(src)).blob() : src;
+    const ext = opts.ext ?? extForType(blob.type);
     const name = `${slugify(baseName)}-${Date.now()}.${ext}`;
-    const file = new File([blob], name, { type: blob.type || "image/png" });
-    const folder = getMediaFolder();
+    const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
+    const folder = opts.subfolder ? `${getMediaFolder()}/${opts.subfolder}` : getMediaFolder();
     await ensureMediaFolder(folder);
     const res = await fp.upload("data", folder, file, {}, { notify: false });
     return typeof res?.path === "string" ? res.path : `${folder}/${name}`;
   } catch (err) {
-    log("saveImage failed:", err);
+    log("saveMedia failed:", err);
     return null;
   }
+}
+
+/** Save an image into the media folder (thin wrapper over saveMedia). */
+export function saveImage(src: string, baseName: string): Promise<string | null> {
+  return saveMedia(src, baseName);
 }
 
 // ---- Continuity ledger ---------------------------------------------------------------------

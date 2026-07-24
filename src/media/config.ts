@@ -11,6 +11,8 @@ export function registerMediaSettings(): void {
   registerFeatureProviderSettings("tts");
   registerFeatureProviderSettings("image");
   registerFeatureProviderSettings("transcription");
+  registerFeatureProviderSettings("music");
+  registerFeatureProviderSettings("video");
 
   // Media options are rendered in the Noodlr configuration windows (config:false), grouped
   // with their feature so nothing floats free in the native settings list.
@@ -27,6 +29,8 @@ export function registerMediaSettings(): void {
     type: Boolean,
     default: false,
   });
+  game.settings.register(MODULE_ID, M.ttsPitchSupported, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, M.ttsCreatureVoices, { ...worldStr, default: "{}" });
 
   // --- Image ---
   game.settings.register(MODULE_ID, M.imageSystemPrompt, { ...worldStr, default: "" });
@@ -52,6 +56,22 @@ export function registerMediaSettings(): void {
   game.settings.register(MODULE_ID, M.pushToLogIngest, { ...worldBool, default: true });
   game.settings.register(MODULE_ID, M.pushToLogIngestInterval, { ...worldNum, default: 300 });
   game.settings.register(MODULE_ID, M.pushToLogSegmentSeconds, { ...worldNum, default: 20 });
+
+  // --- Music (text-to-audio) ---
+  game.settings.register(MODULE_ID, M.musicEnabled, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, M.musicChatTrigger, { ...worldBool, default: true });
+  game.settings.register(MODULE_ID, M.musicAllowPlayers, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, M.musicMinSec, { ...worldNum, default: 15 });
+  game.settings.register(MODULE_ID, M.musicMaxSec, { ...worldNum, default: 300 });
+  game.settings.register(MODULE_ID, M.musicPlaylist, { ...worldStr, default: "Noodlr Music" });
+
+  // --- Video (text-to-video, experimental) ---
+  game.settings.register(MODULE_ID, M.videoEnabled, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, M.videoChatTrigger, { ...worldBool, default: true });
+  game.settings.register(MODULE_ID, M.videoAllowPlayers, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, M.videoDuration, { ...worldNum, default: 8 });
+  game.settings.register(MODULE_ID, M.videoResolution, { ...worldStr, default: "720p" });
+  game.settings.register(MODULE_ID, M.videoAspect, { ...worldStr, default: "16:9" });
 }
 
 export const getTtsEnabled = () => Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.ttsEnabled));
@@ -89,6 +109,47 @@ export const getImageChatTrigger = () =>
   Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.imageChatTrigger));
 export const getImageAllowPlayers = () =>
   Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.imageAllowPlayers));
+
+export const getTtsPitchSupported = () =>
+  Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.ttsPitchSupported));
+
+export function getMusicConfig(): {
+  enabled: boolean;
+  chatTrigger: boolean;
+  allowPlayers: boolean;
+  minSec: number;
+  maxSec: number;
+  playlist: string;
+} {
+  const g = (k: string) => game.settings.get(MODULE_ID, k);
+  return {
+    enabled: Boolean(g(MEDIA_SETTINGS.musicEnabled)),
+    chatTrigger: Boolean(g(MEDIA_SETTINGS.musicChatTrigger)),
+    allowPlayers: Boolean(g(MEDIA_SETTINGS.musicAllowPlayers)),
+    minSec: Number(g(MEDIA_SETTINGS.musicMinSec)) || 15,
+    maxSec: Number(g(MEDIA_SETTINGS.musicMaxSec)) || 300,
+    playlist: (g(MEDIA_SETTINGS.musicPlaylist) as string) || "Noodlr Music",
+  };
+}
+
+export function getVideoConfig(): {
+  enabled: boolean;
+  chatTrigger: boolean;
+  allowPlayers: boolean;
+  duration: number;
+  resolution: string;
+  aspect: string;
+} {
+  const g = (k: string) => game.settings.get(MODULE_ID, k);
+  return {
+    enabled: Boolean(g(MEDIA_SETTINGS.videoEnabled)),
+    chatTrigger: Boolean(g(MEDIA_SETTINGS.videoChatTrigger)),
+    allowPlayers: Boolean(g(MEDIA_SETTINGS.videoAllowPlayers)),
+    duration: Number(g(MEDIA_SETTINGS.videoDuration)) || 8,
+    resolution: (g(MEDIA_SETTINGS.videoResolution) as string) || "720p",
+    aspect: (g(MEDIA_SETTINGS.videoAspect) as string) || "16:9",
+  };
+}
 
 export function getPushToLogConfig(): {
   postChat: boolean;

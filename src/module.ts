@@ -11,8 +11,14 @@ import { NoodlrLorebookApp } from "./apps/lorebook-app";
 import { NoodlrChronicleApp } from "./apps/chronicle-app";
 import { speak, stopSpeaking } from "./media/tts";
 import { createAndShareImage } from "./media/scene-art";
+import { createAndPlayMusic, createAndShareVideo } from "./media/av-gen";
 import { ensureMediaFolder } from "./media/storage";
-import { getImageChatTrigger, getImageAllowPlayers } from "./media/config";
+import {
+  getImageChatTrigger,
+  getImageAllowPlayers,
+  getMusicConfig,
+  getVideoConfig,
+} from "./media/config";
 import { createPushToLogButton, pushToLog, type TranscriptPayload } from "./media/push-to-log";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 
@@ -26,6 +32,8 @@ export interface NoodlrApi {
   speak(text: string): void;
   stopSpeaking(): void;
   generateSceneImage(description: string): Promise<void>;
+  generateMusic(description: string): Promise<void>;
+  generateVideo(description: string): Promise<void>;
   togglePushToLog(): void;
   runNpcTurn(): Promise<void>;
 }
@@ -52,6 +60,8 @@ const api: NoodlrApi = {
   speak: (text: string) => void speak(text),
   stopSpeaking: () => stopSpeaking(),
   generateSceneImage: (description: string) => createAndShareImage({ description }),
+  generateMusic: (description: string) => createAndPlayMusic({ description }),
+  generateVideo: (description: string) => createAndShareVideo({ description }),
   togglePushToLog: () => pushToLog.toggle(),
   runNpcTurn: () => runCurrentNpcTurn(),
 };
@@ -82,36 +92,62 @@ Hooks.once("ready", () => {
   if (game.user?.isGM) void ensureMediaFolder();
 });
 
-// Chat-command trigger for image generation:
+// Chat-command triggers for generative media. Returning false swallows the command so the
+// literal text isn't posted as a chat message.
 //   "Generate Image: <scene>"           -> one-off scene art (broadcast to all)
 //   "Generate Portrait: <Name>: <desc>" -> keyed to <Name> for continuity (reuses seed/look)
-// Returning false swallows the command so the literal text isn't posted as a chat message.
+//   "Generate Music: <mood>"            -> music to a Foundry Playlist
+//   "Generate Video: <scene>"           -> short clip broadcast to all
 Hooks.on("chatMessage", (_log: unknown, message: string): boolean => {
-  if (!getImageChatTrigger()) return true;
   const text = (message ?? "").trim();
-  const isPortrait = /^generate\s+portrait\s*:/i.test(text);
-  const isImage = /^generate\s+image\s*:/i.test(text);
-  if (!isPortrait && !isImage) return true;
 
-  if (!game.user?.isGM && !getImageAllowPlayers()) {
+  const gate = (allowPlayers: boolean): boolean => {
+    if (game.user?.isGM || allowPlayers) return true;
     ui.notifications?.warn(game.i18n.localize("NOODLR.Media.Image.GMOnly"));
+    return false;
+  };
+
+  // --- Image / Portrait ---
+  if (/^generate\s+(image|portrait)\s*:/i.test(text)) {
+    if (!getImageChatTrigger()) return true;
+    if (!gate(getImageAllowPlayers())) return false;
+    if (/^generate\s+portrait\s*:/i.test(text)) {
+      const m = text.match(/^generate\s+portrait\s*:\s*([^:]+?)(?::\s*([\s\S]+))?\s*$/i);
+      const name = (m?.[1] ?? "").trim();
+      const desc = (m?.[2] ?? "").trim();
+      if (!name) {
+        ui.notifications?.warn(game.i18n.localize("NOODLR.Media.Image.NeedName"));
+        return false;
+      }
+      void createAndShareImage({ description: desc, entityKey: name, title: name });
+    } else {
+      const desc = (text.match(/^generate\s+image\s*:\s*([\s\S]+)$/i)?.[1] ?? "").trim();
+      if (desc) void createAndShareImage({ description: desc });
+    }
     return false;
   }
 
-  if (isPortrait) {
-    const m = text.match(/^generate\s+portrait\s*:\s*([^:]+?)(?::\s*([\s\S]+))?\s*$/i);
-    const name = (m?.[1] ?? "").trim();
-    const desc = (m?.[2] ?? "").trim();
-    if (!name) {
-      ui.notifications?.warn(game.i18n.localize("NOODLR.Media.Image.NeedName"));
-      return false;
-    }
-    void createAndShareImage({ description: desc, entityKey: name, title: name });
-  } else {
-    const desc = (text.match(/^generate\s+image\s*:\s*([\s\S]+)$/i)?.[1] ?? "").trim();
-    if (desc) void createAndShareImage({ description: desc });
+  // --- Music ---
+  if (/^generate\s+music\s*:/i.test(text)) {
+    const cfg = getMusicConfig();
+    if (!cfg.enabled || !cfg.chatTrigger) return true;
+    if (!gate(cfg.allowPlayers)) return false;
+    const desc = (text.match(/^generate\s+music\s*:\s*([\s\S]+)$/i)?.[1] ?? "").trim();
+    if (desc) void createAndPlayMusic({ description: desc });
+    return false;
   }
-  return false;
+
+  // --- Video ---
+  if (/^generate\s+video\s*:/i.test(text)) {
+    const cfg = getVideoConfig();
+    if (!cfg.enabled || !cfg.chatTrigger) return true;
+    if (!gate(cfg.allowPlayers)) return false;
+    const desc = (text.match(/^generate\s+video\s*:\s*([\s\S]+)$/i)?.[1] ?? "").trim();
+    if (desc) void createAndShareVideo({ description: desc });
+    return false;
+  }
+
+  return true;
 });
 
 // Add a dedicated Noodlr control group (dragon icon) to the canvas toolbar.

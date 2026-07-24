@@ -118,6 +118,27 @@
     {{> providerBlock embeddings}}
   </fieldset>
 
+  {{! ---- Rerank ---- }}
+  <fieldset class="noodlr-settings__section" data-feature="rerank">
+    <legend><i class="fa-solid fa-arrow-down-wide-short"></i> {{rerank.title}}</legend>
+    <ul class="noodlr-help">
+      <li><strong>{{localize "NOODLR.Help.What"}}</strong> {{rerank.what}}</li>
+      <li><strong>{{localize "NOODLR.Help.Requires"}}</strong> {{rerank.requires}}</li>
+      <li><strong>{{localize "NOODLR.Help.Without"}}</strong> {{rerank.without}}</li>
+    </ul>
+
+    <label class="noodlr-inline"><input type="checkbox" name="rerankEnabled" {{#if rerankEnabled}}checked{{/if}} /> {{localize "NOODLR.Rag.Rerank.Enable.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Rag.Rerank.Enable.Hint"}}</p>
+
+    {{> providerBlock rerank}}
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Rag.Rerank.TopN.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Rag.Rerank.TopN.Hint"}}</p>
+      <input type="number" name="rerankTopN" value="{{rerankTopN}}" min="1" max="50" step="1" />
+    </div>
+  </fieldset>
+
   {{! ---- Session transcript ingestion ---- }}
   <fieldset class="noodlr-settings__section">
     <legend><i class="fa-solid fa-microphone-lines"></i> {{localize "NOODLR.Rag.TranscriptLegend"}}</legend>

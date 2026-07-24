@@ -68,6 +68,10 @@ export const MEDIA_SETTINGS = {
   ttsEnabled: "tts.enabled",
   ttsVoice: "tts.voice",
   ttsAutoRead: "tts.autoRead",
+  // Whether this TTS endpoint accepts a `pitch` body field (only sent when true).
+  ttsPitchSupported: "tts.pitchSupported",
+  // Per-creature-type voice+pitch overrides: JSON map creatureTypeKey -> { voice, pitch }.
+  ttsCreatureVoices: "tts.creatureVoices",
   // Image
   imageSystemPrompt: "image.systemPrompt",
   imageExpandPrompt: "image.expandPrompt",
@@ -94,6 +98,20 @@ export const MEDIA_SETTINGS = {
   pushToLogIngest: "transcription.ingest",
   pushToLogIngestInterval: "transcription.ingestInterval",
   pushToLogSegmentSeconds: "transcription.segmentSeconds",
+  // Music (text-to-audio) generation
+  musicEnabled: "music.enabled",
+  musicChatTrigger: "music.chatTrigger",
+  musicAllowPlayers: "music.allowPlayers",
+  musicMinSec: "music.minSec",
+  musicMaxSec: "music.maxSec",
+  musicPlaylist: "music.playlist",
+  // Video (text-to-video) generation
+  videoEnabled: "video.enabled",
+  videoChatTrigger: "video.chatTrigger",
+  videoAllowPlayers: "video.allowPlayers",
+  videoDuration: "video.duration",
+  videoResolution: "video.resolution",
+  videoAspect: "video.aspect",
 } as const;
 
 /** RAG (noodlr-memory) settings keys. */
@@ -107,6 +125,9 @@ export const RAG_SETTINGS = {
   tokenBudget: "rag.tokenBudget",
   topK: "rag.topK",
   querySilos: "rag.querySilos",
+  // Rerank refinement (runs module-side, after /query, before injection).
+  rerankEnabled: "rag.rerankEnabled",
+  rerankTopN: "rag.rerankTopN",
 } as const;
 
 /** Keybinding action ids. */

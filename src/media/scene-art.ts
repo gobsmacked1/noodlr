@@ -14,33 +14,46 @@ function imagePopout(): any {
   return ns ?? (globalThis as any).ImagePopout;
 }
 
-/** Display an image locally and share it with every connected user. */
-async function displayAndShare(src: string, title: string): Promise<void> {
+/**
+ * Display a media file (image OR video — ImagePopout's src accepts both) locally and share it
+ * with every connected user via Foundry's built-in broadcast.
+ */
+export async function shareMediaPopout(src: string, title: string): Promise<void> {
   const IP = imagePopout();
   if (!IP) {
-    log("ImagePopout unavailable; cannot display image");
+    log("ImagePopout unavailable; cannot display media");
     return;
   }
   const pop = new IP({ src, window: { title } });
   await pop.render(true);
   try {
-    // Broadcasts the image to all connected users (they get their own popout).
+    // Broadcasts to all connected users (they get their own popout).
     pop.shareImage();
   } catch (err) {
     log("shareImage failed:", err);
   }
 }
 
-/** Post a lightweight chat card referencing the stored image (never inline base64). */
-async function postImageCard(path: string, title: string): Promise<void> {
+/** Post a lightweight chat card referencing a stored media file (never inline base64). */
+export async function postMediaCard(
+  path: string,
+  title: string,
+  kind: "image" | "video" | "audio" = "image",
+): Promise<void> {
   try {
     const ChatMessage = (globalThis as any).ChatMessage;
     const safeTitle = foundry.utils.escapeHTML(title);
     const safePath = foundry.utils.escapeHTML(path);
-    const content = `<div class="noodlr-scene-art"><strong>${safeTitle}</strong><img src="${safePath}" alt="${safeTitle}" style="width:100%;border-radius:4px;margin-top:4px" /></div>`;
+    const media =
+      kind === "video"
+        ? `<video src="${safePath}" controls style="width:100%;border-radius:4px;margin-top:4px"></video>`
+        : kind === "audio"
+          ? `<audio src="${safePath}" controls style="width:100%;margin-top:4px"></audio>`
+          : `<img src="${safePath}" alt="${safeTitle}" style="width:100%;border-radius:4px;margin-top:4px" />`;
+    const content = `<div class="noodlr-scene-art"><strong>${safeTitle}</strong>${media}</div>`;
     await ChatMessage.create({ content, flags: { [MODULE_ID]: { sceneArt: true } } });
   } catch (err) {
-    log("could not post image chat card:", err);
+    log("could not post media chat card:", err);
   }
 }
 
@@ -116,6 +129,6 @@ export async function createAndShareImage(input: CreateImageInput): Promise<void
   }
 
   const displaySrc = path ?? result.src;
-  await displayAndShare(displaySrc, title);
-  if (path) await postImageCard(path, title);
+  await shareMediaPopout(displaySrc, title);
+  if (path) await postMediaCard(path, title, "image");
 }

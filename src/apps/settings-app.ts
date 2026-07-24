@@ -30,19 +30,29 @@ import {
   getTtsEnabled,
   getTtsVoice,
   getTtsAutoRead,
+  getTtsPitchSupported,
   getImageChatTrigger,
   getImageAllowPlayers,
+  getMusicConfig,
+  getVideoConfig,
 } from "../media/config";
 import { getPushToLogConfig } from "../media/config";
 import { getMediaFolder, getImagePersist } from "../media/storage";
+import {
+  CREATURE_TYPES,
+  getCreatureVoiceTable,
+  setCreatureVoiceTable,
+  normalizeTypeKey,
+  type CreatureVoice,
+} from "../media/creature-voice";
 import { getAuthorNote, getCombatReminder, getPostHistory } from "../prompt/settings";
 import { getCombatSystemPrompt } from "../combat/config";
 import { wireProviderBlocks } from "./provider-ui";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-/** The provider-carrying features surfaced in this window (embeddings live in Memory). */
-const FEATURE_IDS = ["chat", "tts", "image", "transcription"] as const;
+/** The provider-carrying features surfaced in this window (embeddings + rerank live in Memory). */
+const FEATURE_IDS = ["chat", "tts", "image", "transcription", "music", "video"] as const;
 type MainFeatureId = (typeof FEATURE_IDS)[number];
 
 export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -90,6 +100,8 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       tts: "Tts",
       image: "Image",
       transcription: "Transcription",
+      music: "Music",
+      video: "Video",
     };
     const view = (id: MainFeatureId) => {
       const p = `NOODLR.Feature.${labelKey[id]}`;
@@ -103,6 +115,16 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       };
     };
 
+    const music = getMusicConfig();
+    const video = getVideoConfig();
+    const creatureTable = getCreatureVoiceTable();
+    const creatures = CREATURE_TYPES.map((type, i) => {
+      const match = Object.entries(creatureTable).find(
+        ([k]) => normalizeTypeKey(k) === normalizeTypeKey(type),
+      );
+      return { i, type, voice: match?.[1]?.voice ?? "", pitch: match?.[1]?.pitch ?? 0 };
+    });
+
     return {
       moduleTitle: MODULE_TITLE,
       version,
@@ -111,6 +133,8 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       tts: view("tts"),
       image: view("image"),
       transcription: view("transcription"),
+      music: view("music"),
+      video: view("video"),
 
       // Chat options
       continueAfterRoll: game.settings.get(MODULE_ID, SETTINGS.chatContinueAfterRoll) as boolean,
@@ -122,6 +146,24 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       ttsEnabled: getTtsEnabled(),
       ttsVoice: getTtsVoice(),
       ttsAutoRead: getTtsAutoRead(),
+      ttsPitchSupported: getTtsPitchSupported(),
+      creatures,
+
+      // Music options
+      musicEnabled: music.enabled,
+      musicChatTrigger: music.chatTrigger,
+      musicAllowPlayers: music.allowPlayers,
+      musicMinSec: music.minSec,
+      musicMaxSec: music.maxSec,
+      musicPlaylist: music.playlist,
+
+      // Video options
+      videoEnabled: video.enabled,
+      videoChatTrigger: video.chatTrigger,
+      videoAllowPlayers: video.allowPlayers,
+      videoDuration: video.duration,
+      videoResolution: video.resolution,
+      videoAspect: video.aspect,
 
       // Image options
       imageExpand: img.expand,
@@ -180,6 +222,37 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     await set(MEDIA_SETTINGS.ttsEnabled, Boolean(o.tts?.enabled));
     await set(MEDIA_SETTINGS.ttsVoice, String(o.tts?.voice ?? "").trim());
     await set(MEDIA_SETTINGS.ttsAutoRead, Boolean(o.tts?.autoRead));
+    await set(MEDIA_SETTINGS.ttsPitchSupported, Boolean(o.tts?.pitchSupported));
+
+    // Per-creature-type voice/pitch table (only rows with a voice set are stored).
+    const creatureRows = Array.isArray(o.creature) ? o.creature : [];
+    const creatureTable: Record<string, CreatureVoice> = {};
+    for (const row of creatureRows) {
+      const type = String(row?.type ?? "").trim();
+      const voice = String(row?.voice ?? "").trim();
+      if (!type || !voice) continue;
+      creatureTable[normalizeTypeKey(type)] = { voice, pitch: Number(row?.pitch) || 0 };
+    }
+    await setCreatureVoiceTable(creatureTable);
+
+    // Music options
+    await set(MEDIA_SETTINGS.musicEnabled, Boolean(o.music?.enabled));
+    await set(MEDIA_SETTINGS.musicChatTrigger, Boolean(o.music?.chatTrigger));
+    await set(MEDIA_SETTINGS.musicAllowPlayers, Boolean(o.music?.allowPlayers));
+    await set(MEDIA_SETTINGS.musicMinSec, Math.max(1, Number(o.music?.minSec) || 15));
+    await set(MEDIA_SETTINGS.musicMaxSec, Math.max(1, Number(o.music?.maxSec) || 300));
+    await set(
+      MEDIA_SETTINGS.musicPlaylist,
+      String(o.music?.playlist ?? "Noodlr Music").trim() || "Noodlr Music",
+    );
+
+    // Video options
+    await set(MEDIA_SETTINGS.videoEnabled, Boolean(o.video?.enabled));
+    await set(MEDIA_SETTINGS.videoChatTrigger, Boolean(o.video?.chatTrigger));
+    await set(MEDIA_SETTINGS.videoAllowPlayers, Boolean(o.video?.allowPlayers));
+    await set(MEDIA_SETTINGS.videoDuration, Math.max(1, Number(o.video?.duration) || 8));
+    await set(MEDIA_SETTINGS.videoResolution, String(o.video?.resolution ?? "720p").trim() || "720p");
+    await set(MEDIA_SETTINGS.videoAspect, String(o.video?.aspect ?? "16:9").trim() || "16:9");
 
     // Image options
     await set(MEDIA_SETTINGS.imageExpandPrompt, Boolean(o.image?.expand));

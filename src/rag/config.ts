@@ -37,8 +37,22 @@ export function registerRagSettings(): void {
   // Managed in the Memory window; empty = use DEFAULT_QUERY_SILOS.
   game.settings.register(MODULE_ID, S.querySilos, { ...worldStr, default: "" });
 
-  // Embedding provider (used only when sendEmbedConfig is on).
+  // Rerank refinement (module-side, after /query). Kept in the module — not noodlr-memory —
+  // so the model is configured where it's obvious and swappable if it ever gets deprecated.
+  game.settings.register(MODULE_ID, S.rerankEnabled, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, S.rerankTopN, { ...worldNum, default: 5 });
+
+  // Embedding + rerank providers (used only when their features are enabled).
   registerFeatureProviderSettings("embeddings");
+  registerFeatureProviderSettings("rerank");
+}
+
+export function isRerankEnabled(): boolean {
+  return Boolean(game.settings.get(MODULE_ID, RAG_SETTINGS.rerankEnabled));
+}
+
+export function getRerankTopN(): number {
+  return Number(game.settings.get(MODULE_ID, RAG_SETTINGS.rerankTopN)) || 5;
 }
 
 /** Whether a shared secret is stored (for a write-only "saved" placeholder in the UI). */

@@ -9,8 +9,11 @@ import {
   getRagClient,
   getRagTuning,
   isRagEnabled,
+  isRerankEnabled,
+  getRerankTopN,
 } from "./config";
 import { decomposeQuery } from "./agent-mode";
+import { rerankDocuments } from "../providers/rerank";
 import type { RagHit } from "./client";
 import { isCombatActive } from "../combat/tracker";
 import { isSiloId } from "./silos";
@@ -69,7 +72,24 @@ export async function retrieveContext(query: string, signal?: AbortSignal): Prom
   }
 
   if (hits.length === 0) return null;
+  hits = await maybeRerank(trimmed, hits, signal);
   return formatContextBlock(hits, tokenBudget);
+}
+
+/**
+ * Refine hit ordering with a cross-encoder rerank model (if enabled), keeping the top N. A
+ * failed/absent rerank leaves the original hybrid ranking untouched.
+ */
+async function maybeRerank(
+  query: string,
+  hits: RagHit[],
+  signal?: AbortSignal,
+): Promise<RagHit[]> {
+  if (!isRerankEnabled() || hits.length <= 1) return hits;
+  const docs = hits.map((h) => (h.text ?? "").trim());
+  const ranked = await rerankDocuments(query, docs, getRerankTopN(), signal);
+  if (!ranked || ranked.length === 0) return hits;
+  return ranked.map((r) => hits[r.index]).filter((h): h is RagHit => Boolean(h));
 }
 
 function formatContextBlock(hits: RagHit[], tokenBudget: number): string | null {

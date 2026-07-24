@@ -135,6 +135,37 @@
       </div>
       <p class="noodlr-test-status" data-role="tts-test-status" aria-live="polite"></p>
     </div>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="tts.pitchSupported" {{#if ttsPitchSupported}}checked{{/if}} />
+      {{localize "NOODLR.Media.TtsPitch.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.TtsPitch.Hint"}}</p>
+
+    {{! Per-creature-type voice + pitch. The GM assigns a distinct voice per creature type; the
+        voice fields reuse the TTS "Fetch voices" datalist. Hidden type field preserves the key. }}
+    <details class="noodlr-field">
+      <summary>{{localize "NOODLR.Media.CreatureVoices.Name"}}</summary>
+      <p class="notes">{{localize "NOODLR.Media.CreatureVoices.Hint"}}</p>
+      <table class="noodlr-creature-table">
+        <thead>
+          <tr>
+            <th>{{localize "NOODLR.Media.CreatureVoices.Type"}}</th>
+            <th>{{localize "NOODLR.Media.CreatureVoices.Voice"}}</th>
+            <th>{{localize "NOODLR.Media.CreatureVoices.Pitch"}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each creatures}}
+          <tr>
+            <td>{{this.type}}<input type="hidden" name="creature.{{this.i}}.type" value="{{this.type}}" /></td>
+            <td><input type="text" name="creature.{{this.i}}.voice" value="{{this.voice}}" list="noodlr-voices-tts" autocomplete="off" /></td>
+            <td><input type="number" name="creature.{{this.i}}.pitch" value="{{this.pitch}}" step="5" min="-50" max="50" /></td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </details>
   </fieldset>
 
   {{! ---- Scene Art (Image) ---- }}
@@ -232,6 +263,92 @@
       <input type="number" name="transcription.segment" value="{{transcriptSegment}}" min="5" max="60" step="5" />
     </div>
     <p class="notes">{{localize "NOODLR.Media.PushIngestElsewhere"}}</p>
+  </fieldset>
+
+  {{! ---- Music (text-to-audio) ---- }}
+  <fieldset class="noodlr-settings__section" data-feature="music">
+    <legend><i class="fa-solid fa-music"></i> {{music.title}}</legend>
+    {{> help music}}
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="music.enabled" {{#if musicEnabled}}checked{{/if}} />
+      {{localize "NOODLR.Media.MusicEnabled.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.MusicEnabled.Hint"}}</p>
+
+    {{> providerBlock music}}
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.MusicPlaylist.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.MusicPlaylist.Hint"}}</p>
+      <input type="text" name="music.playlist" value="{{musicPlaylist}}" autocomplete="off" />
+    </div>
+
+    <div class="noodlr-grid">
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.MusicMin.Name"}}</label>
+        <input type="number" name="music.minSec" value="{{musicMinSec}}" min="1" max="600" step="5" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.MusicMax.Name"}}</label>
+        <input type="number" name="music.maxSec" value="{{musicMaxSec}}" min="1" max="600" step="5" />
+      </div>
+    </div>
+    <p class="notes">{{localize "NOODLR.Media.MusicDurationNote"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="music.chatTrigger" {{#if musicChatTrigger}}checked{{/if}} />
+      {{localize "NOODLR.Media.MusicTrigger.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.MusicTrigger.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="music.allowPlayers" {{#if musicAllowPlayers}}checked{{/if}} />
+      {{localize "NOODLR.Media.MediaAllowPlayers.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.MediaAllowPlayers.Hint"}}</p>
+  </fieldset>
+
+  {{! ---- Video (text-to-video, experimental) ---- }}
+  <fieldset class="noodlr-settings__section" data-feature="video">
+    <legend><i class="fa-solid fa-film"></i> {{video.title}}</legend>
+    {{> help video}}
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="video.enabled" {{#if videoEnabled}}checked{{/if}} />
+      {{localize "NOODLR.Media.VideoEnabled.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.VideoEnabled.Hint"}}</p>
+
+    {{> providerBlock video}}
+
+    <div class="noodlr-grid">
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.VideoDuration.Name"}}</label>
+        <input type="number" name="video.duration" value="{{videoDuration}}" min="6" max="30" step="1" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.VideoResolution.Name"}}</label>
+        <input type="text" name="video.resolution" value="{{videoResolution}}" placeholder="720p" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.VideoAspect.Name"}}</label>
+        <input type="text" name="video.aspect" value="{{videoAspect}}" placeholder="16:9" />
+      </div>
+    </div>
+    <p class="notes">{{localize "NOODLR.Media.VideoDurationNote"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="video.chatTrigger" {{#if videoChatTrigger}}checked{{/if}} />
+      {{localize "NOODLR.Media.VideoTrigger.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.VideoTrigger.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="video.allowPlayers" {{#if videoAllowPlayers}}checked{{/if}} />
+      {{localize "NOODLR.Media.MediaAllowPlayers.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.MediaAllowPlayers.Hint"}}</p>
   </fieldset>
 
   {{! ---- Context & injections ---- }}

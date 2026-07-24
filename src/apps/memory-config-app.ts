@@ -12,6 +12,8 @@ import {
   hasRagSecret,
   saveRagSecret,
   getRagTuning,
+  isRerankEnabled,
+  getRerankTopN,
 } from "../rag/config";
 import { RagClientError } from "../rag/client";
 import { getProviderView, saveProviderFromForm, type ProviderFormData } from "../providers/config";
@@ -77,6 +79,17 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
       sendEmbedConfig: Boolean(g(RAG_SETTINGS.sendEmbedConfig)),
       embeddings: { id: "embeddings", ...getProviderView("embeddings") },
 
+      rerankEnabled: isRerankEnabled(),
+      rerankTopN: getRerankTopN(),
+      rerank: {
+        id: "rerank",
+        ...getProviderView("rerank"),
+        title: game.i18n.localize("NOODLR.Feature.Rerank.Title"),
+        what: game.i18n.localize("NOODLR.Feature.Rerank.What"),
+        requires: game.i18n.localize("NOODLR.Feature.Rerank.Requires"),
+        without: game.i18n.localize("NOODLR.Feature.Rerank.Without"),
+      },
+
       transcriptIngest: push.ingest,
       transcriptIngestInterval: push.ingestInterval,
     };
@@ -110,6 +123,11 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
     // Embeddings
     await set(RAG_SETTINGS.sendEmbedConfig, Boolean(o.sendEmbedConfig));
     await saveProviderFromForm("embeddings", o.embeddings as ProviderFormData | undefined);
+
+    // Rerank refinement
+    await set(RAG_SETTINGS.rerankEnabled, Boolean(o.rerankEnabled));
+    await set(RAG_SETTINGS.rerankTopN, Number(o.rerankTopN) || 5);
+    await saveProviderFromForm("rerank", o.rerank as ProviderFormData | undefined);
 
     // Session transcript ingestion
     await set(MEDIA_SETTINGS.pushToLogIngest, Boolean(o.transcriptIngest));
