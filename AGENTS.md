@@ -299,6 +299,35 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## Fixups + diagnostics round (2026-07-24) — v0.2.6
+
+Post-v0.2.5 feedback fixes:
+- **Chat model list "still 343"** — NOT a bug. OpenRouter's entire catalog is 343 and *all* output text,
+  so `output_modalities=text` can't narrow it (verified live: unfiltered==text==343). The other features
+  shrink because speech/image/embeddings/etc. are rarer. Left chat unfiltered on purpose — hiding flagship
+  chat models by capability would be worse. Explained to user.
+- **Transcription enable toggle** — added `transcription.enabled` (world, default off). The floating mic
+  button is now gated: `push-to-log.ts::refreshPushToLogButton()` adds/removes it; called at ready and on
+  settings save (no reload needed).
+- **Music/Video tool buttons** — added GM-only scene-control tools (`music`/`video`, shown only when the
+  feature is enabled) → `promptMusic`/`promptVideo` DialogV2 textareas → `createAndPlayMusic`/
+  `createAndShareVideo`. Mirrors the existing scene-art button.
+- **Music duration snapping** — the number inputs had `step="5"` with `min="1"`, so valid values were
+  1,6,11,… (browser rejected 15/300). Changed to `step="1"`.
+- **DM chat unselectable + wiped on reopen** — chat transcript now lives in a **static** store on
+  `NoodlrChatPanel` (survives close/reopen from switching scene tools) and is rebuilt from it in
+  `_onRender`; `.noodlr-chat__body` gets `user-select:text`; each bubble has a copy-to-clipboard button.
+  (The `Conversation` model-history is also static now so the DM keeps context across reopen.)
+- **Creature-voice table location** — was a collapsed `<details>` in the TTS section; users expected a
+  pop-out. Moved to its own window `NoodlrCreatureVoiceApp` (`creature-voices.hbs`) opened by a button in
+  the TTS section; the voice field is fed by the live `/audio/voices` list.
+- **Diagnostics/stats (new)** — `util/stats.ts` client-scoped counters (chat turns, prompt/completion
+  tokens via `stream_options.include_usage`, RAG queries + hits, injected chars≈tokens, rerank runs + kept,
+  ingest docs/chunks, media counts). New **Diagnostics** window (button in Memory window) shows: live
+  LanceDB per-silo document counts (proves writes land), a **write→read self-test** (ingest a tagged marker
+  into `docs`, query it back), and the session counters with derived ratios. Answers the "is memory/rerank
+  actually doing anything + reducing tokens" question with numbers instead of hand-waving.
+
 ## New-pillars round (2026-07-24) — v0.2.5
 
 Built the four items requested 2026-07-24 (user chose "build all", recommended options). Verified all

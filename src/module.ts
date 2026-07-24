@@ -4,6 +4,7 @@
 
 import { MODULE_ID, KEYBINDINGS, SOCKET, log } from "./constants";
 import { registerSettings } from "./settings";
+import { registerStatsSettings } from "./util/stats";
 import { NoodlrChatPanel } from "./apps/chat-panel";
 import { NoodlrSettingsApp } from "./apps/settings-app";
 import { NoodlrMemoryApp } from "./apps/memory-app";
@@ -19,7 +20,7 @@ import {
   getMusicConfig,
   getVideoConfig,
 } from "./media/config";
-import { createPushToLogButton, pushToLog, type TranscriptPayload } from "./media/push-to-log";
+import { refreshPushToLogButton, pushToLog, type TranscriptPayload } from "./media/push-to-log";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 
 /** Public surface other code (macros, console, future features) can call. */
@@ -69,6 +70,7 @@ const api: NoodlrApi = {
 Hooks.once("init", () => {
   log(`initializing (Foundry ${game.version ?? "?"})`);
   registerSettings();
+  registerStatsSettings();
   registerKeybindings();
 
   // Expose the API on the module entry so it's reachable as
@@ -85,8 +87,8 @@ Hooks.once("ready", () => {
     if (game.user?.isGM && data?.type === "transcript") pushToLog.handleTranscript(data);
   });
 
-  // Floating push-to-log button (bottom-center) for every participant.
-  createPushToLogButton();
+  // Floating push-to-log button (bottom-center) — only when transcription is enabled.
+  refreshPushToLogButton();
 
   // Ensure the media output folder exists (GM only — creating dirs needs upload permission).
   if (game.user?.isGM) void ensureMediaFolder();
@@ -191,6 +193,28 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
         visible: true,
         onChange: () => void runCurrentNpcTurn(),
       };
+      if (getMusicConfig().enabled) {
+        tools.music = {
+          name: "music",
+          title: "NOODLR.Media.MusicPromptTitle",
+          icon: "fa-solid fa-music",
+          order: 4,
+          button: true,
+          visible: true,
+          onChange: () => void promptMusic(),
+        };
+      }
+      if (getVideoConfig().enabled) {
+        tools.video = {
+          name: "video",
+          title: "NOODLR.Media.VideoPromptTitle",
+          icon: "fa-solid fa-film",
+          order: 5,
+          button: true,
+          visible: true,
+          onChange: () => void promptVideo(),
+        };
+      }
     }
 
     controls.noodlr = {
@@ -225,6 +249,43 @@ async function promptSceneImage(): Promise<void> {
   } catch (err) {
     log("scene image generation cancelled/failed:", err);
   }
+}
+
+/** Small helper: prompt for a description in a DialogV2 textarea; returns trimmed text or "". */
+async function promptDescription(titleKey: string, hintKey: string, okKey: string): Promise<string> {
+  try {
+    const value = await foundry.applications.api.DialogV2.prompt({
+      window: { title: game.i18n.localize(titleKey) },
+      content: `<p>${game.i18n.localize(hintKey)}</p><textarea name="desc" rows="3" style="width:100%"></textarea>`,
+      ok: {
+        label: game.i18n.localize(okKey),
+        callback: (_ev: Event, button: any) => button.form?.elements?.desc?.value ?? "",
+      },
+    });
+    return String(value ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
+/** Prompt the GM for a music description, then generate + play it via a Foundry Playlist. */
+async function promptMusic(): Promise<void> {
+  const text = await promptDescription(
+    "NOODLR.Media.MusicPromptTitle",
+    "NOODLR.Media.MusicPromptHint",
+    "NOODLR.Media.MusicPromptButton",
+  );
+  if (text) await createAndPlayMusic({ description: text });
+}
+
+/** Prompt the GM for a video description, then generate + broadcast it. */
+async function promptVideo(): Promise<void> {
+  const text = await promptDescription(
+    "NOODLR.Media.VideoPromptTitle",
+    "NOODLR.Media.VideoPromptHint",
+    "NOODLR.Media.VideoPromptButton",
+  );
+  if (text) await createAndShareVideo({ description: text });
 }
 
 function registerKeybindings(): void {

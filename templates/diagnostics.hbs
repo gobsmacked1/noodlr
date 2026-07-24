@@ -1,0 +1,72 @@
+<section class="noodlr-settings">
+  <header class="noodlr-settings__header">
+    <i class="fa-solid fa-chart-line"></i>
+    <h2>{{moduleTitle}} — {{localize "NOODLR.Diagnostics.Title"}}</h2>
+  </header>
+
+  <p class="noodlr-settings__intro">{{localize "NOODLR.Diagnostics.Intro"}}</p>
+
+  {{! ---- Memory: live silo document counts ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-database"></i> {{localize "NOODLR.Diagnostics.Memory"}}</legend>
+
+    {{#if rag.enabled}}
+      {{#if rag.online}}
+        <table class="noodlr-diag-table">
+          <thead>
+            <tr>
+              <th>{{localize "NOODLR.Diagnostics.Silo"}}</th>
+              <th>{{localize "NOODLR.Diagnostics.Documents"}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each rag.silos}}
+            <tr><td>{{this.label}}</td><td>{{this.count}}</td></tr>
+            {{/each}}
+          </tbody>
+        </table>
+      {{else}}
+        <p class="noodlr-bad">{{localize "NOODLR.Diagnostics.Offline"}} {{rag.error}}</p>
+      {{/if}}
+
+      <div class="noodlr-settings__actions">
+        <button type="button" data-action="selfTest">
+          <i class="fa-solid fa-vial"></i> {{localize "NOODLR.Diagnostics.SelfTest.Button"}}
+        </button>
+      </div>
+      <p class="noodlr-diag-status" data-role="selftest"></p>
+      <p class="notes">{{localize "NOODLR.Diagnostics.SelfTest.Hint"}}</p>
+    {{else}}
+      <p class="notes">{{localize "NOODLR.Diagnostics.RagDisabled"}}</p>
+    {{/if}}
+  </fieldset>
+
+  {{! ---- Session usage counters ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-gauge-high"></i> {{localize "NOODLR.Diagnostics.Usage"}}</legend>
+    <p class="notes">{{localize "NOODLR.Diagnostics.Since"}} {{derived.since}}</p>
+
+    <table class="noodlr-diag-table">
+      <tbody>
+        <tr><td>{{localize "NOODLR.Diagnostics.ChatTurns"}}</td><td>{{stats.chatTurns}}</td></tr>
+        <tr><td>{{localize "NOODLR.Diagnostics.Tokens"}}</td>
+            <td>{{derived.totalTokens}} ({{stats.promptTokens}} in / {{stats.completionTokens}} out)</td></tr>
+        <tr><td>{{localize "NOODLR.Diagnostics.RagQueries"}}</td><td>{{stats.ragQueries}}</td></tr>
+        <tr><td>{{localize "NOODLR.Diagnostics.HitsPerQuery"}}</td><td>{{derived.hitsPerQuery}}</td></tr>
+        <tr><td>{{localize "NOODLR.Diagnostics.RerankCalls"}}</td>
+            <td>{{stats.rerankCalls}} ({{localize "NOODLR.Diagnostics.KeptPer"}} {{derived.keptPerRerank}})</td></tr>
+        <tr><td>{{localize "NOODLR.Diagnostics.Injected"}}</td>
+            <td>~{{derived.injectedTokens}} {{localize "NOODLR.Diagnostics.TokensUnit"}}</td></tr>
+        <tr><td>{{localize "NOODLR.Diagnostics.Ingested"}}</td>
+            <td>{{stats.ingestDocs}} ({{stats.ingestChunks}} {{localize "NOODLR.Diagnostics.Chunks"}})</td></tr>
+        <tr><td>{{localize "NOODLR.Diagnostics.Media"}}</td>
+            <td>{{stats.images}} img / {{stats.music}} music / {{stats.video}} video</td></tr>
+      </tbody>
+    </table>
+
+    <div class="noodlr-settings__actions">
+      <button type="button" data-action="refreshDiag"><i class="fa-solid fa-rotate"></i> {{localize "NOODLR.Diagnostics.Refresh"}}</button>
+      <button type="button" data-action="resetDiag"><i class="fa-solid fa-eraser"></i> {{localize "NOODLR.Diagnostics.Reset"}}</button>
+    </div>
+  </fieldset>
+</section>

@@ -9,9 +9,10 @@
 // Written defensively; verify getUserMedia/MediaRecorder cycling in-app.
 
 import { MODULE_ID, SOCKET, log } from "../constants";
-import { getPushToLogConfig } from "./config";
+import { getPushToLogConfig, getTranscriptionEnabled } from "./config";
 import { transcribeAudio } from "./transcription";
 import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
+import { bumpStats } from "../util/stats";
 
 export interface TranscriptPayload {
   type: "transcript";
@@ -154,11 +155,12 @@ class PushToLogController {
     const text = this.#buffer.join("\n");
     this.#buffer = [];
     try {
-      await getRagClient().ingest(
+      const res = await getRagClient().ingest(
         "chat",
         [{ text, metadata: { source: "push-to-log", ts: Date.now() } }],
         getEmbedOverride(),
       );
+      bumpStats({ ingestDocs: res.inserted ?? 0, ingestChunks: res.chunks ?? 0 });
     } catch (err) {
       log("push-to-log ingest failed (will retry next interval):", err);
     }
@@ -219,6 +221,17 @@ export function createPushToLogButton(): void {
   btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
   btn.addEventListener("click", () => pushToLog.toggle());
   document.body.appendChild(btn);
+}
+
+/** Add or remove the floating mic button to match the transcription-enabled setting. */
+export function refreshPushToLogButton(): void {
+  const enabled = getTranscriptionEnabled();
+  const existing = document.getElementById(BUTTON_ID);
+  if (enabled && !existing) createPushToLogButton();
+  else if (!enabled && existing) {
+    if (pushToLog.active) pushToLog.toggle();
+    existing.remove();
+  }
 }
 
 function updateButton(active: boolean): void {

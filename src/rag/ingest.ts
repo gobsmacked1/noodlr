@@ -5,6 +5,7 @@
 import { getEmbedOverride, getRagClient } from "./config";
 import type { IngestDocument } from "./client";
 import type { SiloId } from "./silos";
+import { bumpStats } from "../util/stats";
 
 /** Strip HTML to plain text using a detached element (browser context). */
 function stripHtml(html: string): string {
@@ -86,6 +87,7 @@ export async function ingestCompendium(
     if (documents.length > 0) {
       const res = await client.ingest(silo, documents, embed, signal);
       inserted += res.inserted ?? 0;
+      bumpStats({ ingestDocs: res.inserted ?? 0, ingestChunks: res.chunks ?? 0 });
     }
     processed += batch.length;
     onProgress?.({ processed, total: docs.length, inserted });

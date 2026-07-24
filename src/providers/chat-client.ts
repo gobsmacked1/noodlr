@@ -4,6 +4,17 @@
 
 import { type ChatMessage, type FeatureProviderConfig, resolveBaseUrl } from "./types";
 import { MODULE_TITLE } from "../constants";
+import { bumpStats } from "../util/stats";
+
+/** Record token usage from a completion's `usage` object into diagnostics counters. */
+function recordUsage(usage: unknown): void {
+  const u = usage as { prompt_tokens?: number; completion_tokens?: number } | null | undefined;
+  if (!u) return;
+  bumpStats({
+    promptTokens: Number(u.prompt_tokens) || 0,
+    completionTokens: Number(u.completion_tokens) || 0,
+  });
+}
 
 export interface ChatCompletionOptions {
   messages: ChatMessage[];
@@ -66,6 +77,8 @@ export async function* streamChatCompletion(
     model: cfg.model,
     messages: options.messages,
     stream: true,
+    // Ask OpenAI-compatible servers to emit a final usage frame so we can track token spend.
+    stream_options: { include_usage: true },
   };
   if (options.temperature !== undefined) body.temperature = options.temperature;
   if (options.maxTokens !== undefined) body.max_tokens = options.maxTokens;
@@ -107,6 +120,11 @@ export async function* streamChatCompletion(
         whole += decoder.decode(value, { stream: true });
       }
       whole += decoder.decode();
+      try {
+        recordUsage(JSON.parse(whole)?.usage);
+      } catch {
+        /* not JSON with usage — ignore */
+      }
       const text = extractCompletionText(whole);
       if (text) yield text;
       return;
@@ -124,7 +142,8 @@ export async function* streamChatCompletion(
       while ((sepIndex = buffer.indexOf("\n\n")) !== -1) {
         const frame = buffer.slice(0, sepIndex);
         buffer = buffer.slice(sepIndex + 2);
-        const { content, done: isDone } = parseSseFrame(frame);
+        const { content, done: isDone, usage } = parseSseFrame(frame);
+        if (usage) recordUsage(usage);
         if (content) yield content;
         if (isDone) return;
       }
@@ -147,9 +166,10 @@ export async function* streamChatCompletion(
  * content that happens to share a frame with `[DONE]` (the previous bug: reaching `[DONE]`
  * returned immediately and threw away already-parsed text, so nothing ever rendered).
  */
-function parseSseFrame(frame: string): { content: string; done: boolean } {
+function parseSseFrame(frame: string): { content: string; done: boolean; usage?: unknown } {
   let content = "";
   let done = false;
+  let usage: unknown;
   for (const rawLine of frame.split("\n")) {
     const line = rawLine.trim();
     if (!line || line.startsWith(":")) continue; // comment / keep-alive
@@ -160,8 +180,15 @@ function parseSseFrame(frame: string): { content: string; done: boolean } {
       continue;
     }
     content += extractDeltaContent(data);
+    // The final usage frame typically has an empty choices array + a `usage` object.
+    try {
+      const u = JSON.parse(data)?.usage;
+      if (u) usage = u;
+    } catch {
+      /* partial */
+    }
   }
-  return { content, done };
+  return { content, done, usage };
 }
 
 /** Extract streaming delta content from one SSE `data:` JSON payload. */

@@ -52,6 +52,7 @@ export function registerMediaSettings(): void {
   game.settings.register(MODULE_ID, M.imageLedger, { ...worldStr, default: "{}" });
 
   // --- Push-to-log transcription ---
+  game.settings.register(MODULE_ID, M.transcriptionEnabled, { ...worldBool, default: false });
   game.settings.register(MODULE_ID, M.pushToLogPostChat, { ...worldBool, default: true });
   game.settings.register(MODULE_ID, M.pushToLogIngest, { ...worldBool, default: true });
   game.settings.register(MODULE_ID, M.pushToLogIngestInterval, { ...worldNum, default: 300 });
@@ -75,6 +76,8 @@ export function registerMediaSettings(): void {
 }
 
 export const getTtsEnabled = () => Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.ttsEnabled));
+export const getTranscriptionEnabled = () =>
+  Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.transcriptionEnabled));
 export const getTtsVoice = () =>
   (game.settings.get(MODULE_ID, MEDIA_SETTINGS.ttsVoice) as string) ?? "";
 export const getTtsAutoRead = () =>

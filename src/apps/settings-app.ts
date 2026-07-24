@@ -35,16 +35,12 @@ import {
   getImageAllowPlayers,
   getMusicConfig,
   getVideoConfig,
+  getTranscriptionEnabled,
 } from "../media/config";
 import { getPushToLogConfig } from "../media/config";
 import { getMediaFolder, getImagePersist } from "../media/storage";
-import {
-  CREATURE_TYPES,
-  getCreatureVoiceTable,
-  setCreatureVoiceTable,
-  normalizeTypeKey,
-  type CreatureVoice,
-} from "../media/creature-voice";
+import { refreshPushToLogButton } from "../media/push-to-log";
+import { NoodlrCreatureVoiceApp } from "./creature-voice-app";
 import { getAuthorNote, getCombatReminder, getPostHistory } from "../prompt/settings";
 import { getCombatSystemPrompt } from "../combat/config";
 import { wireProviderBlocks } from "./provider-ui";
@@ -76,6 +72,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       testConnection: NoodlrSettingsApp.#onTestConnection,
       testTts: NoodlrSettingsApp.#onTestTts,
       browseMediaFolder: NoodlrSettingsApp.#onBrowseMediaFolder,
+      openCreatureVoices: NoodlrSettingsApp.#onOpenCreatureVoices,
     },
   };
 
@@ -117,13 +114,6 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
 
     const music = getMusicConfig();
     const video = getVideoConfig();
-    const creatureTable = getCreatureVoiceTable();
-    const creatures = CREATURE_TYPES.map((type, i) => {
-      const match = Object.entries(creatureTable).find(
-        ([k]) => normalizeTypeKey(k) === normalizeTypeKey(type),
-      );
-      return { i, type, voice: match?.[1]?.voice ?? "", pitch: match?.[1]?.pitch ?? 0 };
-    });
 
     return {
       moduleTitle: MODULE_TITLE,
@@ -147,7 +137,6 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       ttsVoice: getTtsVoice(),
       ttsAutoRead: getTtsAutoRead(),
       ttsPitchSupported: getTtsPitchSupported(),
-      creatures,
 
       // Music options
       musicEnabled: music.enabled,
@@ -180,6 +169,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       imageAllowPlayers: getImageAllowPlayers(),
 
       // Transcription capture options (ingest-to-memory lives in the Memory window)
+      transcriptEnabled: getTranscriptionEnabled(),
       transcriptPostChat: getPushToLogConfig().postChat,
       transcriptSegment: getPushToLogConfig().segmentSeconds,
 
@@ -224,17 +214,6 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     await set(MEDIA_SETTINGS.ttsAutoRead, Boolean(o.tts?.autoRead));
     await set(MEDIA_SETTINGS.ttsPitchSupported, Boolean(o.tts?.pitchSupported));
 
-    // Per-creature-type voice/pitch table (only rows with a voice set are stored).
-    const creatureRows = Array.isArray(o.creature) ? o.creature : [];
-    const creatureTable: Record<string, CreatureVoice> = {};
-    for (const row of creatureRows) {
-      const type = String(row?.type ?? "").trim();
-      const voice = String(row?.voice ?? "").trim();
-      if (!type || !voice) continue;
-      creatureTable[normalizeTypeKey(type)] = { voice, pitch: Number(row?.pitch) || 0 };
-    }
-    await setCreatureVoiceTable(creatureTable);
-
     // Music options
     await set(MEDIA_SETTINGS.musicEnabled, Boolean(o.music?.enabled));
     await set(MEDIA_SETTINGS.musicChatTrigger, Boolean(o.music?.chatTrigger));
@@ -275,9 +254,12 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     await set(MEDIA_SETTINGS.imageAllowPlayers, Boolean(o.image?.allowPlayers));
 
     // Transcription capture options
+    await set(MEDIA_SETTINGS.transcriptionEnabled, Boolean(o.transcription?.enabled));
     await set(MEDIA_SETTINGS.pushToLogPostChat, Boolean(o.transcription?.postChat));
     const seg = Number(o.transcription?.segment);
     await set(MEDIA_SETTINGS.pushToLogSegmentSeconds, seg >= 5 && seg <= 60 ? seg : 20);
+    // Show/hide the floating mic button to match the toggle without a reload.
+    refreshPushToLogButton();
 
     // Prompt architecture
     await set(SETTINGS.authorNote, String(o.authorNote ?? ""));
@@ -292,6 +274,10 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
 
     ui.notifications?.info(game.i18n.localize("NOODLR.Settings.Saved"));
     this.render();
+  }
+
+  static #onOpenCreatureVoices(): void {
+    new NoodlrCreatureVoiceApp().render({ force: true });
   }
 
   static async #onResetPrompt(this: NoodlrSettingsApp): Promise<void> {

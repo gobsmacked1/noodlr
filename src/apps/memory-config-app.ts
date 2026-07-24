@@ -22,6 +22,7 @@ import { wireProviderBlocks } from "./provider-ui";
 import { NoodlrMemoryApp } from "./memory-app";
 import { NoodlrLorebookApp } from "./lorebook-app";
 import { NoodlrChronicleApp } from "./chronicle-app";
+import { NoodlrDiagnosticsApp } from "./diagnostics-app";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -46,6 +47,7 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
       openManage: NoodlrMemoryConfigApp.#openManage,
       openLorebook: NoodlrMemoryConfigApp.#openLorebook,
       openChronicle: NoodlrMemoryConfigApp.#openChronicle,
+      openDiagnostics: NoodlrMemoryConfigApp.#openDiagnostics,
     },
   };
 
@@ -165,5 +167,8 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
   }
   static #openChronicle(): void {
     new NoodlrChronicleApp().render({ force: true });
+  }
+  static #openDiagnostics(): void {
+    new NoodlrDiagnosticsApp().render({ force: true });
   }
 }

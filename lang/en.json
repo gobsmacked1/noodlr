@@ -4,6 +4,8 @@
   "NOODLR.ChatPanel.NotConfigured": "Chat provider not configured. Set the provider, model, and API key in module settings.",
   "NOODLR.ChatPanel.Send": "Send",
   "NOODLR.ChatPanel.Clear": "Clear conversation",
+  "NOODLR.ChatPanel.Copy": "Copy to clipboard",
+  "NOODLR.ChatPanel.Copied": "Copied to clipboard.",
 
   "NOODLR.Controls.GroupTitle": "Noodlr — AI Dungeon Master",
 
@@ -266,11 +268,23 @@
 
   "NOODLR.Media.TtsPitch.Name": "My TTS endpoint accepts a pitch parameter",
   "NOODLR.Media.TtsPitch.Hint": "Leave OFF for OpenRouter and most OpenAI-style servers (they'd reject an unknown 'pitch' field). Turn ON only for a custom endpoint you know accepts pitch — then per-creature pitch below is sent through.",
-  "NOODLR.Media.CreatureVoices.Name": "Per-creature voices (click to expand)",
-  "NOODLR.Media.CreatureVoices.Hint": "Assign a voice (and optional pitch %) to each creature type. When Noodlr speaks for an NPC/monster, it uses the voice for that creature's type (falling back to the base type, then the default voice). Pitch is only sent if the box above is ticked.",
+  "NOODLR.Media.CreatureVoices.Name": "Per-creature voices",
+  "NOODLR.Media.CreatureVoices.Title": "Creature-type voices",
+  "NOODLR.Media.CreatureVoices.Open": "Configure creature voices…",
+  "NOODLR.Media.CreatureVoices.Hint": "Assign a voice (and optional pitch %) to each creature type. When Noodlr speaks for an NPC/monster, it uses the voice for that creature's type (falling back to the base type, then the default voice). Pitch is only sent if 'My TTS endpoint accepts a pitch parameter' is ticked.",
   "NOODLR.Media.CreatureVoices.Type": "Creature type",
   "NOODLR.Media.CreatureVoices.Voice": "Voice",
   "NOODLR.Media.CreatureVoices.Pitch": "Pitch %",
+
+  "NOODLR.Media.TranscriptionEnabled.Name": "Enable voice transcription (push-to-log)",
+  "NOODLR.Media.TranscriptionEnabled.Hint": "What it does: shows the floating microphone button so participants can click-to-record; speech is transcribed to text, optionally posted to chat, logged to the session journal, and ingested into memory. What it needs: a transcription model/endpoint + mic permission. Without it: no mic button and no transcription.",
+
+  "NOODLR.Media.MusicPromptTitle": "Generate music",
+  "NOODLR.Media.MusicPromptHint": "Describe the mood/scene (e.g. \"tense dungeon ambience with low drums\").",
+  "NOODLR.Media.MusicPromptButton": "Generate",
+  "NOODLR.Media.VideoPromptTitle": "Generate video",
+  "NOODLR.Media.VideoPromptHint": "Describe the short clip (e.g. \"a torch sputtering out in a dark crypt\").",
+  "NOODLR.Media.VideoPromptButton": "Generate",
 
   "NOODLR.Media.MusicEnabled.Name": "Enable music generation",
   "NOODLR.Media.MusicEnabled.Hint": "What it does: lets the DM generate mood/combat music. What it needs: a music model + key. Without it: no AI music.",
@@ -334,5 +348,37 @@
   "NOODLR.Combat.NotConfigured": "Chat provider is not configured.",
 
   "NOODLR.Keybindings.ToggleChatPanel.Name": "Toggle Noodlr chat panel",
-  "NOODLR.Keybindings.ToggleChatPanel.Hint": "Open or close the Noodlr Dungeon Master chat panel."
+  "NOODLR.Keybindings.ToggleChatPanel.Hint": "Open or close the Noodlr Dungeon Master chat panel.",
+
+  "NOODLR.Diagnostics.Menu.Label": "Diagnostics",
+  "NOODLR.Diagnostics.Title": "Diagnostics & Statistics",
+  "NOODLR.Diagnostics.Intro": "Concrete numbers behind the 'smart' features: whether memory writes are landing in LanceDB, and how much work retrieval/rerank/ingest are actually doing this session.",
+  "NOODLR.Diagnostics.Memory": "Memory (LanceDB) contents",
+  "NOODLR.Diagnostics.Silo": "Silo",
+  "NOODLR.Diagnostics.Documents": "Documents",
+  "NOODLR.Diagnostics.Offline": "Memory service unreachable:",
+  "NOODLR.Diagnostics.RagDisabled": "Memory is disabled. Enable it in the Memory & Knowledge window to see live silo counts and run the self-test.",
+  "NOODLR.Diagnostics.Usage": "Session usage",
+  "NOODLR.Diagnostics.Since": "Counting since:",
+  "NOODLR.Diagnostics.ChatTurns": "Chat turns",
+  "NOODLR.Diagnostics.Tokens": "Chat tokens (total)",
+  "NOODLR.Diagnostics.RagQueries": "Memory queries",
+  "NOODLR.Diagnostics.HitsPerQuery": "Avg matches per query",
+  "NOODLR.Diagnostics.RerankCalls": "Rerank runs",
+  "NOODLR.Diagnostics.KeptPer": "avg kept:",
+  "NOODLR.Diagnostics.Injected": "Memory injected into prompts",
+  "NOODLR.Diagnostics.TokensUnit": "tokens",
+  "NOODLR.Diagnostics.Chunks": "chunks",
+  "NOODLR.Diagnostics.Ingested": "Documents ingested",
+  "NOODLR.Diagnostics.Media": "Media generated",
+  "NOODLR.Diagnostics.Refresh": "Refresh",
+  "NOODLR.Diagnostics.Reset": "Reset counters",
+  "NOODLR.Diagnostics.ResetDone": "Diagnostics counters reset.",
+  "NOODLR.Diagnostics.SelfTest.Button": "Run write→read self-test",
+  "NOODLR.Diagnostics.SelfTest.Hint": "Writes a uniquely-tagged marker document into the 'docs' silo, then searches it back — proving embeddings + storage + query all work end-to-end.",
+  "NOODLR.Diagnostics.SelfTest.Running": "Running self-test…",
+  "NOODLR.Diagnostics.SelfTest.Ok": "Pass: wrote {inserted} row(s) and read the marker back ({mode} search).",
+  "NOODLR.Diagnostics.SelfTest.NotFound": "Wrote the marker but the query didn't return it. Check the embedding model and that the 'docs' silo isn't misconfigured.",
+  "NOODLR.Diagnostics.SelfTest.Fail": "Self-test failed: {error}",
+  "NOODLR.Diagnostics.SelfTest.Disabled": "Memory is disabled — enable it first."
 }

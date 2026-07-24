@@ -63,6 +63,10 @@
 }
 
 .noodlr-chat__author {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -71,9 +75,32 @@
   margin-bottom: 0.15rem;
 }
 
+/* Copy-to-clipboard button on each message (visible on hover). */
+.noodlr-chat__copy {
+  flex: 0 0 auto;
+  width: auto;
+  line-height: 1;
+  padding: 1px 5px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.noodlr-chat__msg:hover .noodlr-chat__copy {
+  opacity: 0.75;
+}
+.noodlr-chat__copy:hover {
+  opacity: 1;
+}
+
 .noodlr-chat__body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  /* Let the GM select/copy the DM's narration. */
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 .noodlr-chat__body p {
@@ -505,5 +532,37 @@
 }
 
 .noodlr-test-status--error {
+  color: #b00020;
+}
+
+/* Diagnostics window */
+.noodlr-diag-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.25rem 0 0.5rem;
+}
+.noodlr-diag-table th,
+.noodlr-diag-table td {
+  text-align: left;
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+.noodlr-diag-table td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.noodlr-diag-status {
+  min-height: 1.2em;
+  font-style: italic;
+}
+.noodlr-diag-status.is-ok {
+  color: #2e7d32;
+  font-style: normal;
+}
+.noodlr-diag-status.is-bad {
+  color: #b00020;
+  font-style: normal;
+}
+.noodlr-bad {
   color: #b00020;
 }

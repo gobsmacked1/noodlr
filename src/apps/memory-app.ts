@@ -8,6 +8,7 @@ import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
 import { RagClientError } from "../rag/client";
 import { SILOS, SILO_IDS, isSiloId, type SiloId } from "../rag/silos";
 import { ingestCompendium } from "../rag/ingest";
+import { bumpStats } from "../util/stats";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -171,6 +172,7 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
         const text = await file.text();
         res = await client.ingestFile(silo, file.name, { fileType: "text", text }, embed);
       }
+      bumpStats({ ingestDocs: res.inserted ?? 0, ingestChunks: res.chunks ?? 0 });
       ui.notifications?.info(
         game.i18n.format("NOODLR.Rag.IngestDone", {
           docs: 1,

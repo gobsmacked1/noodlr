@@ -142,30 +142,14 @@
     </label>
     <p class="notes">{{localize "NOODLR.Media.TtsPitch.Hint"}}</p>
 
-    {{! Per-creature-type voice + pitch. The GM assigns a distinct voice per creature type; the
-        voice fields reuse the TTS "Fetch voices" datalist. Hidden type field preserves the key. }}
-    <details class="noodlr-field">
-      <summary>{{localize "NOODLR.Media.CreatureVoices.Name"}}</summary>
+    {{! Per-creature-type voice + pitch lives in its own pop-out (30+ rows). }}
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.CreatureVoices.Name"}}</label>
       <p class="notes">{{localize "NOODLR.Media.CreatureVoices.Hint"}}</p>
-      <table class="noodlr-creature-table">
-        <thead>
-          <tr>
-            <th>{{localize "NOODLR.Media.CreatureVoices.Type"}}</th>
-            <th>{{localize "NOODLR.Media.CreatureVoices.Voice"}}</th>
-            <th>{{localize "NOODLR.Media.CreatureVoices.Pitch"}}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {{#each creatures}}
-          <tr>
-            <td>{{this.type}}<input type="hidden" name="creature.{{this.i}}.type" value="{{this.type}}" /></td>
-            <td><input type="text" name="creature.{{this.i}}.voice" value="{{this.voice}}" list="noodlr-voices-tts" autocomplete="off" /></td>
-            <td><input type="number" name="creature.{{this.i}}.pitch" value="{{this.pitch}}" step="5" min="-50" max="50" /></td>
-          </tr>
-          {{/each}}
-        </tbody>
-      </table>
-    </details>
+      <button type="button" data-action="openCreatureVoices">
+        <i class="fa-solid fa-masks-theater"></i> {{localize "NOODLR.Media.CreatureVoices.Open"}}
+      </button>
+    </div>
   </fieldset>
 
   {{! ---- Scene Art (Image) ---- }}
@@ -249,6 +233,13 @@
   <fieldset class="noodlr-settings__section" data-feature="transcription">
     <legend><i class="fa-solid fa-microphone-lines"></i> {{transcription.title}}</legend>
     {{> help transcription}}
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="transcription.enabled" {{#if transcriptEnabled}}checked{{/if}} />
+      {{localize "NOODLR.Media.TranscriptionEnabled.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.TranscriptionEnabled.Hint"}}</p>
+
     {{> providerBlock transcription}}
 
     <label class="noodlr-inline">
@@ -287,11 +278,11 @@
     <div class="noodlr-grid">
       <div class="noodlr-field">
         <label>{{localize "NOODLR.Media.MusicMin.Name"}}</label>
-        <input type="number" name="music.minSec" value="{{musicMinSec}}" min="1" max="600" step="5" />
+        <input type="number" name="music.minSec" value="{{musicMinSec}}" min="1" max="600" step="1" />
       </div>
       <div class="noodlr-field">
         <label>{{localize "NOODLR.Media.MusicMax.Name"}}</label>
-        <input type="number" name="music.maxSec" value="{{musicMaxSec}}" min="1" max="600" step="5" />
+        <input type="number" name="music.maxSec" value="{{musicMaxSec}}" min="1" max="600" step="1" />
       </div>
     </div>
     <p class="notes">{{localize "NOODLR.Media.MusicDurationNote"}}</p>

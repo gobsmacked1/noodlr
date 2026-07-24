@@ -94,6 +94,7 @@ export const MEDIA_SETTINGS = {
   // Continuity ledger: JSON map of entityKey -> { seed, prompt, model, path, ts }.
   imageLedger: "image.ledger",
   // Push-to-log transcription
+  transcriptionEnabled: "transcription.enabled",
   pushToLogPostChat: "transcription.postChat",
   pushToLogIngest: "transcription.ingest",
   pushToLogIngestInterval: "transcription.ingestInterval",

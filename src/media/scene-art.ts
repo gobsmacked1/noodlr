@@ -7,6 +7,7 @@ import { MODULE_ID, log } from "../constants";
 import { generateSceneImage, ImageError } from "./image";
 import { getImagePersist, saveImage, setLedgerEntry } from "./storage";
 import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
+import { bumpStats } from "../util/stats";
 
 /** Resolve the v13 ImagePopout class (namespaced), falling back to the legacy global. */
 function imagePopout(): any {
@@ -131,4 +132,5 @@ export async function createAndShareImage(input: CreateImageInput): Promise<void
   const displaySrc = path ?? result.src;
   await shareMediaPopout(displaySrc, title);
   if (path) await postMediaCard(path, title, "image");
+  bumpStats({ images: 1 });
 }

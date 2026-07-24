@@ -1,0 +1,33 @@
+<section class="noodlr-settings">
+  <header class="noodlr-settings__header">
+    <i class="fa-solid fa-masks-theater"></i>
+    <h2>{{moduleTitle}} — {{localize "NOODLR.Media.CreatureVoices.Title"}}</h2>
+  </header>
+
+  <p class="noodlr-settings__intro">{{localize "NOODLR.Media.CreatureVoices.Hint"}}</p>
+
+  <datalist id="noodlr-creature-voices-list"></datalist>
+
+  <table class="noodlr-creature-table">
+    <thead>
+      <tr>
+        <th>{{localize "NOODLR.Media.CreatureVoices.Type"}}</th>
+        <th>{{localize "NOODLR.Media.CreatureVoices.Voice"}}</th>
+        <th>{{localize "NOODLR.Media.CreatureVoices.Pitch"}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each creatures}}
+      <tr>
+        <td>{{this.type}}<input type="hidden" name="creature.{{this.i}}.type" value="{{this.type}}" /></td>
+        <td><input type="text" name="creature.{{this.i}}.voice" value="{{this.voice}}" list="noodlr-creature-voices-list" autocomplete="off" /></td>
+        <td><input type="number" name="creature.{{this.i}}.pitch" value="{{this.pitch}}" step="5" min="-50" max="50" /></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+
+  <div class="noodlr-settings__actions">
+    <button type="submit"><i class="fa-solid fa-floppy-disk"></i> {{localize "NOODLR.Settings.Save"}}</button>
+  </div>
+</section>

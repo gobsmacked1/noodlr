@@ -10,6 +10,7 @@ import { generateMusic, MusicError } from "./music";
 import { generateVideo, VideoError } from "./video";
 import { saveMedia } from "./storage";
 import { shareMediaPopout, postMediaCard } from "./scene-art";
+import { bumpStats } from "../util/stats";
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
@@ -49,6 +50,7 @@ export async function createAndPlayMusic(input: {
 
   await addToPlaylist(cfg.playlist, path, input.description || "Noodlr track");
   await postMediaCard(path, input.description || "Noodlr music", "audio");
+  bumpStats({ music: 1 });
 }
 
 /** Find/create the named Playlist, add the track, and start playing it. GM only (needs create). */
@@ -104,4 +106,5 @@ export async function createAndShareVideo(input: {
   const displaySrc = path ?? result.url;
   await shareMediaPopout(displaySrc, input.description || "Noodlr video");
   await postMediaCard(displaySrc, input.description || "Noodlr video", "video");
+  bumpStats({ video: 1 });
 }

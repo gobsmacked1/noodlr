@@ -15,6 +15,7 @@ import { retrieveContext } from "../rag/retrieval";
 import { assemblePrompt } from "../prompt/assembler";
 import { captureChronicle } from "../prompt/chronicle";
 import { buildCombatStateBlock } from "../combat/tracker";
+import { bumpStats } from "../util/stats";
 
 export interface SendHooks {
   /** Display name of the speaker (maps to a Foundry user). */
@@ -55,6 +56,7 @@ export class Conversation {
     const userMsg: ChatMessage = { role: "user", content: userText };
     if (hooks.speakerName) userMsg.name = sanitizeName(hooks.speakerName);
     this.messages.push(userMsg);
+    bumpStats({ chatTurns: 1 });
 
     // Retrieve campaign memory once per user turn (graceful null when disabled/offline).
     const ragBlock = await retrieveContext(userText, hooks.signal);
