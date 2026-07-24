@@ -287,6 +287,30 @@ Packaging done and shipped to GitHub. Version stays 0.1.0 (pre-parity, pre-smoke
 - **Cursor agent worker:** runs as user `cursorbot` under systemd unit `cursor-worker.service` (name `noodlr-cursorbot`, workerId `afb4e5c1-...`), survives reboot (verified). Its serving directory is **`/opt`**, so a Cloud Agent driving this worker has `/opt` as workspace root. Drive it from cursor.com/agents, not from this chat.
 - Give the worker scoped power to bounce Foundry via a sudoers drop-in (`cursorbot ALL=(root) NOPASSWD: /usr/bin/systemctl {start,stop,restart,status} foundryvtt`).
 
+## Model-filter round (2026-07-24) — v0.2.4
+
+Per-feature OpenRouter model dropdowns, filtered by output modality (fixes "343 slugs for every
+field"). Verified live against `GET /api/v1/models` — the API supports server-side filtering via
+`output_modalities` (+ `sort`), and although the docs only list text/image/audio/embeddings, these
+all work: text(343), image(40), audio(4), embeddings(27), speech(15), transcription(12), rerank(4),
+video(17); `all`=447. Approach: `fetchOpenRouterModels(modality, sort)` caches per `modality|sort`,
+preserves server sort order. `provider-ui.ts` maps `data-feature` → modality (chat=text/context-high,
+tts=speech, image=image, transcription=transcription, embeddings=embeddings; music=audio, video=video,
+rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
+is public (no key). No key ever sent for the OR catalog.
+
+### Planned but NOT yet built (awaiting decisions — see chat) — new pillars requested 2026-07-24
+- **Text-to-Music** (`output_modalities=audio`): thematic/combat music, 15–300s. New provider pillar.
+- **Text-to-Video** (`output_modalities=video`, experimental): 6–30s comic-relief/trap/tension clips.
+- **Rerank** (`output_modalities=rerank`): refine RAG results (cohere/rerank-4, nvidia). Decide whether
+  rerank runs in the module post-`/query` or inside noodlr-memory.
+- **TTS per-actor pitch dial**: size-based defaults (Tiny +20, Small +10, Med 0, Large −10, Huge −20,
+  Gargantuan −30 %), per-actor override. Blocked on: per-actor voice routing (TTS currently reads DM
+  text with no actor context) + a client-side pitch-shift method (Web Audio playbackRate changes pitch
+  AND speed; true pitch-only needs a shifter). OpenRouter/OpenAI `/audio/speech` has no pitch param.
+- RISK/DISCIPLINE: OpenRouter audio/video/rerank *generation* request/response shapes are NOT the
+  standard OpenAI shapes and are unverified — must confirm before coding (no fabricated APIs).
+
 ## Media round (2026-07-23) — v0.2.3
 
 Image pipeline overhaul + media storage + dropdown UX (all requested after the second smoke test).
