@@ -54,6 +54,37 @@ export async function fetchOpenRouterModels(
   return p;
 }
 
+// Cache the full speech-model objects (they carry per-model `supported_voices`).
+let speechModelsCache: any[] | null = null;
+
+/**
+ * Fetch the voice names an OpenRouter TTS model actually supports (from the model's
+ * `supported_voices` metadata — e.g. mai-voice-2 → ["en-US-Harper:MAI-Voice-2", ...]).
+ * Returns [] when the model is unknown or has none listed (caller decides on a fallback).
+ * Public catalog — never touches a stored key. Never throws.
+ */
+export async function fetchOpenRouterVoices(modelId: string): Promise<string[]> {
+  const id = modelId.trim();
+  if (!id) return [];
+  try {
+    if (!speechModelsCache) {
+      const url = new URL(`${OPENROUTER_BASE}/models`);
+      url.searchParams.set("output_modalities", "speech");
+      const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+      if (!res.ok) return [];
+      const json = await res.json();
+      speechModelsCache = Array.isArray(json?.data) ? json.data : [];
+    }
+    const m = (speechModelsCache ?? []).find(
+      (x: any) => x?.id === id || x?.canonical_slug === id,
+    );
+    const voices = m?.supported_voices;
+    return Array.isArray(voices) ? voices.filter((v: unknown): v is string => typeof v === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Best-effort model list from a custom OpenAI-compatible endpoint (`GET {base}/models`).
  * Uses the supplied key if provided. Returns [] on any failure — never throws.

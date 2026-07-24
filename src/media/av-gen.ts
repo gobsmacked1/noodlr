@@ -97,14 +97,17 @@ export async function createAndShareVideo(input: {
     return;
   }
 
-  // Persist a local copy (best effort). If the remote URL can't be fetched (CORS), fall back to
-  // the provider URL for display/broadcast.
-  const path = await saveMedia(result.url, input.description || "video", {
+  // Persist the downloaded bytes locally. The remote URL needs auth to fetch, so players can't
+  // load it directly — a local copy is required to display/broadcast.
+  const path = await saveMedia(result.blob, input.description || "video", {
     subfolder: "video",
     ext: "mp4",
   });
-  const displaySrc = path ?? result.url;
-  await shareMediaPopout(displaySrc, input.description || "Noodlr video");
-  await postMediaCard(displaySrc, input.description || "Noodlr video", "video");
+  if (!path) {
+    ui.notifications?.error(game.i18n.localize("NOODLR.Media.Video.NoSave"));
+    return;
+  }
+  await shareMediaPopout(path, input.description || "Noodlr video");
+  await postMediaCard(path, input.description || "Noodlr video", "video");
   bumpStats({ video: 1 });
 }

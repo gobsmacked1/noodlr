@@ -9,6 +9,9 @@ import { isConfigured, resolveBaseUrl } from "../providers/types";
 export class VideoError extends Error {}
 
 export interface GeneratedVideo {
+  /** The downloaded video bytes (fetched with auth). Save these locally to display/broadcast. */
+  blob: Blob;
+  /** The source URL the bytes came from (for reference/logging). */
   url: string;
 }
 
@@ -96,7 +99,36 @@ export async function generateVideo(
   if (job?.status !== "completed") {
     throw new VideoError(`Video ${job?.status ?? "failed"}${job?.error ? `: ${job.error}` : ""}`);
   }
-  const url = Array.isArray(job.unsigned_urls) ? job.unsigned_urls[0] : undefined;
-  if (!url) throw new VideoError("Video completed but returned no URL.");
-  return { url: String(url) };
+  // The clip URL usually points back to OpenRouter's own API (…/videos/{id}/content), which
+  // REQUIRES the bearer token to download — a plain fetch returns a 401 JSON body. Fall back to
+  // the content endpoint if no unsigned URL is present.
+  const downloadUrl =
+    (Array.isArray(job.unsigned_urls) ? job.unsigned_urls[0] : undefined) ||
+    `${new URL(base).origin}/api/v1/videos/${job.id ?? ""}/content?index=0`;
+
+  // Only attach our key when the download stays on the API host; third-party signed storage URLs
+  // must NOT receive the Authorization header.
+  const dlHeaders: Record<string, string> = {};
+  if (cfg.apiKey.trim() && isApiHost(downloadUrl, base)) {
+    dlHeaders["Authorization"] = `Bearer ${cfg.apiKey.trim()}`;
+  }
+  const dl = await fetch(downloadUrl, { headers: dlHeaders, signal: opts.signal });
+  if (!dl.ok) throw new VideoError(`Video download failed (${dl.status}): ${await safeText(dl)}`);
+  const blob = await dl.blob();
+  if (blob.size < 1024) {
+    // A sub-1KB "video" is almost certainly an error payload, not a clip.
+    throw new VideoError(`Video download returned ${blob.size} bytes (likely an error, not a clip).`);
+  }
+  return { blob, url: String(downloadUrl) };
+}
+
+/** True when the download URL is on the same host as the API base, or OpenRouter's API host. */
+function isApiHost(downloadUrl: string, base: string): boolean {
+  try {
+    const dh = new URL(downloadUrl).host;
+    const bh = new URL(base).host;
+    return dh === bh || /(^|\.)openrouter\.ai$/i.test(dh);
+  } catch {
+    return /openrouter\.ai\/api\//i.test(downloadUrl);
+  }
 }

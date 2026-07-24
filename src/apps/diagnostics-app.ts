@@ -109,8 +109,13 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
         [{ text: `Noodlr self-test marker: ${marker}. Safe to delete.`, metadata: { selftest: true } }],
         embed,
       );
-      // 2) Read it back by searching for the unique token.
-      const res = await client.query({ collections: ["docs"], searchText: marker, topK: 5 }, undefined);
+      // 2) Read it back by searching for the unique token. CRITICAL: pass the SAME embedding
+      // override used for ingest — otherwise the server embeds the query with a different model
+      // and the vectors live in a different space (false-negative "not found").
+      const res = await client.query(
+        { collections: ["docs"], searchText: marker, topK: 5, embed },
+        undefined,
+      );
       const found = (res.hits ?? []).some((h) => (h.text ?? "").includes(marker));
       if (found) {
         setStatus(

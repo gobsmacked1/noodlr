@@ -5,6 +5,7 @@
 import { getFeatureConfig } from "../providers/config";
 import { isConfigured, resolveBaseUrl, type FeatureProviderConfig } from "../providers/types";
 import { getTtsVoice, getTtsPitchSupported } from "./config";
+import { fetchOpenRouterVoices } from "../providers/models";
 
 export const FALLBACK_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
 
@@ -107,10 +108,20 @@ export function stopSpeaking(): void {
   }
 }
 
-/** Retrieve available voices from the provider, or the standard fallback list. */
+/**
+ * Retrieve available voices for the configured TTS model.
+ *  - OpenRouter: read the model's `supported_voices` metadata (per-model, correct names).
+ *  - Custom: try the endpoint's /audio/voices, else the standard OpenAI names.
+ * Returns [] for an OpenRouter model with no listed voices (rather than the misleading OpenAI
+ * six) — except for models that genuinely use the OpenAI names (kept as a last resort).
+ */
 export async function listVoices(): Promise<string[]> {
   const cfg = getFeatureConfig("tts");
   if (!isConfigured(cfg)) return FALLBACK_VOICES;
+  if (cfg.provider === "openrouter") {
+    const voices = await fetchOpenRouterVoices(cfg.model);
+    return voices.length > 0 ? voices : FALLBACK_VOICES;
+  }
   try {
     const res = await fetch(`${resolveBaseUrl(cfg)}/audio/voices`, {
       headers: authHeaders(cfg),

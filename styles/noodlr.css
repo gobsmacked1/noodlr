@@ -536,6 +536,12 @@
 }
 
 /* Diagnostics window */
+.noodlr-diag-table,
+.noodlr-diag-status,
+.noodlr-settings__intro {
+  user-select: text;
+  -webkit-user-select: text;
+}
 .noodlr-diag-table {
   width: 100%;
   border-collapse: collapse;

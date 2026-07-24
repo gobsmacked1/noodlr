@@ -85,8 +85,19 @@ export async function saveMedia(
   if (!fp?.upload) return null;
   try {
     // data: and http(s) URLs are both fetchable to a Blob; images arrive as same-origin data:
-    // URLs (b64_json) so no CORS concern. Video arrives as a remote URL (best-effort fetch).
-    const blob = typeof src === "string" ? await (await fetch(src)).blob() : src;
+    // URLs (b64_json) so no CORS concern. When fetching a URL, verify the response is OK so we
+    // never persist an error body (e.g. a 401 JSON) as if it were media.
+    let blob: Blob;
+    if (typeof src === "string") {
+      const resp = await fetch(src);
+      if (!resp.ok) {
+        log(`saveMedia: source fetch failed (${resp.status})`);
+        return null;
+      }
+      blob = await resp.blob();
+    } else {
+      blob = src;
+    }
     const ext = opts.ext ?? extForType(blob.type);
     const name = `${slugify(baseName)}-${Date.now()}.${ext}`;
     const file = new File([blob], name, { type: blob.type || "application/octet-stream" });

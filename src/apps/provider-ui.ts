@@ -6,7 +6,7 @@
 //  - add "Fetch models" / (TTS) "Fetch voices" buttons that read the values CURRENTLY TYPED in
 //    the form (no save needed) so non-technical users pick from a list instead of hand-typing.
 
-import { fetchOpenRouterModels, fetchCustomModels } from "../providers/models";
+import { fetchOpenRouterModels, fetchCustomModels, fetchOpenRouterVoices } from "../providers/models";
 import { fetchVoiceList, FALLBACK_VOICES } from "../media/tts";
 
 /**
@@ -45,22 +45,47 @@ function setupBlock(block: HTMLElement): void {
     );
   }
 
-  // TTS-only: a voice picker fed by the endpoint's /audio/voices (or standard names).
+  const sel = block.querySelector<HTMLSelectElement>('select[data-role="provider"]');
+
+  // TTS-only: a voice picker. OpenRouter voices come from the selected model's metadata, so we
+  // refresh them whenever the model or provider changes; custom endpoints use /audio/voices.
   if (feature === "tts") {
     const voiceInput = block.querySelector<HTMLInputElement>('input[name="tts.voice"]');
     const voiceDl = voiceInput ? ensureDatalist(block, "noodlr-voices-tts") : null;
     if (voiceInput && voiceDl) {
+      const refresh = () => void refreshVoices(block, modelInput, voiceInput, voiceDl);
       addFetchButton(voiceInput, "NOODLR.Provider.FetchVoices", "fetch-voices", (status) =>
-        onFetchVoices(block, voiceInput, voiceDl, status),
+        onFetchVoices(block, modelInput, voiceInput, voiceDl, status),
       );
+      modelInput?.addEventListener("change", refresh);
+      sel?.addEventListener("change", refresh);
+      // Populate once on open (deferred so the initial provider-visibility pass runs first).
+      setTimeout(refresh, 0);
     }
   }
 
-  const sel = block.querySelector<HTMLSelectElement>('select[data-role="provider"]');
   if (sel) {
     const apply = () => applyProviderVisibility(block, sel, feature, modelInput, modelDl);
     sel.addEventListener("change", apply);
     apply();
+  }
+}
+
+/** Fill the TTS voice datalist from the model's real voices (OpenRouter) or the endpoint (custom). */
+async function refreshVoices(
+  block: HTMLElement,
+  modelInput: HTMLInputElement | null,
+  voiceInput: HTMLInputElement,
+  voiceDl: HTMLDataListElement,
+): Promise<void> {
+  const { provider, baseUrl, apiKey } = readBlockConfig(block);
+  const model = modelInput?.value?.trim() ?? "";
+  let voices: string[] = [];
+  if (provider === "custom") voices = await fetchVoiceList(baseUrl, apiKey);
+  else if (model) voices = await fetchOpenRouterVoices(model);
+  if (voices.length > 0) {
+    fillDatalist(voiceDl, voices);
+    voiceInput.setAttribute("list", voiceDl.id);
   }
 }
 
@@ -172,15 +197,23 @@ async function onFetchModels(
 
 async function onFetchVoices(
   block: HTMLElement,
+  modelInput: HTMLInputElement | null,
   input: HTMLInputElement,
   dl: HTMLDataListElement,
   status: HTMLElement,
 ): Promise<void> {
   const { provider, baseUrl, apiKey } = readBlockConfig(block);
   status.textContent = game.i18n.localize("NOODLR.Provider.Fetching");
-  // OpenRouter has no voice-list endpoint; offer the standard names. Custom endpoints (e.g.
-  // openedai-speech) usually expose /audio/voices.
-  const voices = provider === "custom" ? await fetchVoiceList(baseUrl, apiKey) : FALLBACK_VOICES;
+  // OpenRouter: the selected model's own `supported_voices`. Custom (e.g. openedai-speech):
+  // the endpoint's /audio/voices. Fall back to the standard OpenAI names only if nothing found.
+  let voices: string[];
+  if (provider === "custom") {
+    voices = await fetchVoiceList(baseUrl, apiKey);
+  } else {
+    const model = modelInput?.value?.trim() ?? "";
+    const found = model ? await fetchOpenRouterVoices(model) : [];
+    voices = found.length > 0 ? found : FALLBACK_VOICES;
+  }
   fillDatalist(dl, voices);
   input.setAttribute("list", dl.id);
   status.textContent = game.i18n.format("NOODLR.Provider.FetchOk", { count: voices.length });

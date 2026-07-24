@@ -312,6 +312,7 @@
   "NOODLR.Media.VideoTrigger.Hint": "Type in chat: \"Generate Video: a torch guttering as something moves in the dark\".",
   "NOODLR.Media.Video.Generating": "Noodlr: generating video (this can take a while)…",
   "NOODLR.Media.Video.Failed": "Video generation failed: {error}",
+  "NOODLR.Media.Video.NoSave": "Video was generated but couldn't be saved to disk (GM upload permission required); not shared.",
 
   "NOODLR.Rag.Rerank.Enable.Name": "Refine results with a rerank model",
   "NOODLR.Rag.Rerank.Enable.Hint": "After memory returns matches, a rerank model re-scores them for relevance and keeps the best few. Improves precision and can save chat tokens.",

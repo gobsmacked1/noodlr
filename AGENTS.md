@@ -299,6 +299,29 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## Bugfix round (2026-07-24) — v0.2.7
+
+Fixes from the v0.2.6 test:
+- **Diagnostics self-test false-negative** — the write→read test ingested with the embed override
+  but queried WITHOUT it, so noodlr-memory embedded the marker query with a *different* (server
+  default) model → different vector space → "wrote it but didn't find it". Fixed: pass
+  `getEmbedOverride()` on the self-test query too. (Real retrieval already passes embed on both
+  ingest and query — actual memory was fine; only my test was wrong.)
+- **Diagnostics text now selectable** (`user-select:text` on diag tables/status/intro).
+- **Voices were the 6 OpenAI fallback names for every model** — OpenRouter model metadata carries
+  per-model `supported_voices` (verified live: mai-voice-2 → `en-US-Harper:MAI-Voice-2`, …). Added
+  `fetchOpenRouterVoices(modelId)` (caches the speech-model list); `tts.listVoices()` and the config
+  voice picker now use it for OpenRouter (custom still uses `/audio/voices`), refreshing when the
+  model changes. Fixes the creature-voice pop-out too (it uses `listVoices`).
+- **Video 401 / empty player** — OpenRouter's `unsigned_urls[0]` points back to
+  `openrouter.ai/api/.../videos/{id}/content`, which REQUIRES the bearer token; our downloader
+  fetched it unauthenticated and saved the 401 JSON as the .mp4. Fixed: `generateVideo` now
+  downloads the bytes itself with the key attached (only when the URL is on the API host — never
+  leak the key to third-party signed storage), rejects sub-1KB payloads, and returns a Blob;
+  `av-gen` saves the Blob and displays the LOCAL path (the remote URL needs auth so players can't
+  load it). `saveMedia` now checks `res.ok` before persisting so an error body can never be saved
+  as media again.
+
 ## Fixups + diagnostics round (2026-07-24) — v0.2.6
 
 Post-v0.2.5 feedback fixes:
