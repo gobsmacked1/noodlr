@@ -8,6 +8,11 @@ export const MODULE_TITLE = "Noodlr" as const;
 export const SETTINGS = {
   /** Whether the module's features are active in this world. */
   enabled: "enabled",
+  /**
+   * The single OpenRouter API key, shared by every feature whose provider is "openrouter".
+   * World-scoped + write-only in the UI. Custom (local) endpoints keep their own optional key.
+   */
+  openrouterApiKey: "openrouterApiKey",
   /** Chat feature system-prompt override (the DM prompt is the default). */
   chatSystemPrompt: "chatSystemPrompt",
   /** After a turn with dice rolls, auto-continue once so the DM reacts to results. */

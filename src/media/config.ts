@@ -5,11 +5,104 @@
 import { MODULE_ID, MEDIA_SETTINGS } from "../constants";
 import { registerFeatureProviderSettings } from "../providers/config";
 
+/** The four image generators. Each carries its own provider + full image-param config. */
+export const IMAGE_KINDS = ["image", "portrait", "token", "map"] as const;
+export type ImageKind = (typeof IMAGE_KINDS)[number];
+
+export interface ImageKindMeta {
+  kind: ImageKind;
+  /** Case-insensitive chat trigger word: "Generate <Word>: ...". */
+  trigger: string;
+  /** Output subfolder under the base media folder ("" = the base folder itself). */
+  subfolder: string;
+  /** Saved file format. */
+  ext: "png" | "webp";
+  /** When true, the size is fixed (not user-editable) and enforced on the output. */
+  sizeLocked: boolean;
+  defaultSize: string;
+  /** Per-dimension clamp for user-editable sizes (maps). */
+  minDim: number;
+  maxDim: number;
+  /** Keyed generators reuse a per-subject seed/appearance for continuity. */
+  keyed: boolean;
+  /** Scene-control (dragon menu) icon. */
+  icon: string;
+}
+
+export const IMAGE_KIND_META: Record<ImageKind, ImageKindMeta> = {
+  image: {
+    kind: "image",
+    trigger: "image",
+    subfolder: "",
+    ext: "png",
+    sizeLocked: false,
+    defaultSize: "1920x1080",
+    minDim: 64,
+    maxDim: 4096,
+    keyed: false,
+    icon: "fa-solid fa-image",
+  },
+  portrait: {
+    kind: "portrait",
+    trigger: "portrait",
+    subfolder: "portraits",
+    ext: "webp",
+    sizeLocked: true,
+    defaultSize: "1000x1000",
+    minDim: 1000,
+    maxDim: 1000,
+    keyed: true,
+    icon: "fa-solid fa-user",
+  },
+  token: {
+    kind: "token",
+    trigger: "token",
+    subfolder: "tokens",
+    ext: "webp",
+    sizeLocked: true,
+    defaultSize: "400x400",
+    minDim: 400,
+    maxDim: 400,
+    keyed: true,
+    icon: "fa-solid fa-chess-pawn",
+  },
+  map: {
+    kind: "map",
+    trigger: "map",
+    subfolder: "maps",
+    ext: "webp",
+    sizeLocked: false,
+    defaultSize: "4500x6000",
+    minDim: 450,
+    maxDim: 7800,
+    keyed: false,
+    icon: "fa-solid fa-map-location-dot",
+  },
+};
+
+/** Per-kind image setting key: `${kind}.${field}` (scene kind reuses the legacy "image.*" keys). */
+export function imageKey(kind: ImageKind, field: string): string {
+  return `${kind}.${field}`;
+}
+
+/**
+ * One-time migration: existing worlds have the scene size stored as the old default 1024x1024,
+ * which changing the registration default won't update. Bump it to 1920x1080 once (GM only),
+ * then never touch it again so deliberate edits are respected.
+ */
+export async function migrateImageDefaults(): Promise<void> {
+  if (game.settings.get(MODULE_ID, "image.sizeMigratedV3")) return;
+  const cur = String(game.settings.get(MODULE_ID, imageKey("image", "size")) ?? "");
+  if (cur === "1024x1024") {
+    await game.settings.set(MODULE_ID, imageKey("image", "size"), "1920x1080");
+  }
+  await game.settings.set(MODULE_ID, "image.sizeMigratedV3", true);
+}
+
 export function registerMediaSettings(): void {
   const M = MEDIA_SETTINGS;
 
   registerFeatureProviderSettings("tts");
-  registerFeatureProviderSettings("image");
   registerFeatureProviderSettings("transcription");
   registerFeatureProviderSettings("music");
   registerFeatureProviderSettings("video");
@@ -32,24 +125,35 @@ export function registerMediaSettings(): void {
   game.settings.register(MODULE_ID, M.ttsPitchSupported, { ...worldBool, default: false });
   game.settings.register(MODULE_ID, M.ttsCreatureVoices, { ...worldStr, default: "{}" });
 
-  // --- Image ---
-  game.settings.register(MODULE_ID, M.imageSystemPrompt, { ...worldStr, default: "" });
-  game.settings.register(MODULE_ID, M.imageExpandPrompt, { ...worldBool, default: true });
-  game.settings.register(MODULE_ID, M.imageSteps, { ...worldNum, default: 20 });
-  game.settings.register(MODULE_ID, M.imageCfg, { ...worldNum, default: 7.0 });
-  game.settings.register(MODULE_ID, M.imageSampler, { ...worldStr, default: "Euler a" });
-  game.settings.register(MODULE_ID, M.imageSeed, { ...worldNum, default: -1 });
-  game.settings.register(MODULE_ID, M.imagePositive, { ...worldStr, default: "" });
-  game.settings.register(MODULE_ID, M.imageNegative, { ...worldStr, default: "" });
-  game.settings.register(MODULE_ID, M.imageSize, { ...worldStr, default: "1024x1024" });
+  // --- Image generators (scene / portrait / token / map) ---
+  // Each kind carries a full, independent set of image params + its own provider + ledger.
+  // The scene kind ("image") reuses the legacy "image.*" keys for back-compat.
+  for (const kind of IMAGE_KINDS) {
+    registerFeatureProviderSettings(kind);
+    const meta = IMAGE_KIND_META[kind];
+    const k = (field: string) => imageKey(kind, field);
+    game.settings.register(MODULE_ID, k("systemPrompt"), { ...worldStr, default: "" });
+    game.settings.register(MODULE_ID, k("expandPrompt"), { ...worldBool, default: true });
+    game.settings.register(MODULE_ID, k("steps"), { ...worldNum, default: 20 });
+    game.settings.register(MODULE_ID, k("cfg"), { ...worldNum, default: 7.0 });
+    game.settings.register(MODULE_ID, k("sampler"), { ...worldStr, default: "Euler a" });
+    game.settings.register(MODULE_ID, k("seed"), { ...worldNum, default: -1 });
+    game.settings.register(MODULE_ID, k("positive"), { ...worldStr, default: "" });
+    game.settings.register(MODULE_ID, k("negative"), { ...worldStr, default: "" });
+    game.settings.register(MODULE_ID, k("size"), { ...worldStr, default: meta.defaultSize });
+    game.settings.register(MODULE_ID, k("persist"), { ...worldBool, default: true });
+    game.settings.register(MODULE_ID, k("chatTrigger"), { ...worldBool, default: true });
+    game.settings.register(MODULE_ID, k("allowPlayers"), { ...worldBool, default: false });
+    game.settings.register(MODULE_ID, k("ledger"), { ...worldStr, default: "{}" });
+  }
+  // The base media output folder is shared; per-kind subfolders derive from it.
   game.settings.register(MODULE_ID, M.imageMediaFolder, {
     ...worldStr,
     default: "assets/noodlr-out",
   });
-  game.settings.register(MODULE_ID, M.imagePersist, { ...worldBool, default: true });
-  game.settings.register(MODULE_ID, M.imageChatTrigger, { ...worldBool, default: true });
-  game.settings.register(MODULE_ID, M.imageAllowPlayers, { ...worldBool, default: false });
-  game.settings.register(MODULE_ID, M.imageLedger, { ...worldStr, default: "{}" });
+
+  // One-time migration marker: bump the legacy Scene Art size (1024x1024) to 1920x1080.
+  game.settings.register(MODULE_ID, "image.sizeMigratedV3", { ...worldBool, default: false });
 
   // --- Push-to-log transcription ---
   game.settings.register(MODULE_ID, M.transcriptionEnabled, { ...worldBool, default: false });
@@ -83,7 +187,15 @@ export const getTtsVoice = () =>
 export const getTtsAutoRead = () =>
   Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.ttsAutoRead));
 
-export function getImageParams(): {
+/** Clamp a "WxH" string per-dimension into [minDim, maxDim]; fall back to the kind default. */
+function clampImageSize(raw: string, meta: ImageKindMeta): string {
+  const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec(String(raw).trim());
+  if (!m) return meta.defaultSize;
+  const clamp = (n: number) => Math.min(meta.maxDim, Math.max(meta.minDim, Math.round(n)));
+  return `${clamp(Number(m[1]))}x${clamp(Number(m[2]))}`;
+}
+
+export function getImageParams(kind: ImageKind = "image"): {
   steps: number;
   cfg: number;
   sampler: string;
@@ -94,24 +206,31 @@ export function getImageParams(): {
   expand: boolean;
   systemPrompt: string;
 } {
-  const g = (k: string) => game.settings.get(MODULE_ID, k);
+  const meta = IMAGE_KIND_META[kind];
+  const g = (field: string) => game.settings.get(MODULE_ID, imageKey(kind, field));
+  // Locked kinds (portrait/token) always emit their fixed size; maps clamp to hidden bounds.
+  const size = meta.sizeLocked
+    ? meta.defaultSize
+    : clampImageSize((g("size") as string) || meta.defaultSize, meta);
   return {
-    steps: Number(g(MEDIA_SETTINGS.imageSteps)) || 20,
-    cfg: Number(g(MEDIA_SETTINGS.imageCfg)) || 7.0,
-    sampler: (g(MEDIA_SETTINGS.imageSampler) as string) || "Euler a",
-    seed: Number(g(MEDIA_SETTINGS.imageSeed)),
-    positive: (g(MEDIA_SETTINGS.imagePositive) as string) || "",
-    negative: (g(MEDIA_SETTINGS.imageNegative) as string) || "",
-    size: (g(MEDIA_SETTINGS.imageSize) as string) || "1024x1024",
-    expand: Boolean(g(MEDIA_SETTINGS.imageExpandPrompt)),
-    systemPrompt: (g(MEDIA_SETTINGS.imageSystemPrompt) as string) || "",
+    steps: Number(g("steps")) || 20,
+    cfg: Number(g("cfg")) || 7.0,
+    sampler: (g("sampler") as string) || "Euler a",
+    seed: Number(g("seed")),
+    positive: (g("positive") as string) || "",
+    negative: (g("negative") as string) || "",
+    size,
+    expand: Boolean(g("expandPrompt")),
+    systemPrompt: (g("systemPrompt") as string) || "",
   };
 }
 
-export const getImageChatTrigger = () =>
-  Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.imageChatTrigger));
-export const getImageAllowPlayers = () =>
-  Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.imageAllowPlayers));
+export const getImageChatTrigger = (kind: ImageKind = "image") =>
+  Boolean(game.settings.get(MODULE_ID, imageKey(kind, "chatTrigger")));
+export const getImageAllowPlayers = (kind: ImageKind = "image") =>
+  Boolean(game.settings.get(MODULE_ID, imageKey(kind, "allowPlayers")));
+export const getImagePersist = (kind: ImageKind = "image") =>
+  Boolean(game.settings.get(MODULE_ID, imageKey(kind, "persist")));
 
 export const getTtsPitchSupported = () =>
   Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.ttsPitchSupported));

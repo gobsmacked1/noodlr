@@ -17,6 +17,9 @@ const FEATURE_QUERY: Record<string, { modality: string; sort: string }> = {
   chat: { modality: "text", sort: "context-high-to-low" },
   tts: { modality: "speech", sort: "newest" },
   image: { modality: "image", sort: "newest" },
+  portrait: { modality: "image", sort: "newest" },
+  token: { modality: "image", sort: "newest" },
+  map: { modality: "image", sort: "newest" },
   transcription: { modality: "transcription", sort: "newest" },
   embeddings: { modality: "embeddings", sort: "newest" },
   // Reserved for upcoming pillars so their dropdowns filter correctly once wired:

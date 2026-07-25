@@ -10,6 +10,15 @@ import { registerMediaSettings } from "./media/config";
 import { registerCombatSettings } from "./combat/config";
 
 export function registerSettings(): void {
+  // The single shared OpenRouter API key (every openrouter feature uses it). World-scoped,
+  // write-only in the UI, rendered once on the main config window.
+  game.settings.register(MODULE_ID, SETTINGS.openrouterApiKey, {
+    scope: "world",
+    config: false,
+    type: String,
+    default: "",
+  });
+
   // Chat provider (OpenRouter / custom OpenAI-compatible). Rendered in the config window.
   registerFeatureProviderSettings("chat");
 

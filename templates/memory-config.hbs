@@ -17,8 +17,11 @@
     <p class="notes">{{localize "NOODLR.Provider.BaseUrl.Hint"}}</p>
     <input type="text" name="{{id}}.baseUrl" value="{{baseUrl}}" placeholder="http://127.0.0.1:11434/v1" autocomplete="off" />
   </div>
-  <div class="noodlr-field">
-    <label>{{localize "NOODLR.Provider.ApiKey.Name"}}</label>
+  {{! Per-feature key is ONLY for a custom/local endpoint; OpenRouter uses the one shared key
+      set on the main "Configure Noodlr" window. }}
+  <div class="noodlr-field noodlr-custom-only">
+    <label>{{localize "NOODLR.Provider.CustomKey.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Provider.CustomKey.Hint"}}</p>
     <input type="password" name="{{id}}.apiKey" value="" autocomplete="off"
       placeholder="{{#if hasKey}}{{localize 'NOODLR.Provider.ApiKey.Saved'}}{{else}}{{localize 'NOODLR.Provider.ApiKey.None'}}{{/if}}" />
     {{#if hasKey}}
@@ -153,8 +156,4 @@
       <input type="number" name="transcriptIngestInterval" value="{{transcriptIngestInterval}}" min="60" max="3600" step="30" />
     </div>
   </fieldset>
-
-  <div class="noodlr-settings__actions">
-    <button type="submit"><i class="fa-solid fa-floppy-disk"></i> {{localize "NOODLR.Settings.Save"}}</button>
-  </div>
 </section>

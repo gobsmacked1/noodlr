@@ -19,6 +19,10 @@ import {
   getImageAllowPlayers,
   getMusicConfig,
   getVideoConfig,
+  migrateImageDefaults,
+  IMAGE_KINDS,
+  IMAGE_KIND_META,
+  type ImageKind,
 } from "./media/config";
 import { refreshPushToLogButton, pushToLog, type TranscriptPayload } from "./media/push-to-log";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
@@ -91,15 +95,20 @@ Hooks.once("ready", () => {
   refreshPushToLogButton();
 
   // Ensure the media output folder exists (GM only — creating dirs needs upload permission).
-  if (game.user?.isGM) void ensureMediaFolder();
+  if (game.user?.isGM) {
+    void ensureMediaFolder();
+    void migrateImageDefaults();
+  }
 });
 
 // Chat-command triggers for generative media. Returning false swallows the command so the
 // literal text isn't posted as a chat message.
-//   "Generate Image: <scene>"           -> one-off scene art (broadcast to all)
-//   "Generate Portrait: <Name>: <desc>" -> keyed to <Name> for continuity (reuses seed/look)
-//   "Generate Music: <mood>"            -> music to a Foundry Playlist
-//   "Generate Video: <scene>"           -> short clip broadcast to all
+//   "Generate Image: <scene>"      -> one-off scene art (broadcast to all)
+//   "Generate Portrait: <subject>" -> waist-up portrait (keyed for continuity, .webp)
+//   "Generate Token: <subject>"    -> top-down actor token (keyed, 400x400 .webp)
+//   "Generate Map: <scene>"        -> walkable map (.webp)
+//   "Generate Music: <mood>"       -> music to a Foundry Playlist
+//   "Generate Video: <scene>"      -> short clip broadcast to all
 Hooks.on("chatMessage", (_log: unknown, message: string): boolean => {
   const text = (message ?? "").trim();
 
@@ -109,22 +118,18 @@ Hooks.on("chatMessage", (_log: unknown, message: string): boolean => {
     return false;
   };
 
-  // --- Image / Portrait ---
-  if (/^generate\s+(image|portrait)\s*:/i.test(text)) {
-    if (!getImageChatTrigger()) return true;
-    if (!gate(getImageAllowPlayers())) return false;
-    if (/^generate\s+portrait\s*:/i.test(text)) {
-      const m = text.match(/^generate\s+portrait\s*:\s*([^:]+?)(?::\s*([\s\S]+))?\s*$/i);
-      const name = (m?.[1] ?? "").trim();
-      const desc = (m?.[2] ?? "").trim();
-      if (!name) {
-        ui.notifications?.warn(game.i18n.localize("NOODLR.Media.Image.NeedName"));
-        return false;
-      }
-      void createAndShareImage({ description: desc, entityKey: name, title: name });
-    } else {
-      const desc = (text.match(/^generate\s+image\s*:\s*([\s\S]+)$/i)?.[1] ?? "").trim();
-      if (desc) void createAndShareImage({ description: desc });
+  // --- Image generators (scene / portrait / token / map) ---
+  for (const kind of IMAGE_KINDS) {
+    const meta = IMAGE_KIND_META[kind];
+    const re = new RegExp(`^generate\\s+${meta.trigger}\\s*:`, "i");
+    if (!re.test(text)) continue;
+    if (!getImageChatTrigger(kind)) return true;
+    if (!gate(getImageAllowPlayers(kind))) return false;
+    const desc = text.replace(re, "").trim();
+    if (desc) {
+      // Keyed kinds (portrait/token) use the subject text as the continuity key + title.
+      const entityKey = meta.keyed ? desc : undefined;
+      void createAndShareImage({ description: desc, entityKey, title: entityKey }, kind);
     }
     return false;
   }
@@ -175,20 +180,25 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
       },
     };
     if (isGM) {
-      tools.sceneArt = {
-        name: "sceneArt",
-        title: "NOODLR.Media.SceneArtTitle",
-        icon: "fa-solid fa-image",
-        order: 2,
-        button: true,
-        visible: true,
-        onChange: () => void promptSceneImage(),
-      };
+      // One button per image generator (scene art, portrait, token, map), each with its icon.
+      let order = 2;
+      for (const kind of IMAGE_KINDS) {
+        const meta = IMAGE_KIND_META[kind];
+        tools[`image-${kind}`] = {
+          name: `image-${kind}`,
+          title: `NOODLR.Media.Kind.${cap(kind)}.Title`,
+          icon: meta.icon,
+          order: order++,
+          button: true,
+          visible: true,
+          onChange: () => void promptImage(kind),
+        };
+      }
       tools.npcTurn = {
         name: "npcTurn",
         title: "NOODLR.Combat.RunTurn",
         icon: "fa-solid fa-hand-fist",
-        order: 3,
+        order: order++,
         button: true,
         visible: true,
         onChange: () => void runCurrentNpcTurn(),
@@ -198,7 +208,7 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
           name: "music",
           title: "NOODLR.Media.MusicPromptTitle",
           icon: "fa-solid fa-music",
-          order: 4,
+          order: order++,
           button: true,
           visible: true,
           onChange: () => void promptMusic(),
@@ -209,7 +219,7 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
           name: "video",
           title: "NOODLR.Media.VideoPromptTitle",
           icon: "fa-solid fa-film",
-          order: 5,
+          order: order++,
           button: true,
           visible: true,
           onChange: () => void promptVideo(),
@@ -232,23 +242,22 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
   }
 });
 
-/** Prompt the GM for a scene description, then generate + display art. */
-async function promptSceneImage(): Promise<void> {
-  try {
-    const description = await foundry.applications.api.DialogV2.prompt({
-      window: { title: game.i18n.localize("NOODLR.Media.SceneArtTitle") },
-      content: `<p>${game.i18n.localize("NOODLR.Media.SceneArtPrompt")}</p><textarea name="desc" rows="3" style="width:100%"></textarea>`,
-      ok: {
-        label: game.i18n.localize("NOODLR.Media.SceneArtButton"),
-        callback: (_ev: Event, button: any) => button.form?.elements?.desc?.value ?? "",
-      },
-    });
-    const text = String(description ?? "").trim();
-    if (!text) return;
-    await createAndShareImage({ description: text });
-  } catch (err) {
-    log("scene image generation cancelled/failed:", err);
-  }
+/** Capitalize an image-kind id for its localization key ("portrait" -> "Portrait"). */
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Prompt the GM for a subject/scene description, then generate + display art for `kind`. */
+async function promptImage(kind: ImageKind): Promise<void> {
+  const meta = IMAGE_KIND_META[kind];
+  const text = await promptDescription(
+    `NOODLR.Media.Kind.${cap(kind)}.Title`,
+    `NOODLR.Media.Kind.${cap(kind)}.Prompt`,
+    `NOODLR.Media.Kind.${cap(kind)}.Button`,
+  );
+  if (!text) return;
+  const entityKey = meta.keyed ? text : undefined;
+  await createAndShareImage({ description: text, entityKey, title: entityKey }, kind);
 }
 
 /** Small helper: prompt for a description in a DialogV2 textarea; returns trimmed text or "". */

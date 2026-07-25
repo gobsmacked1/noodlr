@@ -5,7 +5,8 @@
 
 import { MODULE_ID, log } from "../constants";
 import { generateSceneImage, ImageError } from "./image";
-import { getImagePersist, saveImage, setLedgerEntry } from "./storage";
+import { saveMedia, setLedgerEntry, transcodeImage } from "./storage";
+import { getImagePersist, getImageParams, IMAGE_KIND_META, type ImageKind } from "./config";
 import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
 import { bumpStats } from "../util/stats";
 
@@ -93,17 +94,29 @@ export interface CreateImageInput {
   title?: string;
 }
 
+/** Parse a "WxH" size string into pixel dimensions (or null if malformed). */
+function parseDims(size: string): { w: number; h: number } | null {
+  const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec(String(size).trim());
+  return m ? { w: Number(m[1]), h: Number(m[2]) } : null;
+}
+
 /**
- * Generate an image and share it with the table. Persists to disk (and the continuity ledger)
- * when persistence is enabled and storage succeeds; always displays even if persistence fails.
+ * Generate an image and share it with the table. `kind` selects the generator (scene art,
+ * portrait, token, or map) — each with its own provider/prompts, output folder, format, and
+ * (for locked kinds) enforced resolution. Persists to disk + the per-kind continuity ledger
+ * when persistence is enabled; always displays even if persistence fails.
  */
-export async function createAndShareImage(input: CreateImageInput): Promise<void> {
+export async function createAndShareImage(
+  input: CreateImageInput,
+  kind: ImageKind = "image",
+): Promise<void> {
+  const meta = IMAGE_KIND_META[kind];
   const title = (input.title || input.entityKey || "Noodlr scene art").trim();
   ui.notifications?.info(game.i18n.localize("NOODLR.Media.Image.Generating"));
 
   let result;
   try {
-    result = await generateSceneImage(input.description, { entityKey: input.entityKey });
+    result = await generateSceneImage(input.description, { entityKey: input.entityKey, kind });
   } catch (err) {
     const msg = err instanceof ImageError ? err.message : String(err);
     ui.notifications?.error(game.i18n.format("NOODLR.Media.Image.Failed", { error: msg }));
@@ -113,11 +126,28 @@ export async function createAndShareImage(input: CreateImageInput): Promise<void
   // Persist (best effort). On success we display the stored path (light) and can post a card;
   // on failure we still display the in-memory data URL so the table sees the art.
   let path: string | null = null;
-  if (getImagePersist()) {
-    path = await saveImage(result.src, input.entityKey || title);
+  if (getImagePersist(kind)) {
+    // webp kinds are transcoded (locked kinds also resized to their exact dimensions) so the
+    // saved file really is a correctly-sized .webp regardless of what the model returned.
+    let toSave: string | Blob = result.src;
+    let ext: string = meta.ext;
+    if (meta.ext === "webp") {
+      const dims = meta.sizeLocked ? parseDims(getImageParams(kind).size) : null;
+      const t = await transcodeImage(result.src, {
+        format: "webp",
+        width: dims?.w,
+        height: dims?.h,
+      });
+      toSave = t.blob;
+      ext = t.ext;
+    }
+    path = await saveMedia(toSave, input.entityKey || title, {
+      subfolder: meta.subfolder || undefined,
+      ext,
+    });
     if (path) {
-      if (input.entityKey) {
-        await setLedgerEntry(input.entityKey, {
+      if (meta.keyed && input.entityKey) {
+        await setLedgerEntry(kind, input.entityKey, {
           seed: result.seed,
           prompt: result.anchor ?? "",
           model: result.model,

@@ -7,7 +7,7 @@
 // same anonymous "Provider / Base URL / API key / Model" rows five times over with no
 // indication of which feature they belonged to, and exposed the raw key in a text input.
 
-import { MODULE_ID } from "../constants";
+import { MODULE_ID, SETTINGS } from "../constants";
 import type { FeatureId, FeatureProviderConfig, ProviderKind } from "./types";
 
 interface FeatureDefaults {
@@ -16,17 +16,41 @@ interface FeatureDefaults {
   model?: string;
 }
 
+const IMAGE_MODEL = "google/gemini-3.1-flash-lite-image";
+
 /** Spec defaults per AGENTS.md (chat has no mandated default model). */
 const DEFAULTS: Record<FeatureId, FeatureDefaults> = {
   chat: { provider: "openrouter", model: "" },
   embeddings: { provider: "openrouter", model: "perplexity/pplx-embed-v1-4b" },
   tts: { provider: "openrouter", model: "microsoft/mai-voice-2" },
-  image: { provider: "openrouter", model: "google/gemini-3.1-flash-lite-image" },
+  image: { provider: "openrouter", model: IMAGE_MODEL },
+  portrait: { provider: "openrouter", model: IMAGE_MODEL },
+  token: { provider: "openrouter", model: IMAGE_MODEL },
+  map: { provider: "openrouter", model: IMAGE_MODEL },
   transcription: { provider: "openrouter", model: "openai/whisper-large-v3-turbo" },
   music: { provider: "openrouter", model: "google/lyria-3-clip-preview" },
   video: { provider: "openrouter", model: "google/veo-3.1-fast" },
   rerank: { provider: "openrouter", model: "cohere/rerank-4-fast" },
 };
+
+/** The single, shared OpenRouter API key (world-scoped). */
+export function getOpenrouterKey(): string {
+  return ((game.settings.get(MODULE_ID, SETTINGS.openrouterApiKey) as string) ?? "").trim();
+}
+
+export function hasOpenrouterKey(): boolean {
+  return getOpenrouterKey().length > 0;
+}
+
+/** Write-only save of the global OpenRouter key: blank keeps existing; clear wipes it. */
+export async function saveOpenrouterKey(newValue: string, clear: boolean): Promise<void> {
+  if (clear) {
+    await game.settings.set(MODULE_ID, SETTINGS.openrouterApiKey, "");
+    return;
+  }
+  const v = String(newValue ?? "").trim();
+  if (v.length > 0) await game.settings.set(MODULE_ID, SETTINGS.openrouterApiKey, v);
+}
 
 function key(feature: FeatureId, field: string): string {
   return `${feature}.${field}`;
@@ -52,13 +76,20 @@ export function registerFeatureProviderSettings(feature: FeatureId): void {
 /** Read the current provider configuration for a feature. */
 export function getFeatureConfig(feature: FeatureId): FeatureProviderConfig {
   const get = (field: string) => game.settings.get(MODULE_ID, key(feature, field)) as string;
-  const provider = (get("provider") as ProviderKind) ?? "openrouter";
+  const isCustom = (get("provider") as ProviderKind) === "custom";
+  // OpenRouter features all draw on the ONE shared key; custom endpoints keep their own key.
+  const apiKey = isCustom ? (get("apiKey") ?? "") : getOpenrouterKey();
   return {
-    provider: provider === "custom" ? "custom" : "openrouter",
+    provider: isCustom ? "custom" : "openrouter",
     baseUrl: get("baseUrl") ?? "",
-    apiKey: get("apiKey") ?? "",
+    apiKey,
     model: get("model") ?? "",
   };
+}
+
+/** The feature's own (custom-endpoint) key, independent of provider — for the UI "saved" flag. */
+function customKey(feature: FeatureId): string {
+  return ((game.settings.get(MODULE_ID, key(feature, "apiKey")) as string) ?? "").trim();
 }
 
 /**
@@ -83,7 +114,8 @@ export function getProviderView(feature: FeatureId): ProviderView {
     isCustom: cfg.provider === "custom",
     baseUrl: cfg.baseUrl,
     model: cfg.model,
-    hasKey: cfg.apiKey.trim().length > 0,
+    // Reflects the CUSTOM-endpoint key only; the shared OpenRouter key has its own field.
+    hasKey: customKey(feature).length > 0,
   };
 }
 

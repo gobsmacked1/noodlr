@@ -6,6 +6,7 @@
 // images earn persistence because portrait/location continuity is worth the disk.
 
 import { MODULE_ID, MEDIA_SETTINGS, log } from "../constants";
+import { imageKey, type ImageKind } from "./config";
 
 /** Resolve the v13 FilePicker class (namespaced), falling back to the legacy global. */
 function filePicker(): any {
@@ -13,14 +14,10 @@ function filePicker(): any {
   return ns ?? (globalThis as any).FilePicker;
 }
 
-/** Configured media output folder (relative to the data root), sans leading/trailing slashes. */
+/** Configured base media output folder (relative to the data root), sans slashes. */
 export function getMediaFolder(): string {
   const raw = (game.settings.get(MODULE_ID, MEDIA_SETTINGS.imageMediaFolder) as string) ?? "";
   return raw.trim().replace(/^\/+|\/+$/g, "") || "assets/noodlr-out";
-}
-
-export function getImagePersist(): boolean {
-  return Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.imagePersist));
 }
 
 /**
@@ -116,6 +113,51 @@ export function saveImage(src: string, baseName: string): Promise<string | null>
   return saveMedia(src, baseName);
 }
 
+/**
+ * Transcode a generated image (data:/http(s) URL) to a Blob in the requested format, optionally
+ * resizing to exact dimensions. Used to enforce .webp output and locked resolutions (portrait/
+ * token) client-side, since text-to-image providers don't reliably honor size/format requests.
+ * Falls back to fetching the original bytes if the canvas path fails (e.g. a tainted image).
+ */
+export async function transcodeImage(
+  src: string,
+  opts: { format?: "webp" | "png"; width?: number; height?: number; quality?: number } = {},
+): Promise<{ blob: Blob; ext: string }> {
+  const format = opts.format ?? "webp";
+  const mime = format === "png" ? "image/png" : "image/webp";
+  try {
+    const img = await loadImage(src);
+    const w = opts.width && opts.width > 0 ? opts.width : img.naturalWidth || img.width;
+    const h = opts.height && opts.height > 0 ? opts.height : img.naturalHeight || img.height;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no 2d context");
+    ctx.drawImage(img, 0, 0, w, h);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, mime, opts.quality ?? 0.92),
+    );
+    if (!blob) throw new Error("canvas.toBlob returned null");
+    return { blob, ext: format };
+  } catch (err) {
+    log("transcodeImage failed, falling back to original bytes:", err);
+    const resp = await fetch(src);
+    const blob = await resp.blob();
+    return { blob, ext: extForType(blob.type) };
+  }
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image load failed"));
+    img.src = src;
+  });
+}
+
 // ---- Continuity ledger ---------------------------------------------------------------------
 // A world-scoped map keyed by normalized entity name. Storing a stable appearance description
 // plus a concrete seed lets recurring characters/locations regenerate with a recognizable look
@@ -137,20 +179,28 @@ export function ledgerKey(name: string): string {
   return name.trim().toLowerCase();
 }
 
-function readLedger(): Record<string, LedgerEntry> {
+// Each image kind keeps its OWN ledger so a "goblin" portrait and a "goblin" token don't
+// collide on one seed/appearance (they're different aspects of the same subject).
+function readLedger(kind: ImageKind): Record<string, LedgerEntry> {
   try {
-    return JSON.parse((game.settings.get(MODULE_ID, MEDIA_SETTINGS.imageLedger) as string) || "{}");
+    return JSON.parse(
+      (game.settings.get(MODULE_ID, imageKey(kind, "ledger")) as string) || "{}",
+    );
   } catch {
     return {};
   }
 }
 
-export function getLedgerEntry(name: string): LedgerEntry | undefined {
-  return readLedger()[ledgerKey(name)];
+export function getLedgerEntry(kind: ImageKind, name: string): LedgerEntry | undefined {
+  return readLedger(kind)[ledgerKey(name)];
 }
 
-export async function setLedgerEntry(name: string, entry: LedgerEntry): Promise<void> {
-  const all = readLedger();
+export async function setLedgerEntry(
+  kind: ImageKind,
+  name: string,
+  entry: LedgerEntry,
+): Promise<void> {
+  const all = readLedger(kind);
   all[ledgerKey(name)] = entry;
-  await game.settings.set(MODULE_ID, MEDIA_SETTINGS.imageLedger, JSON.stringify(all));
+  await game.settings.set(MODULE_ID, imageKey(kind, "ledger"), JSON.stringify(all));
 }

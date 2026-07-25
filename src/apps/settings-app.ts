@@ -20,6 +20,8 @@ import {
   getFeatureConfig,
   getProviderView,
   saveProviderFromForm,
+  saveOpenrouterKey,
+  hasOpenrouterKey,
   type ProviderFormData,
 } from "../providers/config";
 import { chatCompletion, ChatClientError } from "../providers/chat-client";
@@ -33,12 +35,17 @@ import {
   getTtsPitchSupported,
   getImageChatTrigger,
   getImageAllowPlayers,
+  getImagePersist,
   getMusicConfig,
   getVideoConfig,
   getTranscriptionEnabled,
+  IMAGE_KINDS,
+  IMAGE_KIND_META,
+  imageKey,
+  type ImageKind,
 } from "../media/config";
 import { getPushToLogConfig } from "../media/config";
-import { getMediaFolder, getImagePersist } from "../media/storage";
+import { getMediaFolder } from "../media/storage";
 import { refreshPushToLogButton } from "../media/push-to-log";
 import { NoodlrCreatureVoiceApp } from "./creature-voice-app";
 import { getAuthorNote, getCombatReminder, getPostHistory } from "../prompt/settings";
@@ -48,9 +55,12 @@ import { installHeaderSaveButton } from "./header-save";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-/** The provider-carrying features surfaced in this window (embeddings + rerank live in Memory). */
-const FEATURE_IDS = ["chat", "tts", "image", "transcription", "music", "video"] as const;
+/** Non-image provider features in this window (embeddings + rerank live in the Memory window). */
+const FEATURE_IDS = ["chat", "tts", "transcription", "music", "video"] as const;
 type MainFeatureId = (typeof FEATURE_IDS)[number];
+
+/** Every provider block persisted from this window (image kinds carry provider config too). */
+const ALL_PROVIDER_FEATURES = [...FEATURE_IDS, ...IMAGE_KINDS] as const;
 
 export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
@@ -88,7 +98,6 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
   async _prepareContext(): Promise<Record<string, unknown>> {
     const version = game.modules.get(MODULE_ID)?.version ?? "0.1.0";
     const override = (game.settings.get(MODULE_ID, SETTINGS.chatSystemPrompt) as string) ?? "";
-    const img = getImageParams();
 
     // Per-feature provider views (never include the stored key — see getProviderView).
     // Each carries its own layman help answering: what does it do? what does it require?
@@ -96,7 +105,6 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     const labelKey: Record<MainFeatureId, string> = {
       chat: "Chat",
       tts: "Tts",
-      image: "Image",
       transcription: "Transcription",
       music: "Music",
       video: "Video",
@@ -113,19 +121,55 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       };
     };
 
+    // One view model per image generator (scene art, portrait, token, map). Each is a full,
+    // independent block: provider + prompts + SD params + delivery/trigger options.
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+    const imageKinds = IMAGE_KINDS.map((kind: ImageKind) => {
+      const meta = IMAGE_KIND_META[kind];
+      const params = getImageParams(kind);
+      const p = `NOODLR.Media.Kind.${cap(kind)}`;
+      return {
+        id: kind,
+        ...getProviderView(kind),
+        title: game.i18n.localize(`${p}.Title`),
+        what: game.i18n.localize(`${p}.What`),
+        requires: game.i18n.localize(`${p}.Requires`),
+        without: game.i18n.localize(`${p}.Without`),
+        icon: meta.icon,
+        isScene: kind === "image",
+        sizeLocked: meta.sizeLocked,
+        subfolder: meta.subfolder,
+        ext: meta.ext,
+        positive: params.positive,
+        negative: params.negative,
+        expand: params.expand,
+        steps: params.steps,
+        cfg: params.cfg,
+        sampler: params.sampler,
+        seed: params.seed,
+        size: params.size,
+        persist: getImagePersist(kind),
+        chatTrigger: getImageChatTrigger(kind),
+        allowPlayers: getImageAllowPlayers(kind),
+        mediaFolder: getMediaFolder(),
+      };
+    });
+
     const music = getMusicConfig();
     const video = getVideoConfig();
 
     return {
       moduleTitle: MODULE_TITLE,
       version,
+      hasOpenrouterKey: hasOpenrouterKey(),
 
       chat: view("chat"),
       tts: view("tts"),
-      image: view("image"),
       transcription: view("transcription"),
       music: view("music"),
       video: view("video"),
+      imageKinds,
+      imageMediaFolder: getMediaFolder(),
 
       // Chat options
       continueAfterRoll: game.settings.get(MODULE_ID, SETTINGS.chatContinueAfterRoll) as boolean,
@@ -154,20 +198,6 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       videoDuration: video.duration,
       videoResolution: video.resolution,
       videoAspect: video.aspect,
-
-      // Image options
-      imageExpand: img.expand,
-      imageSteps: img.steps,
-      imageCfg: img.cfg,
-      imageSampler: img.sampler,
-      imageSeed: img.seed,
-      imagePositive: img.positive,
-      imageNegative: img.negative,
-      imageSize: img.size,
-      imageMediaFolder: getMediaFolder(),
-      imagePersist: getImagePersist(),
-      imageChatTrigger: getImageChatTrigger(),
-      imageAllowPlayers: getImageAllowPlayers(),
 
       // Transcription capture options (ingest-to-memory lives in the Memory window)
       transcriptEnabled: getTranscriptionEnabled(),
@@ -199,8 +229,11 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     const o = foundry.utils.expandObject(formData.object ?? {});
     const set = (k: string, v: unknown) => game.settings.set(MODULE_ID, k, v);
 
-    // Provider blocks (write-only keys handled inside saveProviderFromForm).
-    for (const id of FEATURE_IDS) {
+    // The single shared OpenRouter key (write-only).
+    await saveOpenrouterKey(String(o.openrouterApiKey ?? ""), Boolean(o.openrouterApiKeyClear));
+
+    // Provider blocks (write-only custom keys handled inside saveProviderFromForm).
+    for (const id of ALL_PROVIDER_FEATURES) {
       await saveProviderFromForm(id, o[id] as ProviderFormData | undefined);
     }
 
@@ -235,25 +268,30 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     await set(MEDIA_SETTINGS.videoResolution, String(o.video?.resolution ?? "720p").trim() || "720p");
     await set(MEDIA_SETTINGS.videoAspect, String(o.video?.aspect ?? "16:9").trim() || "16:9");
 
-    // Image options
-    await set(MEDIA_SETTINGS.imageExpandPrompt, Boolean(o.image?.expand));
-    await set(MEDIA_SETTINGS.imageSteps, Number(o.image?.steps) || 20);
-    await set(MEDIA_SETTINGS.imageCfg, Number(o.image?.cfg) || 7.0);
-    await set(MEDIA_SETTINGS.imageSampler, String(o.image?.sampler ?? "Euler a").trim());
-    await set(
-      MEDIA_SETTINGS.imageSeed,
-      Number.isFinite(Number(o.image?.seed)) ? Number(o.image?.seed) : -1,
-    );
-    await set(MEDIA_SETTINGS.imagePositive, String(o.image?.positive ?? ""));
-    await set(MEDIA_SETTINGS.imageNegative, String(o.image?.negative ?? ""));
-    await set(MEDIA_SETTINGS.imageSize, String(o.image?.size ?? "1024x1024").trim() || "1024x1024");
+    // Image options — one full set per generator (scene / portrait / token / map).
+    for (const kind of IMAGE_KINDS) {
+      const meta = IMAGE_KIND_META[kind];
+      const d = (o[kind] ?? {}) as Record<string, unknown>;
+      const ik = (field: string) => imageKey(kind, field);
+      await set(ik("expandPrompt"), Boolean(d.expand));
+      await set(ik("steps"), Number(d.steps) || 20);
+      await set(ik("cfg"), Number(d.cfg) || 7.0);
+      await set(ik("sampler"), String(d.sampler ?? "Euler a").trim());
+      await set(ik("seed"), Number.isFinite(Number(d.seed)) ? Number(d.seed) : -1);
+      await set(ik("positive"), String(d.positive ?? ""));
+      await set(ik("negative"), String(d.negative ?? ""));
+      // Locked kinds (portrait/token) keep their fixed size; scene/map take the typed value.
+      if (!meta.sizeLocked) {
+        await set(ik("size"), String(d.size ?? meta.defaultSize).trim() || meta.defaultSize);
+      }
+      await set(ik("persist"), Boolean(d.persist));
+      await set(ik("chatTrigger"), Boolean(d.chatTrigger));
+      await set(ik("allowPlayers"), Boolean(d.allowPlayers));
+    }
     const folder = String(o.image?.mediaFolder ?? "")
       .trim()
       .replace(/^\/+|\/+$/g, "");
     await set(MEDIA_SETTINGS.imageMediaFolder, folder || "assets/noodlr-out");
-    await set(MEDIA_SETTINGS.imagePersist, Boolean(o.image?.persist));
-    await set(MEDIA_SETTINGS.imageChatTrigger, Boolean(o.image?.chatTrigger));
-    await set(MEDIA_SETTINGS.imageAllowPlayers, Boolean(o.image?.allowPlayers));
 
     // Transcription capture options
     await set(MEDIA_SETTINGS.transcriptionEnabled, Boolean(o.transcription?.enabled));

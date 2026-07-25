@@ -7,7 +7,7 @@
 import { getFeatureConfig } from "../providers/config";
 import { chatCompletion } from "../providers/chat-client";
 import { isConfigured, resolveBaseUrl, type FeatureProviderConfig } from "../providers/types";
-import { getImageParams } from "./config";
+import { getImageParams, type ImageKind } from "./config";
 import { getLedgerEntry } from "./storage";
 
 export class ImageError extends Error {}
@@ -65,13 +65,14 @@ export interface GeneratedImage {
  */
 export async function generateSceneImage(
   sceneDescription: string,
-  opts: { signal?: AbortSignal; entityKey?: string } = {},
+  opts: { signal?: AbortSignal; entityKey?: string; kind?: ImageKind } = {},
 ): Promise<GeneratedImage> {
-  const cfg = getFeatureConfig("image");
+  const kind = opts.kind ?? "image";
+  const cfg = getFeatureConfig(kind);
   if (!isConfigured(cfg)) throw new ImageError("Image provider is not configured.");
-  const params = getImageParams();
+  const params = getImageParams(kind);
 
-  const entry = opts.entityKey ? getLedgerEntry(opts.entityKey) : undefined;
+  const entry = opts.entityKey ? getLedgerEntry(kind, opts.entityKey) : undefined;
   const anchor = entry?.prompt?.trim() ?? "";
 
   const baseSubject = params.expand

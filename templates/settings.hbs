@@ -38,9 +38,10 @@
     <input type="text" name="{{id}}.baseUrl" value="{{baseUrl}}" placeholder="http://127.0.0.1:11434/v1" autocomplete="off" />
   </div>
 
-  <div class="noodlr-field">
-    <label>{{localize "NOODLR.Provider.ApiKey.Name"}}</label>
-    <p class="notes">{{localize "NOODLR.Provider.ApiKey.Hint"}}</p>
+  {{! Per-feature key is ONLY for a custom/local endpoint; OpenRouter uses the one shared key. }}
+  <div class="noodlr-field noodlr-custom-only">
+    <label>{{localize "NOODLR.Provider.CustomKey.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Provider.CustomKey.Hint"}}</p>
     <input
       type="password"
       name="{{id}}.apiKey"
@@ -54,6 +55,92 @@
   </div>
 {{/inline}}
 
+{{#*inline "imageBlock"}}
+  <fieldset class="noodlr-settings__section" data-feature="{{id}}">
+    <legend><i class="{{icon}}"></i> {{title}}</legend>
+    {{> help this}}
+    {{> providerBlock this}}
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImagePositive.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.ImagePositive.Hint"}}</p>
+      <textarea name="{{id}}.positive" class="noodlr-settings__block" rows="2" spellcheck="true">{{positive}}</textarea>
+    </div>
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImageNegative.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.ImageNegative.Hint"}}</p>
+      <textarea name="{{id}}.negative" class="noodlr-settings__block" rows="2" spellcheck="true">{{negative}}</textarea>
+    </div>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="{{id}}.expand" {{#if expand}}checked{{/if}} />
+      {{localize "NOODLR.Media.ImageExpand.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.ImageExpand.Hint"}}</p>
+
+    <div class="noodlr-grid">
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageSize.Name"}}</label>
+        {{#if sizeLocked}}
+          <input type="text" value="{{size}}" disabled />
+          <p class="notes">{{localize "NOODLR.Media.ImageSizeLocked"}}</p>
+        {{else}}
+          <input type="text" name="{{id}}.size" value="{{size}}" />
+        {{/if}}
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageSteps.Name"}}</label>
+        <input type="number" name="{{id}}.steps" value="{{steps}}" min="1" max="150" step="1" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageCfg.Name"}}</label>
+        <input type="number" name="{{id}}.cfg" value="{{cfg}}" min="0" max="30" step="0.5" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageSampler.Name"}}</label>
+        <input type="text" name="{{id}}.sampler" value="{{sampler}}" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageSeed.Name"}}</label>
+        <input type="number" name="{{id}}.seed" value="{{seed}}" step="1" />
+      </div>
+    </div>
+    <p class="notes">{{localize "NOODLR.Media.ImageParamsNote"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="{{id}}.persist" {{#if persist}}checked{{/if}} />
+      {{localize "NOODLR.Media.ImagePersist.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.ImagePersist.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="{{id}}.chatTrigger" {{#if chatTrigger}}checked{{/if}} />
+      {{localize "NOODLR.Media.ImageChatTrigger.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.ImageChatTrigger.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="{{id}}.allowPlayers" {{#if allowPlayers}}checked{{/if}} />
+      {{localize "NOODLR.Media.ImageAllowPlayers.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.ImageAllowPlayers.Hint"}}</p>
+
+    {{#if isScene}}
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.ImageFolder.Name"}}</label>
+        <p class="notes">{{localize "NOODLR.Media.ImageFolder.Hint"}}</p>
+        <div class="noodlr-inline-controls">
+          <input type="text" name="image.mediaFolder" value="{{mediaFolder}}" placeholder="assets/noodlr-out" autocomplete="off" />
+          <button type="button" data-action="browseMediaFolder"><i class="fa-solid fa-folder-open"></i> {{localize "NOODLR.Media.ImageFolder.Browse"}}</button>
+        </div>
+      </div>
+    {{else}}
+      <p class="notes">{{localize "NOODLR.Media.ImageSubfolderNote"}} <code>{{subfolder}}/</code> (.{{ext}})</p>
+    {{/if}}
+  </fieldset>
+{{/inline}}
+
 <section class="noodlr-settings">
   <header class="noodlr-settings__header">
     <i class="fa-solid fa-dragon"></i>
@@ -64,6 +151,24 @@
   <p class="noodlr-settings__intro">{{localize "NOODLR.Settings.Intro"}}</p>
 
   <datalist id="noodlr-or-models"></datalist>
+
+  {{! ---- OpenRouter account (one key for every OpenRouter-backed feature) ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-key"></i> {{localize "NOODLR.Provider.OpenRouterKey.Legend"}}</legend>
+    <ul class="noodlr-help">
+      <li><strong>{{localize "NOODLR.Help.What"}}</strong> {{localize "NOODLR.Provider.OpenRouterKey.What"}}</li>
+      <li><strong>{{localize "NOODLR.Help.Requires"}}</strong> {{localize "NOODLR.Provider.OpenRouterKey.Requires"}}</li>
+      <li><strong>{{localize "NOODLR.Help.Without"}}</strong> {{localize "NOODLR.Provider.OpenRouterKey.Without"}}</li>
+    </ul>
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Provider.OpenRouterKey.Name"}}</label>
+      <input type="password" name="openrouterApiKey" value="" autocomplete="off"
+        placeholder="{{#if hasOpenrouterKey}}{{localize 'NOODLR.Provider.ApiKey.Saved'}}{{else}}{{localize 'NOODLR.Provider.ApiKey.None'}}{{/if}}" />
+      {{#if hasOpenrouterKey}}
+        <label class="noodlr-inline"><input type="checkbox" name="openrouterApiKeyClear" /> {{localize "NOODLR.Provider.ApiKey.Clear"}}</label>
+      {{/if}}
+    </div>
+  </fieldset>
 
   {{! ---- Dungeon Master Chat ---- }}
   <fieldset class="noodlr-settings__section" data-feature="chat">
@@ -152,82 +257,10 @@
     </div>
   </fieldset>
 
-  {{! ---- Scene Art (Image) ---- }}
-  <fieldset class="noodlr-settings__section" data-feature="image">
-    <legend><i class="fa-solid fa-image"></i> {{image.title}}</legend>
-    {{> help image}}
-    {{> providerBlock image}}
-
-    <div class="noodlr-field">
-      <label>{{localize "NOODLR.Media.ImagePositive.Name"}}</label>
-      <p class="notes">{{localize "NOODLR.Media.ImagePositive.Hint"}}</p>
-      <textarea name="image.positive" class="noodlr-settings__block" rows="2" spellcheck="true">{{imagePositive}}</textarea>
-    </div>
-
-    <div class="noodlr-field">
-      <label>{{localize "NOODLR.Media.ImageNegative.Name"}}</label>
-      <p class="notes">{{localize "NOODLR.Media.ImageNegative.Hint"}}</p>
-      <textarea name="image.negative" class="noodlr-settings__block" rows="2" spellcheck="true">{{imageNegative}}</textarea>
-    </div>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="image.expand" {{#if imageExpand}}checked{{/if}} />
-      {{localize "NOODLR.Media.ImageExpand.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Media.ImageExpand.Hint"}}</p>
-
-    <div class="noodlr-grid">
-      <div class="noodlr-field">
-        <label>{{localize "NOODLR.Media.ImageSize.Name"}}</label>
-        <input type="text" name="image.size" value="{{imageSize}}" />
-      </div>
-      <div class="noodlr-field">
-        <label>{{localize "NOODLR.Media.ImageSteps.Name"}}</label>
-        <input type="number" name="image.steps" value="{{imageSteps}}" min="1" max="150" step="1" />
-      </div>
-      <div class="noodlr-field">
-        <label>{{localize "NOODLR.Media.ImageCfg.Name"}}</label>
-        <input type="number" name="image.cfg" value="{{imageCfg}}" min="0" max="30" step="0.5" />
-      </div>
-      <div class="noodlr-field">
-        <label>{{localize "NOODLR.Media.ImageSampler.Name"}}</label>
-        <input type="text" name="image.sampler" value="{{imageSampler}}" />
-      </div>
-      <div class="noodlr-field">
-        <label>{{localize "NOODLR.Media.ImageSeed.Name"}}</label>
-        <input type="number" name="image.seed" value="{{imageSeed}}" step="1" />
-      </div>
-    </div>
-    <p class="notes">{{localize "NOODLR.Media.ImageParamsNote"}}</p>
-
-    {{! ---- Delivery, storage & triggers ---- }}
-    <div class="noodlr-field">
-      <label>{{localize "NOODLR.Media.ImageFolder.Name"}}</label>
-      <p class="notes">{{localize "NOODLR.Media.ImageFolder.Hint"}}</p>
-      <div class="noodlr-inline-controls">
-        <input type="text" name="image.mediaFolder" value="{{imageMediaFolder}}" placeholder="assets/noodlr-out" autocomplete="off" />
-        <button type="button" data-action="browseMediaFolder"><i class="fa-solid fa-folder-open"></i> {{localize "NOODLR.Media.ImageFolder.Browse"}}</button>
-      </div>
-    </div>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="image.persist" {{#if imagePersist}}checked{{/if}} />
-      {{localize "NOODLR.Media.ImagePersist.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Media.ImagePersist.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="image.chatTrigger" {{#if imageChatTrigger}}checked{{/if}} />
-      {{localize "NOODLR.Media.ImageChatTrigger.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Media.ImageChatTrigger.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="image.allowPlayers" {{#if imageAllowPlayers}}checked{{/if}} />
-      {{localize "NOODLR.Media.ImageAllowPlayers.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Media.ImageAllowPlayers.Hint"}}</p>
-  </fieldset>
+  {{! ---- Image generators: Scene Art, Portrait, Token, Map ---- }}
+  {{#each imageKinds}}
+    {{> imageBlock this}}
+  {{/each}}
 
   {{! ---- Voice Transcription (push-to-log) ---- }}
   <fieldset class="noodlr-settings__section" data-feature="transcription">
@@ -362,10 +395,4 @@
     <p class="notes">{{localize "NOODLR.Combat.PromptHint"}}</p>
     <textarea name="combatPrompt" class="noodlr-settings__block" rows="5" spellcheck="true">{{combatPrompt}}</textarea>
   </fieldset>
-
-  <div class="noodlr-settings__actions">
-    <button type="submit">
-      <i class="fa-solid fa-floppy-disk"></i> {{localize "NOODLR.Settings.Save"}}
-    </button>
-  </div>
 </section>

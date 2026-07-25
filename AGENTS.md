@@ -299,6 +299,29 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## v0.3.0 (2026-07-25) — four image generators + single OpenRouter key + header-only Save
+
+- **Three new image generators** joined Scene Art, each with its own dragon-menu tool icon, chat
+  trigger, provider/model, saved Positive/Negative prompts, output subfolder, format, and per-kind
+  continuity ledger. Data-driven via `IMAGE_KINDS` / `IMAGE_KIND_META` in `media/config.ts`; one
+  generalized `generateSceneImage(desc, {kind})` + `createAndShareImage(input, kind)` path:
+  - **Generate Portrait** — waist-up, locked 1000×1000, `.webp`, `…/portraits`, keyed (continuity).
+  - **Generate Token** — top-down/iso token, locked 400×400, `.webp`, `…/tokens`, keyed.
+  - **Generate Map** — walkable map, default 4500×6000 (editable, hidden clamp 450–7800/side),
+    `.webp`, `…/maps`, non-keyed.
+  - **Scene Art (Generate Image)** — kept; default bumped **1024×1024 → 1920×1080** (one-time
+    `migrateImageDefaults()` upgrades existing worlds; guarded by `image.sizeMigratedV3`).
+  - `.webp` output + locked resolutions enforced client-side via `transcodeImage()` (canvas). Maps
+    request their configured size from the API but transcode at the model's returned resolution
+    (no in-browser upscale to 7800² — memory hazard). Each kind keeps its own ledger so a "goblin"
+    portrait and token don't collide on one seed/appearance.
+- **Single OpenRouter API key.** One world-scoped, write-only key on the main config
+  (`SETTINGS.openrouterApiKey`); `getFeatureConfig()` hands it to every openrouter feature. Removed
+  the per-feature OpenRouter key fields; the per-feature key input is now **custom-only** (optional,
+  for local endpoints). `getEmbedOverride()` inherits the shared key automatically.
+- **Header-only Save.** Removed the footer "Save" buttons from the settings, memory-config, and
+  creature-voices pop-outs — only the title-bar dirty Save (from v0.2.8) remains.
+
 ## RAG root-cause FIXED (2026-07-25) — noodlr-memory service
 
 The "self-test 0 hits" saga resolved. Root cause was **not** embeddings/dimensions/LanceDB/legacy
