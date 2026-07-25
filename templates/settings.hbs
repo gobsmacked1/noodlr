@@ -81,12 +81,19 @@
 
     <div class="noodlr-grid">
       <div class="noodlr-field">
-        <label>{{localize "NOODLR.Media.ImageAspect.Name"}}</label>
-        <select name="{{id}}.aspect">
-          {{#each aspectOptions}}
+        <label>{{localize "NOODLR.Media.ImageSize.Name"}}</label>
+        <select name="{{id}}.size" data-role="image-size">
+          <option value="" {{#if sizeNull}}selected{{/if}}>{{localize "NOODLR.Media.ImageSize.Null"}}</option>
+          {{#each sizeOptions}}
           <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
           {{/each}}
+          <option value="custom" {{#if sizeCustom}}selected{{/if}}>{{localize "NOODLR.Media.ImageSize.Custom"}}</option>
         </select>
+        <div class="noodlr-inline-controls noodlr-custom-size" data-role="custom-size" {{#unless sizeCustom}}style="display:none"{{/unless}}>
+          <input type="number" name="{{id}}.customW" value="{{customW}}" min="8" max="8192" step="1" placeholder="width" />
+          <span>x</span>
+          <input type="number" name="{{id}}.customH" value="{{customH}}" min="8" max="8192" step="1" placeholder="height" />
+        </div>
       </div>
       <div class="noodlr-field">
         <label>{{localize "NOODLR.Media.ImageSteps.Name"}}</label>
@@ -106,7 +113,7 @@
       </div>
     </div>
     <p class="notes">{{localize "NOODLR.Media.ImageParamsNote"}}</p>
-    <p class="notes">{{localize "NOODLR.Media.ImageAspect.Hint"}}</p>
+    <p class="notes">{{localize "NOODLR.Media.ImageSize.Hint"}}</p>
 
     <label class="noodlr-inline">
       <input type="checkbox" name="{{id}}.persist" {{#if persist}}checked{{/if}} />

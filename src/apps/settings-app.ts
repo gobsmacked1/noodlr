@@ -41,7 +41,9 @@ import {
   getTranscriptionEnabled,
   IMAGE_KINDS,
   IMAGE_KIND_META,
-  ASPECT_RATIOS,
+  IMAGE_SIZE_PRESETS,
+  isCustomSize,
+  normalizeCustomSize,
   imageKey,
   type ImageKind,
 } from "../media/config";
@@ -55,6 +57,21 @@ import { wireProviderBlocks } from "./provider-ui";
 import { installHeaderSaveButton } from "./header-save";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+/** Show/hide each image generator's free-form width/height inputs when "Custom…" is picked. */
+function wireImageSizeSelects(root: HTMLElement): void {
+  root.querySelectorAll<HTMLSelectElement>('select[data-role="image-size"]').forEach((sel) => {
+    const custom = sel
+      .closest(".noodlr-field")
+      ?.querySelector<HTMLElement>('[data-role="custom-size"]');
+    if (!custom) return;
+    const apply = () => {
+      custom.style.display = sel.value === "custom" ? "" : "none";
+    };
+    sel.addEventListener("change", apply);
+    apply();
+  });
+}
 
 /** Non-image provider features in this window (embeddings + rerank live in the Memory window). */
 const FEATURE_IDS = ["chat", "tts", "transcription", "music", "video"] as const;
@@ -147,10 +164,14 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
         cfg: params.cfg,
         sampler: params.sampler,
         seed: params.seed,
-        aspectOptions: ASPECT_RATIOS.map((a) => ({
-          value: a.value,
-          label: a.label,
-          selected: a.value === params.aspect,
+        sizeNull: params.size.trim() === "",
+        sizeCustom: isCustomSize(params.size),
+        customW: isCustomSize(params.size) ? params.size.split(/[x×]/i)[0] : "",
+        customH: isCustomSize(params.size) ? params.size.split(/[x×]/i)[1] : "",
+        sizeOptions: IMAGE_SIZE_PRESETS.map((s) => ({
+          value: s.value,
+          label: s.label,
+          selected: s.value === params.size,
         })),
         persist: getImagePersist(kind),
         chatTrigger: getImageChatTrigger(kind),
@@ -218,7 +239,10 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
 
   _onRender(_context: unknown, _options: unknown): void {
     const root = this.#root();
-    if (root) wireProviderBlocks(root);
+    if (root) {
+      wireProviderBlocks(root);
+      wireImageSizeSelects(root);
+    }
     installHeaderSaveButton(this);
   }
 
@@ -284,7 +308,13 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       await set(ik("seed"), Number.isFinite(Number(d.seed)) ? Number(d.seed) : -1);
       await set(ik("positive"), String(d.positive ?? ""));
       await set(ik("negative"), String(d.negative ?? ""));
-      await set(ik("aspect"), String(d.aspect ?? meta.defaultAspect));
+      // Size: a preset "WxH", "" (native), or "custom" -> build from the width/height inputs.
+      const sizeSel = String(d.size ?? meta.defaultSize);
+      let size = sizeSel;
+      if (sizeSel === "custom") {
+        size = normalizeCustomSize(`${d.customW ?? ""}x${d.customH ?? ""}`) || meta.defaultSize;
+      }
+      await set(ik("size"), size);
       await set(ik("persist"), Boolean(d.persist));
       await set(ik("chatTrigger"), Boolean(d.chatTrigger));
       await set(ik("allowPlayers"), Boolean(d.allowPlayers));

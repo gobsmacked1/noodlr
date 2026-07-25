@@ -17,8 +17,8 @@ export interface ImageKindMeta {
   subfolder: string;
   /** Saved file format (all kinds now output .webp for consistency). */
   ext: "png" | "webp";
-  /** Default aspect ratio (value from ASPECT_RATIOS; "" = model's native size). */
-  defaultAspect: string;
+  /** Default size ("WxH" from IMAGE_SIZE_PRESETS; "" = model's native size). */
+  defaultSize: string;
   /** Keyed generators reuse a per-subject seed/appearance for continuity. */
   keyed: boolean;
   /** Scene-control (dragon menu) icon. */
@@ -31,7 +31,7 @@ export const IMAGE_KIND_META: Record<ImageKind, ImageKindMeta> = {
     trigger: "image",
     subfolder: "images",
     ext: "webp",
-    defaultAspect: "16:9",
+    defaultSize: "1536x640",
     keyed: false,
     icon: "fa-solid fa-image",
   },
@@ -40,7 +40,7 @@ export const IMAGE_KIND_META: Record<ImageKind, ImageKindMeta> = {
     trigger: "portrait",
     subfolder: "portraits",
     ext: "webp",
-    defaultAspect: "3:4",
+    defaultSize: "896x1192",
     keyed: true,
     icon: "fa-solid fa-user",
   },
@@ -49,7 +49,7 @@ export const IMAGE_KIND_META: Record<ImageKind, ImageKindMeta> = {
     trigger: "token",
     subfolder: "tokens",
     ext: "webp",
-    defaultAspect: "1:1",
+    defaultSize: "512x512",
     keyed: true,
     icon: "fa-solid fa-chess-pawn",
   },
@@ -58,41 +58,55 @@ export const IMAGE_KIND_META: Record<ImageKind, ImageKindMeta> = {
     trigger: "map",
     subfolder: "maps",
     ext: "webp",
-    defaultAspect: "3:4",
+    defaultSize: "1024x1024",
     keyed: false,
     icon: "fa-solid fa-map-location-dot",
   },
 };
 
 /**
- * Standard aspect ratios offered per generator. OpenRouter doesn't publish per-model
- * resolution limits, so we can't auto-populate exact pixel ranges; instead the user picks an
- * aspect ratio and we send a representative (SDXL-friendly) `size` for it. The "" option sends
- * no size at all — for slugs that ignore `size` and just return their own native resolution.
+ * Curated, known-good pixel sizes for image models (paired small/large per aspect ratio).
+ * OpenRouter publishes no per-model resolution limits, so rather than guess, we offer this
+ * vetted list; the size string is sent verbatim as `size`. The UI also offers a "" (native)
+ * option and a free-form custom size for experimentation.
  */
-export interface AspectRatio {
+export interface ImageSizePreset {
+  /** "WxH" value sent to the model. */
   value: string;
+  /** Human label, e.g. "1:1 (Square) - 512 x 512". */
   label: string;
-  /** Representative pixel size sent as `size` ("" = omit size, use the model's default). */
-  size: string;
 }
 
-export const ASPECT_RATIOS: AspectRatio[] = [
-  { value: "", label: "Default (model's native size)", size: "" },
-  { value: "1:1", label: "1:1 — Square", size: "1024x1024" },
-  { value: "4:3", label: "4:3 — Landscape", size: "1152x896" },
-  { value: "3:4", label: "3:4 — Portrait", size: "896x1152" },
-  { value: "3:2", label: "3:2 — Landscape", size: "1216x832" },
-  { value: "2:3", label: "2:3 — Portrait", size: "832x1216" },
-  { value: "16:9", label: "16:9 — Widescreen", size: "1344x768" },
-  { value: "9:16", label: "9:16 — Tall", size: "768x1344" },
-  { value: "21:9", label: "21:9 — Ultrawide", size: "1536x640" },
-  { value: "9:21", label: "9:21 — Ultratall", size: "640x1536" },
+export const IMAGE_SIZE_PRESETS: ImageSizePreset[] = [
+  { value: "512x512", label: "1:1 (Square) - 512 x 512" },
+  { value: "1024x1024", label: "1:1 (Square) - 1024 x 1024" },
+  { value: "448x592", label: "3:4 (Portrait) - 448 x 592" },
+  { value: "896x1192", label: "3:4 (Portrait) - 896 x 1192" },
+  { value: "416x624", label: "2:3 (Portrait) - 416 x 624" },
+  { value: "832x1248", label: "2:3 (Portrait) - 832 x 1248" },
+  { value: "360x640", label: "9:16 (Tall) - 360 x 640" },
+  { value: "768x1344", label: "9:16 (Tall) - 768 x 1344" },
+  { value: "624x416", label: "3:2 (Landscape) - 624 x 416" },
+  { value: "1248x832", label: "3:2 (Landscape) - 1248 x 832" },
+  { value: "592x448", label: "4:3 (Landscape) - 592 x 448" },
+  { value: "1192x896", label: "4:3 (Landscape) - 1192 x 896" },
+  { value: "640x360", label: "16:9 (Widescreen) - 640 x 360" },
+  { value: "1344x768", label: "16:9 (Widescreen) - 1344 x 768" },
+  { value: "768x320", label: "21:9 (Ultrawide) - 768 x 320" },
+  { value: "1536x640", label: "21:9 (Ultrawide) - 1536 x 640" },
 ];
 
-/** Map an aspect-ratio value to a concrete "WxH" size string ("" when native/default). */
-export function aspectToSize(aspect: string): string {
-  return ASPECT_RATIOS.find((a) => a.value === aspect)?.size ?? "";
+/** True when a stored size string is a non-empty value that isn't one of the presets. */
+export function isCustomSize(size: string): boolean {
+  return size.trim() !== "" && !IMAGE_SIZE_PRESETS.some((p) => p.value === size);
+}
+
+/** Validate/normalize a free-form "WxH" (clamped 8..8192/side); "" if unparseable. */
+export function normalizeCustomSize(raw: string): string {
+  const m = /^\s*(\d+)\s*[x×]\s*(\d+)\s*$/i.exec(String(raw));
+  if (!m) return "";
+  const clamp = (n: number) => Math.min(8192, Math.max(8, Math.round(n)));
+  return `${clamp(Number(m[1]))}x${clamp(Number(m[2]))}`;
 }
 
 /** Per-kind image setting key: `${kind}.${field}` (scene kind reuses the legacy "image.*" keys). */
@@ -141,7 +155,7 @@ export function registerMediaSettings(): void {
     game.settings.register(MODULE_ID, k("seed"), { ...worldNum, default: -1 });
     game.settings.register(MODULE_ID, k("positive"), { ...worldStr, default: "" });
     game.settings.register(MODULE_ID, k("negative"), { ...worldStr, default: "" });
-    game.settings.register(MODULE_ID, k("aspect"), { ...worldStr, default: meta.defaultAspect });
+    game.settings.register(MODULE_ID, k("size"), { ...worldStr, default: meta.defaultSize });
     game.settings.register(MODULE_ID, k("persist"), { ...worldBool, default: true });
     game.settings.register(MODULE_ID, k("chatTrigger"), { ...worldBool, default: true });
     game.settings.register(MODULE_ID, k("allowPlayers"), { ...worldBool, default: false });
@@ -192,13 +206,14 @@ export function getImageParams(kind: ImageKind = "image"): {
   seed: number;
   positive: string;
   negative: string;
-  /** Aspect-ratio value (see ASPECT_RATIOS); "" means send no size (model's native). */
-  aspect: string;
+  /** "WxH" size sent to the model; "" means send no size (use the model's native default). */
+  size: string;
   expand: boolean;
   systemPrompt: string;
 } {
   const meta = IMAGE_KIND_META[kind];
   const g = (field: string) => game.settings.get(MODULE_ID, imageKey(kind, field));
+  const stored = g("size");
   return {
     steps: Number(g("steps")) || 20,
     cfg: Number(g("cfg")) || 7.0,
@@ -206,7 +221,7 @@ export function getImageParams(kind: ImageKind = "image"): {
     seed: Number(g("seed")),
     positive: (g("positive") as string) || "",
     negative: (g("negative") as string) || "",
-    aspect: (g("aspect") as string) ?? meta.defaultAspect,
+    size: typeof stored === "string" ? stored : meta.defaultSize,
     expand: Boolean(g("expandPrompt")),
     systemPrompt: (g("systemPrompt") as string) || "",
   };
