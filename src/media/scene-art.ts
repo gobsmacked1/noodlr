@@ -6,7 +6,7 @@
 import { MODULE_ID, log } from "../constants";
 import { generateSceneImage, ImageError } from "./image";
 import { saveMedia, setLedgerEntry, transcodeImage } from "./storage";
-import { getImagePersist, getImageParams, IMAGE_KIND_META, type ImageKind } from "./config";
+import { getImagePersist, IMAGE_KIND_META, type ImageKind } from "./config";
 import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
 import { bumpStats } from "../util/stats";
 
@@ -94,17 +94,12 @@ export interface CreateImageInput {
   title?: string;
 }
 
-/** Parse a "WxH" size string into pixel dimensions (or null if malformed). */
-function parseDims(size: string): { w: number; h: number } | null {
-  const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec(String(size).trim());
-  return m ? { w: Number(m[1]), h: Number(m[2]) } : null;
-}
-
 /**
  * Generate an image and share it with the table. `kind` selects the generator (scene art,
- * portrait, token, or map) — each with its own provider/prompts, output folder, format, and
- * (for locked kinds) enforced resolution. Persists to disk + the per-kind continuity ledger
- * when persistence is enabled; always displays even if persistence fails.
+ * portrait, token, or map) — each with its own provider/prompts, output folder, and aspect
+ * ratio. All kinds save as .webp at the model's returned resolution. Persists to disk + the
+ * per-kind continuity ledger when persistence is enabled; always displays even if persistence
+ * fails.
  */
 export async function createAndShareImage(
   input: CreateImageInput,
@@ -127,17 +122,12 @@ export async function createAndShareImage(
   // on failure we still display the in-memory data URL so the table sees the art.
   let path: string | null = null;
   if (getImagePersist(kind)) {
-    // webp kinds are transcoded (locked kinds also resized to their exact dimensions) so the
-    // saved file really is a correctly-sized .webp regardless of what the model returned.
+    // All kinds save as .webp (format conversion only — we keep the model's returned
+    // resolution; aspect ratio was requested at generation time).
     let toSave: string | Blob = result.src;
     let ext: string = meta.ext;
     if (meta.ext === "webp") {
-      const dims = meta.sizeLocked ? parseDims(getImageParams(kind).size) : null;
-      const t = await transcodeImage(result.src, {
-        format: "webp",
-        width: dims?.w,
-        height: dims?.h,
-      });
+      const t = await transcodeImage(result.src, { format: "webp" });
       toSave = t.blob;
       ext = t.ext;
     }

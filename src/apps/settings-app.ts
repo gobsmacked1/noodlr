@@ -41,6 +41,7 @@ import {
   getTranscriptionEnabled,
   IMAGE_KINDS,
   IMAGE_KIND_META,
+  ASPECT_RATIOS,
   imageKey,
   type ImageKind,
 } from "../media/config";
@@ -137,7 +138,6 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
         without: game.i18n.localize(`${p}.Without`),
         icon: meta.icon,
         isScene: kind === "image",
-        sizeLocked: meta.sizeLocked,
         subfolder: meta.subfolder,
         ext: meta.ext,
         positive: params.positive,
@@ -147,7 +147,11 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
         cfg: params.cfg,
         sampler: params.sampler,
         seed: params.seed,
-        size: params.size,
+        aspectOptions: ASPECT_RATIOS.map((a) => ({
+          value: a.value,
+          label: a.label,
+          selected: a.value === params.aspect,
+        })),
         persist: getImagePersist(kind),
         chatTrigger: getImageChatTrigger(kind),
         allowPlayers: getImageAllowPlayers(kind),
@@ -280,10 +284,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       await set(ik("seed"), Number.isFinite(Number(d.seed)) ? Number(d.seed) : -1);
       await set(ik("positive"), String(d.positive ?? ""));
       await set(ik("negative"), String(d.negative ?? ""));
-      // Locked kinds (portrait/token) keep their fixed size; scene/map take the typed value.
-      if (!meta.sizeLocked) {
-        await set(ik("size"), String(d.size ?? meta.defaultSize).trim() || meta.defaultSize);
-      }
+      await set(ik("aspect"), String(d.aspect ?? meta.defaultAspect));
       await set(ik("persist"), Boolean(d.persist));
       await set(ik("chatTrigger"), Boolean(d.chatTrigger));
       await set(ik("allowPlayers"), Boolean(d.allowPlayers));

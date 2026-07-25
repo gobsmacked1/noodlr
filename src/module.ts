@@ -19,7 +19,6 @@ import {
   getImageAllowPlayers,
   getMusicConfig,
   getVideoConfig,
-  migrateImageDefaults,
   IMAGE_KINDS,
   IMAGE_KIND_META,
   type ImageKind,
@@ -97,7 +96,6 @@ Hooks.once("ready", () => {
   // Ensure the media output folder exists (GM only — creating dirs needs upload permission).
   if (game.user?.isGM) {
     void ensureMediaFolder();
-    void migrateImageDefaults();
   }
 });
 

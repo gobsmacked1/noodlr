@@ -7,7 +7,7 @@
 import { getFeatureConfig } from "../providers/config";
 import { chatCompletion } from "../providers/chat-client";
 import { isConfigured, resolveBaseUrl, type FeatureProviderConfig } from "../providers/types";
-import { getImageParams, type ImageKind } from "./config";
+import { getImageParams, aspectToSize, type ImageKind } from "./config";
 import { getLedgerEntry } from "./storage";
 
 export class ImageError extends Error {}
@@ -101,7 +101,6 @@ export async function generateSceneImage(
     model: cfg.model,
     prompt,
     n: 1,
-    size: params.size,
     response_format: "b64_json",
     // SD-compatible extras (harmless to OpenAI):
     steps: params.steps,
@@ -109,6 +108,13 @@ export async function generateSceneImage(
     sampler_name: params.sampler,
     negative_prompt: params.negative,
   };
+  // Aspect ratio -> representative size. When "" (native), omit size entirely so slugs that
+  // don't accept a size just return their own default resolution.
+  const size = aspectToSize(params.aspect);
+  if (size) {
+    body.size = size;
+    body.aspect_ratio = params.aspect; // some providers prefer an explicit aspect hint
+  }
   if (seed >= 0) body.seed = seed;
 
   const res = await fetch(`${resolveBaseUrl(cfg)}/images/generations`, {

@@ -81,13 +81,12 @@
 
     <div class="noodlr-grid">
       <div class="noodlr-field">
-        <label>{{localize "NOODLR.Media.ImageSize.Name"}}</label>
-        {{#if sizeLocked}}
-          <input type="text" value="{{size}}" disabled />
-          <p class="notes">{{localize "NOODLR.Media.ImageSizeLocked"}}</p>
-        {{else}}
-          <input type="text" name="{{id}}.size" value="{{size}}" />
-        {{/if}}
+        <label>{{localize "NOODLR.Media.ImageAspect.Name"}}</label>
+        <select name="{{id}}.aspect">
+          {{#each aspectOptions}}
+          <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
       </div>
       <div class="noodlr-field">
         <label>{{localize "NOODLR.Media.ImageSteps.Name"}}</label>
@@ -107,6 +106,7 @@
       </div>
     </div>
     <p class="notes">{{localize "NOODLR.Media.ImageParamsNote"}}</p>
+    <p class="notes">{{localize "NOODLR.Media.ImageAspect.Hint"}}</p>
 
     <label class="noodlr-inline">
       <input type="checkbox" name="{{id}}.persist" {{#if persist}}checked{{/if}} />
@@ -135,9 +135,8 @@
           <button type="button" data-action="browseMediaFolder"><i class="fa-solid fa-folder-open"></i> {{localize "NOODLR.Media.ImageFolder.Browse"}}</button>
         </div>
       </div>
-    {{else}}
-      <p class="notes">{{localize "NOODLR.Media.ImageSubfolderNote"}} <code>{{subfolder}}/</code> (.{{ext}})</p>
     {{/if}}
+    <p class="notes">{{localize "NOODLR.Media.ImageSubfolderNote"}} <code>{{subfolder}}/</code> (.{{ext}})</p>
   </fieldset>
 {{/inline}}
 
