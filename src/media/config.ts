@@ -3,7 +3,10 @@
 // per-feature registration; media-specific options are registered here.
 
 import { MODULE_ID, MEDIA_SETTINGS } from "../constants";
+import { MAP_DEFAULT_POSITIVE } from "../prompts";
 import { registerFeatureProviderSettings } from "../providers/config";
+
+export { MAP_DEFAULT_POSITIVE };
 
 /** The four image generators. Each carries its own provider + full image-param config. */
 export const IMAGE_KINDS = ["image", "portrait", "token", "map"] as const;
@@ -27,16 +30,8 @@ export interface ImageKindMeta {
   icon: string;
 }
 
-/**
- * Default battlemap style/scale prompt for the Map generator. Diffusion models have no metric
- * awareness (they can't honor "70px = 5ft"), so this cues top-down framing + relative scale
- * (human = one 5-ft square); exact scale is enforced later by Foundry's scene grid.
- */
-export const MAP_DEFAULT_POSITIVE =
-  "top-down orthographic battle map for a tabletop RPG, true bird's-eye view (no perspective, " +
-  "no isometric tilt), consistent uniform scale across the entire map where a single " +
-  "human-sized creature occupies one 5-foot grid square, standard doorways one square (5 ft) " +
-  "wide, corridors two squares (10 ft) wide, furniture and objects sized to match";
+// The Map generator's default style/scale prefix now lives with all other default prompt text in
+// src/prompts/index.ts (re-exported above as MAP_DEFAULT_POSITIVE for existing importers).
 
 export const IMAGE_KIND_META: Record<ImageKind, ImageKindMeta> = {
   image: {

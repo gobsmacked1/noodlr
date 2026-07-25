@@ -1,6 +1,7 @@
 // Registration + typed accessors for the prompt-architecture settings and stores.
 
-import { MODULE_ID, SETTINGS, DEFAULT_COMBAT_REMINDER } from "../constants";
+import { MODULE_ID, SETTINGS } from "../constants";
+import { DEFAULT_COMBAT_REMINDER } from "../prompts";
 import type { ChronicleItem, LorebookEntry } from "./types";
 
 export function registerPromptSettings(): void {

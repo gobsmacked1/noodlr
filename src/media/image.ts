@@ -7,6 +7,7 @@
 import { getFeatureConfig } from "../providers/config";
 import { chatCompletion } from "../providers/chat-client";
 import { isConfigured, resolveBaseUrl, type FeatureProviderConfig } from "../providers/types";
+import { IMAGE_EXPAND_SYSTEM_PROMPT } from "../prompts";
 import { getImageParams, type ImageKind } from "./config";
 import { getLedgerEntry } from "./storage";
 
@@ -23,9 +24,7 @@ function authHeaders(cfg: FeatureProviderConfig): Record<string, string> {
 async function expandPrompt(scene: string, systemPrompt: string): Promise<string> {
   const chatCfg = getFeatureConfig("chat");
   if (!isConfigured(chatCfg)) return scene;
-  const sys =
-    systemPrompt.trim() ||
-    "You write concise, vivid text-to-image prompts for fantasy RPG scene art. Output only the prompt: subject, setting, lighting, mood, style. No preamble.";
+  const sys = systemPrompt.trim() || IMAGE_EXPAND_SYSTEM_PROMPT;
   try {
     const out = await chatCompletion(chatCfg, {
       messages: [

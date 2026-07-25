@@ -154,8 +154,8 @@ export async function createAndShareVideo(input: {
     ui.notifications?.error(game.i18n.localize("NOODLR.Media.Video.NoSave"));
     return;
   }
-  await shareMediaPopout(path, input.description || "Noodlr video", !input.hidden);
-  await postMediaCard(
+  // Post the card first so the pop-out can carry the same Retry/Reject controls (see scene-art).
+  const message = await postMediaCard(
     path,
     input.description || "Noodlr video",
     "video",
@@ -171,5 +171,9 @@ export async function createAndShareVideo(input: {
     },
     { whisperGM: input.hidden },
   );
+  await shareMediaPopout(path, input.description || "Noodlr video", {
+    broadcast: !input.hidden,
+    message,
+  });
   bumpStats({ video: 1 });
 }

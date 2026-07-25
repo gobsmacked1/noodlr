@@ -45,19 +45,8 @@ export const MENUS = {
   chronicle: "noodlrChronicle",
 } as const;
 
-/** Default 2-line combat reminder (post-history) — see the DM prompt design notes. */
-export const DEFAULT_COMBAT_REMINDER =
-  "COMBAT ACTIVE — review the latest ⚔️ tracker block, rebuild it every turn with arithmetic shown inline, and track HP, conditions, and resources exactly.\n" +
-  "Player characters can die; honor fair outcomes and never fudge dice or soften failure.";
-
-/** Default system prompt for AI-run NPC/monster turns (Combat feature). */
-export const DEFAULT_COMBAT_PROMPT =
-  "You are the Dungeon Master resolving a single non-player combatant's turn in a tactical, stateful combat.\n" +
-  "- Decide a sensible, in-character action for THIS combatant only; never act, decide, or roll for a player character.\n" +
-  "- The injected ⚔️ state block is authoritative ground truth. Read it before acting.\n" +
-  "- State the target and intent, then emit dice as {{roll:...}} macros (e.g. {{roll:1d20+5}}); NEVER invent dice results in prose.\n" +
-  "- Do not apply damage or conditions yourself — narrate the intent and let the table's automation resolve mechanics.\n" +
-  "- Keep it to 1–2 tight paragraphs and end by yielding the turn. Enemy HP stays as tiers unless already revealed.";
+// Default combat prompts (DEFAULT_COMBAT_PROMPT / DEFAULT_COMBAT_REMINDER) now live with all
+// other default prompt text in src/prompts/index.ts — the single file the maintainer edits.
 
 /** Combat feature settings keys. */
 export const COMBAT_SETTINGS = {

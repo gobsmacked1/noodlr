@@ -6,16 +6,13 @@
 // plain-language help. API keys are write-only: the stored key is never sent back to the
 // browser; you only ever type a new one. OpenRouter model lists are fetched live.
 
+import { MODULE_ID, MODULE_TITLE, SETTINGS, MEDIA_SETTINGS, COMBAT_SETTINGS } from "../constants";
 import {
-  MODULE_ID,
-  MODULE_TITLE,
-  SETTINGS,
-  MEDIA_SETTINGS,
-  COMBAT_SETTINGS,
+  DM_SYSTEM_PROMPT,
+  SYSTEM_PROMPT_MAX_LENGTH,
   DEFAULT_COMBAT_REMINDER,
   DEFAULT_COMBAT_PROMPT,
-} from "../constants";
-import { DM_SYSTEM_PROMPT, SYSTEM_PROMPT_MAX_LENGTH } from "../prompts/dm-system-prompt";
+} from "../prompts";
 import {
   getFeatureConfig,
   getProviderView,

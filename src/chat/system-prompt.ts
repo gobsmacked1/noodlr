@@ -2,7 +2,7 @@
 // Noodlr Dungeon Master prompt.
 
 import { MODULE_ID, SETTINGS } from "../constants";
-import { DM_SYSTEM_PROMPT } from "../prompts/dm-system-prompt";
+import { DM_SYSTEM_PROMPT } from "../prompts";
 
 export function getEffectiveChatSystemPrompt(): string {
   const override = (game.settings.get(MODULE_ID, SETTINGS.chatSystemPrompt) as string) ?? "";

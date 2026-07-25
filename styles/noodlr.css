@@ -502,6 +502,26 @@
   background: rgba(200, 40, 40, 0.2);
 }
 
+/* Overlay variant: floated in the lower-right of the media pop-out (ImagePopout) window, on top
+   of the image/video, for the 60 s Retry/Reject window. */
+.noodlr-artifact-actions--overlay {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  margin: 0;
+  z-index: 30;
+  padding: 0.3rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.noodlr-artifact-actions--overlay .noodlr-artifact-btn {
+  color: #f0f0e0;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+}
+
 /* "Hide output" toggle on the chat composer + media dialogs. */
 .noodlr-chat__hide,
 .noodlr-hide-output {

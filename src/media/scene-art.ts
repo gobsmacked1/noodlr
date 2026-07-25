@@ -7,7 +7,12 @@ import { MODULE_ID, log } from "../constants";
 import { generateSceneImage, ImageError } from "./image";
 import { saveMedia, transcodeImage } from "./storage";
 import { getImagePersist, IMAGE_KIND_META, type ImageKind } from "./config";
-import { artifactFlags, type ArtifactCommit, type ArtifactInput } from "../output/artifacts";
+import {
+  artifactFlags,
+  attachArtifactControls,
+  type ArtifactCommit,
+  type ArtifactInput,
+} from "../output/artifacts";
 import { bumpStats } from "../util/stats";
 
 /** Resolve the v13 ImagePopout class (namespaced), falling back to the legacy global. */
@@ -20,12 +25,18 @@ function imagePopout(): any {
  * Display a media file (image OR video — ImagePopout's src accepts both) locally and, when
  * `broadcast` is true (the default), share it with every connected user via Foundry's built-in
  * broadcast. Pass broadcast=false for "hidden" GM-prep output (shows only on the GM's screen).
+ *
+ * When `message` (the artifact chat card) is supplied, the Retry/Reject controls are drawn in the
+ * pop-out's lower-right for the DM/author while the 60 s window is open — this is the window most
+ * users watch, so the controls belong here as well as on the chat card. Retry/Reject closes this
+ * pop-out. The broadcast copies on other clients never get controls (only the author/DM acts).
  */
 export async function shareMediaPopout(
   src: string,
   title: string,
-  broadcast = true,
+  opts: { broadcast?: boolean; message?: any } = {},
 ): Promise<void> {
+  const broadcast = opts.broadcast ?? true;
   const IP = imagePopout();
   if (!IP) {
     log("ImagePopout unavailable; cannot display media");
@@ -33,6 +44,10 @@ export async function shareMediaPopout(
   }
   const pop = new IP({ src, window: { title } });
   await pop.render(true);
+  if (opts.message) {
+    const root = pop.element as HTMLElement | undefined;
+    if (root) attachArtifactControls(root, opts.message, { overlay: true, afterRetire: () => pop.close() });
+  }
   if (!broadcast) return;
   try {
     // Broadcasts to all connected users (they get their own popout).
@@ -53,7 +68,7 @@ export async function postMediaCard(
   kind: "image" | "video" | "audio" = "image",
   artifact?: ArtifactInput,
   opts: { whisperGM?: boolean } = {},
-): Promise<void> {
+): Promise<any> {
   try {
     const ChatMessage = (globalThis as any).ChatMessage;
     const safeTitle = foundry.utils.escapeHTML(title);
@@ -71,9 +86,10 @@ export async function postMediaCard(
     if (opts.whisperGM) {
       data.whisper = ChatMessage.getWhisperRecipients("GM").map((u: any) => u.id);
     }
-    await ChatMessage.create(data);
+    return await ChatMessage.create(data);
   } catch (err) {
     log("could not post media chat card:", err);
+    return null;
   }
 }
 
@@ -132,11 +148,12 @@ export async function createAndShareImage(
   }
 
   const displaySrc = path ?? result.src;
-  await shareMediaPopout(displaySrc, title, !input.hidden);
 
-  // Post the card with a Retry/Reject artifact. The RAG scene-meta ingest and the continuity
-  // ledger write are DEFERRED into the artifact commit (run by the GM only if the output survives
-  // the 60 s window), so a rejected/retried image never pollutes memory or the ledger.
+  // Post the card with a Retry/Reject artifact FIRST so the pop-out can carry the same controls.
+  // The RAG scene-meta ingest and the continuity ledger write are DEFERRED into the artifact
+  // commit (run by the GM only if the output survives the 60 s window), so a rejected/retried
+  // image never pollutes memory or the ledger.
+  let message: any = null;
   if (path) {
     const label = input.entityKey ? `Image of ${input.entityKey}` : "Scene image";
     const commit: ArtifactCommit = {
@@ -165,7 +182,7 @@ export async function createAndShareImage(
         },
       };
     }
-    await postMediaCard(
+    message = await postMediaCard(
       path,
       title,
       "image",
@@ -173,5 +190,7 @@ export async function createAndShareImage(
       { whisperGM: input.hidden },
     );
   }
+
+  await shareMediaPopout(displaySrc, title, { broadcast: !input.hidden, message });
   bumpStats({ images: 1 });
 }

@@ -1,12 +1,30 @@
-// The default Chat system prompt — "The Noodlr Dungeon Master System Prompt".
+// =============================================================================================
+// NOODLR — ALL DEFAULT PROMPTS (single source of truth for the maintainer)
+// =============================================================================================
 //
-// VERBATIM. This must stay byte-for-byte in sync with the authoritative copy in
-// prompts/dm-system-prompt.md (the fenced ```text block). The .md is the human-facing
-// source of truth + rationale; this .ts is the shipped runtime copy the module injects
-// as the Chat default when the user has not set an override. Do not "tidy" the text.
+// This is THE file to edit when you want to change any built-in prompt text the module injects
+// into a feature. Everything a user can override in the UI defaults to a value defined HERE.
+// Nothing else in the codebase should hardcode prompt prose — import from this module instead.
 //
-// ~1,050 tokens by design: dense enough that every requirement is a procedure, small
-// enough to leave budget for chat history, lorebook, and RAG injections.
+// Contents (jump by section header):
+//   1. DM_SYSTEM_PROMPT ............ Chat / Dungeon Master system prompt (the big one)
+//   2. DEFAULT_COMBAT_PROMPT ....... AI-run NPC/monster turn system prompt (Combat feature)
+//   3. DEFAULT_COMBAT_REMINDER ..... 2-line post-history reminder swapped in during combat
+//   4. IMAGE_EXPAND_SYSTEM_PROMPT .. rewrites a scene line into a rich text-to-image prompt
+//   5. MAP_DEFAULT_POSITIVE ........ default battlemap style/scale prefix (Map generator)
+//
+// Notes:
+//   - These are DEFAULTS. A user override (settings UI) always wins at runtime.
+//   - Keep them plain template strings so they're easy to diff and edit; no interpolation.
+//   - Editing a default does NOT change worlds where the user already saved an override.
+
+// ---------------------------------------------------------------------------------------------
+// 1. DM_SYSTEM_PROMPT — "The Noodlr Dungeon Master System Prompt"
+// ---------------------------------------------------------------------------------------------
+// The default Chat system prompt. ~1,050 tokens by design: dense enough that every requirement
+// is a procedure, small enough to leave budget for chat history, lorebook, and RAG injections.
+// A human-facing copy with rationale lives in prompts/dm-system-prompt.md at the repo root; if
+// you revise the text here, update that .md too so the design notes stay in sync.
 
 export const DM_SYSTEM_PROMPT = `## ROLE & PRIORITIES
 You are the Dungeon Master: narrator, the world, and every NPC. You are never a player character (PC). Resolve conflicts in this order:
@@ -65,3 +83,46 @@ If you notice yourself contradicting canon, escalating power without cost, sayin
 
 /** Max characters allowed for a user system-prompt override (spec: 65,000). */
 export const SYSTEM_PROMPT_MAX_LENGTH = 65000;
+
+// ---------------------------------------------------------------------------------------------
+// 2. DEFAULT_COMBAT_PROMPT — system prompt for AI-run NPC/monster turns (Combat feature)
+// ---------------------------------------------------------------------------------------------
+
+export const DEFAULT_COMBAT_PROMPT =
+  "You are the Dungeon Master resolving a single non-player combatant's turn in a tactical, stateful combat.\n" +
+  "- Decide a sensible, in-character action for THIS combatant only; never act, decide, or roll for a player character.\n" +
+  "- The injected ⚔️ state block is authoritative ground truth. Read it before acting.\n" +
+  "- State the target and intent, then emit dice as {{roll:...}} macros (e.g. {{roll:1d20+5}}); NEVER invent dice results in prose.\n" +
+  "- Do not apply damage or conditions yourself — narrate the intent and let the table's automation resolve mechanics.\n" +
+  "- Keep it to 1–2 tight paragraphs and end by yielding the turn. Enemy HP stays as tiers unless already revealed.";
+
+// ---------------------------------------------------------------------------------------------
+// 3. DEFAULT_COMBAT_REMINDER — 2-line post-history reminder swapped in while combat is active
+// ---------------------------------------------------------------------------------------------
+
+export const DEFAULT_COMBAT_REMINDER =
+  "COMBAT ACTIVE — review the latest ⚔️ tracker block, rebuild it every turn with arithmetic shown inline, and track HP, conditions, and resources exactly.\n" +
+  "Player characters can die; honor fair outcomes and never fudge dice or soften failure.";
+
+// ---------------------------------------------------------------------------------------------
+// 4. IMAGE_EXPAND_SYSTEM_PROMPT — turns a short scene line into a rich text-to-image prompt
+// ---------------------------------------------------------------------------------------------
+// Used only when "expand prompt" is enabled for an image generator and no per-kind override is
+// set. The chat model rewrites the user's scene description into a concise art prompt.
+
+export const IMAGE_EXPAND_SYSTEM_PROMPT =
+  "You write concise, vivid text-to-image prompts for fantasy RPG scene art. " +
+  "Output only the prompt: subject, setting, lighting, mood, style. No preamble.";
+
+// ---------------------------------------------------------------------------------------------
+// 5. MAP_DEFAULT_POSITIVE — default battlemap style/scale prefix for the Map generator
+// ---------------------------------------------------------------------------------------------
+// Diffusion models have no metric awareness (they can't honor "70px = 5ft"), so this cues
+// top-down framing + relative scale (human = one 5-ft square); exact scale is enforced later by
+// Foundry's scene grid.
+
+export const MAP_DEFAULT_POSITIVE =
+  "top-down orthographic battle map for a tabletop RPG, true bird's-eye view (no perspective, " +
+  "no isometric tilt), consistent uniform scale across the entire map where a single " +
+  "human-sized creature occupies one 5-foot grid square, standard doorways one square (5 ft) " +
+  "wide, corridors two squares (10 ft) wide, furniture and objects sized to match";

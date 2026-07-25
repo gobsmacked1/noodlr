@@ -223,7 +223,7 @@ function removeActions(messageId: string): void {
     .forEach((el) => el.remove());
 }
 
-function buildActions(message: any): HTMLElement {
+function buildActions(message: any, afterRetire?: () => void): HTMLElement {
   const wrap = document.createElement("div");
   wrap.className = "noodlr-artifact-actions";
 
@@ -236,6 +236,7 @@ function buildActions(message: any): HTMLElement {
     ev.preventDefault();
     ev.stopPropagation();
     void onRetry(message);
+    afterRetire?.();
   });
 
   const reject = document.createElement("button");
@@ -247,33 +248,50 @@ function buildActions(message: any): HTMLElement {
     ev.preventDefault();
     ev.stopPropagation();
     void onReject(message);
+    afterRetire?.();
   });
 
   wrap.append(retry, reject);
   return wrap;
 }
 
-/** renderChatMessage(HTML) hook: inject the controls for the DM/author while the window is open. */
-function onRenderChatMessage(message: any, html: unknown): void {
+/**
+ * Draw Retry/Reject into an arbitrary container for the artifact carried by `message`, but only
+ * for the DM/author and only while the 60 s window is open (the controls self-remove when it
+ * elapses). Used by both the chat card (render hook) and the output pop-out (ImagePopout).
+ *
+ * @param opts.overlay  Absolutely position the controls in the container's lower-right (pop-out).
+ * @param opts.afterRetire  Extra cleanup after Retry/Reject (e.g. close the pop-out window).
+ */
+export function attachArtifactControls(
+  container: HTMLElement,
+  message: any,
+  opts: { overlay?: boolean; afterRetire?: () => void } = {},
+): void {
   const art = getArtifact(message);
   if (!art || !canControl(art)) return;
+  if (container.querySelector(".noodlr-artifact-actions")) return;
 
+  const startedAt = Number(message?.timestamp ?? Date.now());
+  const remaining = startedAt + RETRY_WINDOW_MS - Date.now();
+  if (remaining <= 0) return; // window already closed — output is committed, no controls
+
+  const actions = buildActions(message, opts.afterRetire);
+  if (opts.overlay) actions.classList.add("noodlr-artifact-actions--overlay");
+  container.appendChild(actions);
+  // Independently disable on every client when the shared window elapses.
+  window.setTimeout(() => actions.remove(), remaining);
+}
+
+/** renderChatMessage(HTML) hook: inject the controls for the DM/author while the window is open. */
+function onRenderChatMessage(message: any, html: unknown): void {
   // The hook passes an HTMLElement (v13 `renderChatMessageHTML`) or a jQuery object (legacy
   // `renderChatMessage`); normalize to the message root element.
   const root: HTMLElement | undefined =
     html instanceof HTMLElement ? html : ((html as any)?.[0] as HTMLElement | undefined);
   if (!root) return;
-  if (root.querySelector(".noodlr-artifact-actions")) return;
-
-  const startedAt = Number(message.timestamp ?? Date.now());
-  const remaining = startedAt + RETRY_WINDOW_MS - Date.now();
-  if (remaining <= 0) return; // window already closed — output is committed, no controls
-
-  const container = root.querySelector(".message-content") ?? root;
-  const actions = buildActions(message);
-  container.appendChild(actions);
-  // Independently disable on every client when the shared window elapses.
-  window.setTimeout(() => actions.remove(), remaining);
+  const container = (root.querySelector(".message-content") as HTMLElement | null) ?? root;
+  attachArtifactControls(container, message);
 }
 
 /** Register all artifact hooks. Call once on ready. */
