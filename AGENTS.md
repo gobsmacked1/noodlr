@@ -299,6 +299,37 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## v0.4.0-rc4 (2026-07-25) — RAG Lite (built-in memory) + backend-labeled config
+
+- **RAG Lite: a zero-config in-browser memory backend.** New `MemoryBackend` interface
+  (`rag/backend.ts`) implemented by both the remote `RagClient` and a new `LocalMemory`
+  (`rag/local/local-memory.ts`). A factory in `rag/config.ts` (`getRagBackend()` /
+  `getRagClient(): MemoryBackend`) returns the active one; retrieval, ingest, diagnostics, and the
+  Manage-Memory UI all call the shared interface — backend-agnostic. New setting
+  `RAG_SETTINGS.backend` (`rag.backend`, world scope) **defaults to `"lite"`**.
+  - Embeddings: in-browser via the bundled `all-MiniLM-L6-v2` (384-dim) from `rag/local/embedder.ts`
+    (transformers.js/ORT-WASM, single-threaded, offline; lazy 1.2 MB chunk).
+  - Store: `rag/local/store.ts` — one JSON file per silo under `<mediaFolder>/memory/<silo>.json`
+    via FilePicker upload; vectors as base64-Float32; in-memory index on the GM's client (GM-gated).
+  - Search: `rag/local/{chunker,search}.ts` — clean-room prose/table-aware chunker + BM25 + cosine +
+    RRF fusion (multi-query for Agent Mode) + importance/recency/entity soft-boosts.
+  - `isRagEnabled()` is backend-aware: Lite needs no URL/secret; service still requires a URL.
+  - **Known gap (SHORTCUT):** Lite `ingestFile` rejects PDFs (throws a friendly "convert to .txt or
+    use noodlr-memory" message) — no in-browser PDF parser yet. TXT works. Also: Lite index is
+    per-GM-client, not shared across multiple GMs (that's what the service backend is for).
+- **Backend-labeled Memory & Knowledge config.** Every RAG option is tagged `(shared RAG setting)`,
+  `(noodlr-memory only)`, or `(RAG Lite only)`, and options that don't apply to the selected backend
+  are **grayed live** (`data-backend` + `wireBackendGraying()`). Inputs stay enabled (never
+  `disabled`) so the inactive backend's stored values round-trip and aren't wiped on save. Service
+  URL/secret/Test-connection and the embeddings provider block are noodlr-memory-only; hybrid/agent/
+  budget/topK, rerank, and transcript ingest are shared.
+- **Map generator default prompt.** `map.positive` now defaults to the top-down orthographic
+  battlemap style/scale prompt (`MAP_DEFAULT_POSITIVE` in `media/config.ts`); `seedMapDefaults()`
+  (guarded by `map.positiveSeeded`, run on GM ready) backfills existing worlds without a prompt.
+- Carries forward rc1–rc3: in-browser embedder + Diagnostics "Test in-browser embedder" probe;
+  image size dropdown (16 curated presets + Null + custom WxH, `.webp` output, per-kind subfolders);
+  disabled "Upscale to 4× (coming soon)" on the Map generator (see `IDEAS.md`).
+
 ## v0.3.0 (2026-07-25) — four image generators + single OpenRouter key + header-only Save
 
 - **Three new image generators** joined Scene Art, each with its own dragon-menu tool icon, chat

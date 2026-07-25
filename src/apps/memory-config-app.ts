@@ -8,6 +8,7 @@ import { MODULE_ID, MODULE_TITLE, RAG_SETTINGS, MEDIA_SETTINGS } from "../consta
 import {
   getRagConnection,
   getRagClient,
+  getRagBackend,
   isRagEnabled,
   hasRagSecret,
   saveRagSecret,
@@ -65,10 +66,15 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
     const g = (k: string) => game.settings.get(MODULE_ID, k);
     const tuning = getRagTuning();
     const push = getPushToLogConfig();
+    const backend = getRagBackend();
 
     return {
       moduleTitle: MODULE_TITLE,
       version,
+
+      backend,
+      backendLite: backend === "lite",
+      backendService: backend === "service",
 
       enabled: Boolean(g(RAG_SETTINGS.enabled)),
       serviceUrl: getRagConnection().serviceUrl,
@@ -100,7 +106,10 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
 
   _onRender(_context: unknown, _options: unknown): void {
     const root = this.#root();
-    if (root) wireProviderBlocks(root);
+    if (root) {
+      wireProviderBlocks(root);
+      wireBackendGraying(root);
+    }
     installHeaderSaveButton(this);
   }
 
@@ -114,6 +123,7 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
     const set = (k: string, v: unknown) => game.settings.set(MODULE_ID, k, v);
 
     // Connection
+    await set(RAG_SETTINGS.backend, o.backend === "service" ? "service" : "lite");
     await set(RAG_SETTINGS.enabled, Boolean(o.enabled));
     await set(RAG_SETTINGS.serviceUrl, String(o.serviceUrl ?? "").trim());
     await saveRagSecret(String(o.secret ?? ""), Boolean(o.secretClear));
@@ -173,4 +183,23 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
   static #openDiagnostics(): void {
     new NoodlrDiagnosticsApp().render({ force: true });
   }
+}
+
+/**
+ * Dim the options that don't apply to the currently-selected backend so the GM can see at a
+ * glance which RAG provider/db is in force. We keep inputs enabled (never `disabled`) so the
+ * inactive backend's stored values still round-trip through the form and aren't wiped on save;
+ * the graying is purely a "this setting isn't active right now" signal. Reacts live to the
+ * backend <select> without needing a save/re-render.
+ */
+function wireBackendGraying(root: HTMLElement): void {
+  const select = root.querySelector<HTMLSelectElement>('select[name="backend"]');
+  const apply = (backend: string) => {
+    root.querySelectorAll<HTMLElement>("[data-backend]").forEach((el) => {
+      const active = el.dataset.backend === backend;
+      el.classList.toggle("noodlr-disabled", !active);
+    });
+  };
+  apply(select?.value ?? "lite");
+  select?.addEventListener("change", () => apply(select.value));
 }

@@ -610,3 +610,39 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* Options that don't apply to the currently-selected RAG backend: dimmed + non-interactive,
+   but the inputs stay enabled so their stored values still submit (no accidental wipe). */
+.noodlr-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Inline "(noodlr-memory only)" / "(shared RAG setting)" / "(RAG Lite only)" backend tags. */
+.noodlr-tag {
+  display: inline-block;
+  margin-left: 0.35em;
+  padding: 0 0.4em;
+  border-radius: 3px;
+  font-size: 0.75em;
+  font-weight: 600;
+  line-height: 1.5;
+  vertical-align: middle;
+  white-space: nowrap;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+.noodlr-tag--service {
+  background: rgba(120, 80, 200, 0.18);
+  color: #5b3ea6;
+}
+.noodlr-tag--lite {
+  background: rgba(40, 160, 100, 0.18);
+  color: #1f7a4d;
+}
+.noodlr-tag--shared {
+  background: rgba(80, 130, 200, 0.18);
+  color: #2a5aa0;
+}
+.noodlr-backend-note {
+  font-style: italic;
+}

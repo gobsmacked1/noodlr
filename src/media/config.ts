@@ -19,11 +19,24 @@ export interface ImageKindMeta {
   ext: "png" | "webp";
   /** Default size ("WxH" from IMAGE_SIZE_PRESETS; "" = model's native size). */
   defaultSize: string;
+  /** Default positive/style prompt seeded for this kind (empty for most). */
+  defaultPositive?: string;
   /** Keyed generators reuse a per-subject seed/appearance for continuity. */
   keyed: boolean;
   /** Scene-control (dragon menu) icon. */
   icon: string;
 }
+
+/**
+ * Default battlemap style/scale prompt for the Map generator. Diffusion models have no metric
+ * awareness (they can't honor "70px = 5ft"), so this cues top-down framing + relative scale
+ * (human = one 5-ft square); exact scale is enforced later by Foundry's scene grid.
+ */
+export const MAP_DEFAULT_POSITIVE =
+  "top-down orthographic battle map for a tabletop RPG, true bird's-eye view (no perspective, " +
+  "no isometric tilt), consistent uniform scale across the entire map where a single " +
+  "human-sized creature occupies one 5-foot grid square, standard doorways one square (5 ft) " +
+  "wide, corridors two squares (10 ft) wide, furniture and objects sized to match";
 
 export const IMAGE_KIND_META: Record<ImageKind, ImageKindMeta> = {
   image: {
@@ -59,6 +72,7 @@ export const IMAGE_KIND_META: Record<ImageKind, ImageKindMeta> = {
     subfolder: "maps",
     ext: "webp",
     defaultSize: "1024x1024",
+    defaultPositive: MAP_DEFAULT_POSITIVE,
     keyed: false,
     icon: "fa-solid fa-map-location-dot",
   },
@@ -114,6 +128,20 @@ export function imageKey(kind: ImageKind, field: string): string {
   return `${kind}.${field}`;
 }
 
+/**
+ * One-time seed: give existing worlds the Map generator's default style prompt if they don't
+ * already have one. New worlds get it from the registration default; this covers upgrades.
+ * Respects a deliberately-cleared prompt on subsequent loads (only runs once).
+ */
+export async function seedMapDefaults(): Promise<void> {
+  if (game.settings.get(MODULE_ID, "map.positiveSeeded")) return;
+  const cur = String(game.settings.get(MODULE_ID, imageKey("map", "positive")) ?? "");
+  if (!cur.trim()) {
+    await game.settings.set(MODULE_ID, imageKey("map", "positive"), MAP_DEFAULT_POSITIVE);
+  }
+  await game.settings.set(MODULE_ID, "map.positiveSeeded", true);
+}
+
 export function registerMediaSettings(): void {
   const M = MEDIA_SETTINGS;
 
@@ -153,7 +181,10 @@ export function registerMediaSettings(): void {
     game.settings.register(MODULE_ID, k("cfg"), { ...worldNum, default: 7.0 });
     game.settings.register(MODULE_ID, k("sampler"), { ...worldStr, default: "Euler a" });
     game.settings.register(MODULE_ID, k("seed"), { ...worldNum, default: -1 });
-    game.settings.register(MODULE_ID, k("positive"), { ...worldStr, default: "" });
+    game.settings.register(MODULE_ID, k("positive"), {
+      ...worldStr,
+      default: meta.defaultPositive ?? "",
+    });
     game.settings.register(MODULE_ID, k("negative"), { ...worldStr, default: "" });
     game.settings.register(MODULE_ID, k("size"), { ...worldStr, default: meta.defaultSize });
     game.settings.register(MODULE_ID, k("persist"), { ...worldBool, default: true });
@@ -166,6 +197,9 @@ export function registerMediaSettings(): void {
     ...worldStr,
     default: "assets/noodlr-out",
   });
+
+  // One-time seed marker for the Map generator's default style prompt (existing worlds).
+  game.settings.register(MODULE_ID, "map.positiveSeeded", { ...worldBool, default: false });
 
   // --- Push-to-log transcription ---
   game.settings.register(MODULE_ID, M.transcriptionEnabled, { ...worldBool, default: false });

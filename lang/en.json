@@ -136,8 +136,19 @@
 
   "NOODLR.Rag.Manage.Label": "Manage Memory (silos & ingest)",
   "NOODLR.Rag.ConfigTitle": "Memory & Knowledge",
-  "NOODLR.Rag.ConfigIntro": "Everything about Noodlr's long-term memory lives here. Connect to the memory service, choose how it recalls information, and open the Manage Memory, Lorebook, and Chronicle tools.",
-  "NOODLR.Rag.ConnectionLegend": "Memory service connection",
+  "NOODLR.Rag.ConfigIntro": "Everything about Noodlr's long-term memory lives here. Pick a memory backend, choose how it recalls information, and open the Manage Memory, Lorebook, and Chronicle tools.",
+  "NOODLR.Rag.ConnectionLegend": "Memory backend & connection",
+
+  "NOODLR.Rag.Tag.ServiceOnly": "(noodlr-memory only)",
+  "NOODLR.Rag.Tag.LiteOnly": "(RAG Lite only)",
+  "NOODLR.Rag.Tag.Shared": "(shared RAG setting)",
+
+  "NOODLR.Rag.Backend.Name": "Memory backend",
+  "NOODLR.Rag.Backend.Hint": "Where memories are stored and searched. RAG Lite runs entirely inside Foundry (nothing to install); noodlr-memory is a separate service you host for shared, higher-capacity memory. Options that don't apply to the chosen backend are grayed out below.",
+  "NOODLR.Rag.Backend.Lite": "RAG Lite — built-in, zero setup (recommended)",
+  "NOODLR.Rag.Backend.Service": "noodlr-memory service — external, advanced",
+  "NOODLR.Rag.Backend.LiteNote": "RAG Lite is active: memory lives in this world's data folder and is embedded in your browser with a bundled model — no service URL, secret, or API key needed. It runs on the GM's client only. Use the Diagnostics window's \"Test in-browser embedder\" to confirm it loads.",
+  "NOODLR.Rag.Backend.LiteEmbedNote": "RAG Lite embeds text in your browser with the bundled all-MiniLM model (384-dim), so the embedding provider/model settings below don't apply. Switch to the noodlr-memory backend to configure a custom embedding model.",
   "NOODLR.Rag.RetrievalLegend": "How memory is searched",
   "NOODLR.Rag.EmbeddingsLegend": "Embeddings (advanced)",
   "NOODLR.Rag.TranscriptLegend": "Session transcript memory",

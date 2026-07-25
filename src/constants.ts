@@ -122,6 +122,8 @@ export const MEDIA_SETTINGS = {
 
 /** RAG (noodlr-memory) settings keys. */
 export const RAG_SETTINGS = {
+  // Which memory backend is active: "lite" (in-browser, zero-config) or "service" (noodlr-memory).
+  backend: "rag.backend",
   serviceUrl: "rag.serviceUrl",
   secret: "rag.secret",
   enabled: "rag.enabled",

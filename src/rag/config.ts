@@ -4,7 +4,11 @@
 import { MODULE_ID, RAG_SETTINGS } from "../constants";
 import { registerFeatureProviderSettings, getFeatureConfig } from "../providers/config";
 import { RagClient, type EmbedOverride, type RagConnection } from "./client";
+import type { MemoryBackend } from "./backend";
+import { getLocalMemory } from "./local/local-memory";
 import { DEFAULT_QUERY_SILOS, isSiloId, type SiloId } from "./silos";
+
+export type RagBackendKind = "lite" | "service";
 
 export function registerRagSettings(): void {
   const S = RAG_SETTINGS;
@@ -15,6 +19,9 @@ export function registerRagSettings(): void {
   const worldNum = { scope: "world" as const, config: false, type: Number };
 
   game.settings.register(MODULE_ID, S.enabled, { ...worldBool, default: false });
+  // Default to "lite": zero-config in-browser memory works out of the box for non-technical
+  // tables. Power users switch to "service" (noodlr-memory) for shared, PDF-capable memory.
+  game.settings.register(MODULE_ID, S.backend, { ...worldStr, default: "lite" });
   game.settings.register(MODULE_ID, S.serviceUrl, {
     ...worldStr,
     default: "http://127.0.0.1:3010",
@@ -77,13 +84,22 @@ export function getRagConnection(): RagConnection {
   };
 }
 
-export function getRagClient(): RagClient {
-  return new RagClient(getRagConnection());
+/** Active memory backend: "lite" (in-browser) or "service" (noodlr-memory). */
+export function getRagBackend(): RagBackendKind {
+  return game.settings.get(MODULE_ID, RAG_SETTINGS.backend) === "service" ? "service" : "lite";
+}
+
+/** Factory: the active MemoryBackend. Callers use the shared interface, backend-agnostic. */
+export function getRagClient(): MemoryBackend {
+  return getRagBackend() === "service" ? new RagClient(getRagConnection()) : getLocalMemory();
 }
 
 export function isRagEnabled(): boolean {
   const enabled = game.settings.get(MODULE_ID, RAG_SETTINGS.enabled) as boolean;
-  return Boolean(enabled) && getRagConnection().serviceUrl.trim().length > 0;
+  if (!enabled) return false;
+  // Lite needs no connection; the service backend needs a URL to be usable.
+  if (getRagBackend() === "lite") return true;
+  return getRagConnection().serviceUrl.trim().length > 0;
 }
 
 /** Build the embed override from the embeddings feature config, if the user opted in. */

@@ -61,17 +61,30 @@
     <label class="noodlr-inline">
       <input type="checkbox" name="enabled" {{#if enabled}}checked{{/if}} />
       {{localize "NOODLR.Rag.Enabled.Name"}}
+      <span class="noodlr-tag noodlr-tag--shared">{{localize "NOODLR.Rag.Tag.Shared"}}</span>
     </label>
     <p class="notes">{{localize "NOODLR.Rag.Enabled.Hint"}}</p>
 
+    {{! Backend picker: which memory provider/db is in force (shared setting). }}
     <div class="noodlr-field">
-      <label>{{localize "NOODLR.Rag.ServiceUrl.Name"}}</label>
+      <label>{{localize "NOODLR.Rag.Backend.Name"}} <span class="noodlr-tag noodlr-tag--shared">{{localize "NOODLR.Rag.Tag.Shared"}}</span></label>
+      <p class="notes">{{localize "NOODLR.Rag.Backend.Hint"}}</p>
+      <select name="backend" data-role="backend">
+        <option value="lite" {{#if backendLite}}selected{{/if}}>{{localize "NOODLR.Rag.Backend.Lite"}}</option>
+        <option value="service" {{#if backendService}}selected{{/if}}>{{localize "NOODLR.Rag.Backend.Service"}}</option>
+      </select>
+    </div>
+
+    <p class="notes noodlr-backend-note" data-backend="lite"><i class="fa-solid fa-circle-info"></i> {{localize "NOODLR.Rag.Backend.LiteNote"}}</p>
+
+    <div class="noodlr-field" data-backend="service">
+      <label>{{localize "NOODLR.Rag.ServiceUrl.Name"}} <span class="noodlr-tag noodlr-tag--service">{{localize "NOODLR.Rag.Tag.ServiceOnly"}}</span></label>
       <p class="notes">{{localize "NOODLR.Rag.ServiceUrl.Hint"}}</p>
       <input type="text" name="serviceUrl" value="{{serviceUrl}}" placeholder="http://127.0.0.1:3010" autocomplete="off" />
     </div>
 
-    <div class="noodlr-field">
-      <label>{{localize "NOODLR.Rag.Secret.Name"}}</label>
+    <div class="noodlr-field" data-backend="service">
+      <label>{{localize "NOODLR.Rag.Secret.Name"}} <span class="noodlr-tag noodlr-tag--service">{{localize "NOODLR.Rag.Tag.ServiceOnly"}}</span></label>
       <p class="notes">{{localize "NOODLR.Rag.Secret.Hint"}}</p>
       <input type="password" name="secret" value="" autocomplete="off"
         placeholder="{{#if hasSecret}}{{localize 'NOODLR.Provider.ApiKey.Saved'}}{{else}}{{localize 'NOODLR.Provider.ApiKey.None'}}{{/if}}" />
@@ -80,14 +93,14 @@
       {{/if}}
     </div>
 
-    <div class="noodlr-settings__actions">
+    <div class="noodlr-settings__actions" data-backend="service">
       <button type="button" data-action="testConnection"><i class="fa-solid fa-plug"></i> {{localize "NOODLR.Rag.TestConnection"}}</button>
     </div>
   </fieldset>
 
   {{! ---- Retrieval ---- }}
   <fieldset class="noodlr-settings__section">
-    <legend><i class="fa-solid fa-magnifying-glass"></i> {{localize "NOODLR.Rag.RetrievalLegend"}}</legend>
+    <legend><i class="fa-solid fa-magnifying-glass"></i> {{localize "NOODLR.Rag.RetrievalLegend"}} <span class="noodlr-tag noodlr-tag--shared">{{localize "NOODLR.Rag.Tag.Shared"}}</span></legend>
 
     <label class="noodlr-inline"><input type="checkbox" name="hybrid" {{#if hybrid}}checked{{/if}} /> {{localize "NOODLR.Rag.Hybrid.Name"}}</label>
     <p class="notes">{{localize "NOODLR.Rag.Hybrid.Hint"}}</p>
@@ -107,9 +120,11 @@
     </div>
   </fieldset>
 
-  {{! ---- Embeddings ---- }}
-  <fieldset class="noodlr-settings__section" data-feature="embeddings">
-    <legend><i class="fa-solid fa-vector-square"></i> {{localize "NOODLR.Rag.EmbeddingsLegend"}}</legend>
+  {{! ---- Embeddings (service backend only; Lite uses the bundled in-browser model) ---- }}
+  <p class="notes noodlr-backend-note" data-backend="lite"><i class="fa-solid fa-microchip"></i> {{localize "NOODLR.Rag.Backend.LiteEmbedNote"}}</p>
+
+  <fieldset class="noodlr-settings__section" data-feature="embeddings" data-backend="service">
+    <legend><i class="fa-solid fa-vector-square"></i> {{localize "NOODLR.Rag.EmbeddingsLegend"}} <span class="noodlr-tag noodlr-tag--service">{{localize "NOODLR.Rag.Tag.ServiceOnly"}}</span></legend>
     <ul class="noodlr-help">
       <li><strong>{{localize "NOODLR.Help.What"}}</strong> {{localize "NOODLR.Feature.Embeddings.What"}}</li>
       <li><strong>{{localize "NOODLR.Help.Requires"}}</strong> {{localize "NOODLR.Feature.Embeddings.Requires"}}</li>
@@ -124,7 +139,7 @@
 
   {{! ---- Rerank ---- }}
   <fieldset class="noodlr-settings__section" data-feature="rerank">
-    <legend><i class="fa-solid fa-arrow-down-wide-short"></i> {{rerank.title}}</legend>
+    <legend><i class="fa-solid fa-arrow-down-wide-short"></i> {{rerank.title}} <span class="noodlr-tag noodlr-tag--shared">{{localize "NOODLR.Rag.Tag.Shared"}}</span></legend>
     <ul class="noodlr-help">
       <li><strong>{{localize "NOODLR.Help.What"}}</strong> {{rerank.what}}</li>
       <li><strong>{{localize "NOODLR.Help.Requires"}}</strong> {{rerank.requires}}</li>
@@ -145,7 +160,7 @@
 
   {{! ---- Session transcript ingestion ---- }}
   <fieldset class="noodlr-settings__section">
-    <legend><i class="fa-solid fa-microphone-lines"></i> {{localize "NOODLR.Rag.TranscriptLegend"}}</legend>
+    <legend><i class="fa-solid fa-microphone-lines"></i> {{localize "NOODLR.Rag.TranscriptLegend"}} <span class="noodlr-tag noodlr-tag--shared">{{localize "NOODLR.Rag.Tag.Shared"}}</span></legend>
 
     <label class="noodlr-inline"><input type="checkbox" name="transcriptIngest" {{#if transcriptIngest}}checked{{/if}} /> {{localize "NOODLR.Media.PushIngest.Name"}}</label>
     <p class="notes">{{localize "NOODLR.Media.PushIngest.Hint"}}</p>
