@@ -4,7 +4,7 @@
 // retrieved vs. injected, rerank trim, ingests). GM-only in practice (memory is GM-gated).
 
 import { MODULE_ID, MODULE_TITLE } from "../constants";
-import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
+import { getRagClient, getRagBackend, isRagEnabled, getEmbedOverride } from "../rag/config";
 import { RagClientError } from "../rag/client";
 import { SILOS } from "../rag/silos";
 import { snapshotStats, resetStats } from "../util/stats";
@@ -73,7 +73,20 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       }
     }
 
-    return { moduleTitle: MODULE_TITLE, stats: s, derived, rag };
+    // Only surface the test relevant to the configured backend, so a nontechnical user never sees
+    // a failing test for a RAG type they aren't using (the embedder probe is Memory-Lite-specific;
+    // the LanceDB wording is service-specific).
+    const backend = getRagBackend();
+
+    return {
+      moduleTitle: MODULE_TITLE,
+      stats: s,
+      derived,
+      rag,
+      backend,
+      backendLite: backend === "lite",
+      backendService: backend === "service",
+    };
   }
 
   static async #onRefresh(this: NoodlrDiagnosticsApp): Promise<void> {
@@ -117,6 +130,10 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       el.classList.toggle("is-ok", ok === true);
       el.classList.toggle("is-bad", ok === false);
     };
+    if (getRagBackend() !== "lite") {
+      set(game.i18n.localize("NOODLR.Diagnostics.EmbedTest.NotLite"), false);
+      return;
+    }
     set(game.i18n.localize("NOODLR.Diagnostics.EmbedTest.Running"));
     try {
       const { selfTestEmbedder, EMBED_DIM } = await import("../rag/local/embedder");

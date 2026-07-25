@@ -299,6 +299,16 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## v0.4.0-rc7 (2026-07-25) — Diagnostics tests gated to the active backend
+
+- The Diagnostics window now shows only the test relevant to the configured RAG backend, so a
+  nontechnical user never sees a failing probe for a RAG type they aren't using. The **in-browser
+  embedder** fieldset renders only when backend = `lite`; `#onEmbedTest` also hard-guards (bails with
+  `EmbedTest.NotLite` if somehow invoked on the service backend). The **Memory contents** legend is
+  backend-aware — "Memory (RAG Lite) contents" vs "Memory (LanceDB) contents" — and the write→read
+  self-test (which already routes through the active backend) stays available for both, correctly
+  labeled. Context adds `backend`/`backendLite`/`backendService` (from `getRagBackend()`).
+
 ## v0.4.0-rc6 (2026-07-25) — RAG Lite embedder loads (ORT asyncify + absolute wasmPaths)
 
 Fixes the rc4/rc5 in-browser embedder failure ("no available backend found" / bare-specifier on

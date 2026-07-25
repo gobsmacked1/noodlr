@@ -403,6 +403,7 @@
   "NOODLR.Diagnostics.Title": "Diagnostics & Statistics",
   "NOODLR.Diagnostics.Intro": "Concrete numbers behind the 'smart' features: whether memory writes are landing in LanceDB, and how much work retrieval/rerank/ingest are actually doing this session.",
   "NOODLR.Diagnostics.Memory": "Memory (LanceDB) contents",
+  "NOODLR.Diagnostics.MemoryLite": "Memory (RAG Lite) contents",
   "NOODLR.Diagnostics.Silo": "Silo",
   "NOODLR.Diagnostics.Documents": "Documents",
   "NOODLR.Diagnostics.Offline": "Memory service unreachable:",
@@ -439,5 +440,6 @@
   "NOODLR.Diagnostics.EmbedTest.Button": "Test in-browser embedder",
   "NOODLR.Diagnostics.EmbedTest.Running": "Loading model and embedding a probe sentence… (first run may take several seconds)",
   "NOODLR.Diagnostics.EmbedTest.Ok": "Pass: produced a {dims}-dim vector in {ms} ms. The in-browser embedder works here.",
-  "NOODLR.Diagnostics.EmbedTest.Fail": "Embedder failed: {error}. If this mentions WASM, CSP, or fetch, the ORT/model assets couldn't load under Foundry's security policy."
+  "NOODLR.Diagnostics.EmbedTest.Fail": "Embedder failed: {error}. If this mentions WASM, CSP, or fetch, the ORT/model assets couldn't load under Foundry's security policy.",
+  "NOODLR.Diagnostics.EmbedTest.NotLite": "This test only applies to the RAG Lite backend. Switch the Memory backend to RAG Lite (Memory & Knowledge window) to run it."
 }
