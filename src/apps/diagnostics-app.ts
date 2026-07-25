@@ -26,6 +26,7 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       refreshDiag: NoodlrDiagnosticsApp.#onRefresh,
       resetDiag: NoodlrDiagnosticsApp.#onReset,
       selfTest: NoodlrDiagnosticsApp.#onSelfTest,
+      copyDiag: NoodlrDiagnosticsApp.#onCopy,
     },
   };
 
@@ -76,6 +77,30 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
 
   static async #onRefresh(this: NoodlrDiagnosticsApp): Promise<void> {
     await this.render();
+  }
+
+  /** Copy the whole diagnostics report to the clipboard (reliable regardless of text selection). */
+  static async #onCopy(this: NoodlrDiagnosticsApp): Promise<void> {
+    const root = this.#root();
+    if (!root) return;
+    const lines: string[] = [];
+    root.querySelectorAll(".noodlr-diag-table").forEach((tbl) => {
+      tbl.querySelectorAll("tr").forEach((tr) => {
+        const cells = [...tr.querySelectorAll("th,td")].map((c) => (c.textContent ?? "").trim());
+        if (cells.some(Boolean)) lines.push(cells.join("\t"));
+      });
+      lines.push("");
+    });
+    const selftest = root.querySelector('[data-role="selftest"]')?.textContent?.trim();
+    if (selftest) lines.push(`Self-test: ${selftest}`);
+    const text = lines.join("\n").trim();
+    try {
+      await navigator.clipboard.writeText(text);
+      ui.notifications?.info(game.i18n.localize("NOODLR.Diagnostics.Copied"));
+    } catch {
+      // Clipboard API can be blocked (insecure context). Fall back to a selectable prompt.
+      window.prompt(game.i18n.localize("NOODLR.Diagnostics.CopyManual"), text);
+    }
   }
 
   static async #onReset(this: NoodlrDiagnosticsApp): Promise<void> {

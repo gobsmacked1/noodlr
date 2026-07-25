@@ -299,6 +299,26 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## Memory diagnosis round (2026-07-24) — v0.2.9 (module) + noodlr-memory update
+
+Self-test still "0 hits" after v0.2.8. Key finding: the LanceDB round-trip **test passes** locally
+(dim-256 mock), so the store logic is sound — the "0 hits" is environmental on the server. The most
+likely cause is an **embedding-dimension mismatch on a stale `docs` silo** (table first written with
+a different embed model), which makes `vectorSearch` throw — and the store was **swallowing that
+error** into `[]`.
+
+- **noodlr-memory (own repo, pull+restart):**
+  - `lance-store.js` now **logs** vectorSearch/listHashes failures (query dim + message) instead of
+    silently returning `[]`. The real reason (dim mismatch, etc.) now shows in `journalctl`.
+  - New **`scripts/seed.mjs`** — standalone HTTP diagnostic/seed CLI (health / collections / seed /
+    query / selftest / purge) using the same `/v1` + secret + embed config as the module. Isolates
+    service vs. module: if `selftest` passes there but fails in Foundry → module bug; if it fails
+    there too → service/store (read the log; `purge` the silo).
+  - DEPLOYMENT.md: troubleshooting for "0 hits" + seed-tool usage; documented that **silos are
+    auto-created lazily** on first ingest (no manual init).
+- **Module v0.2.9:** Diagnostics **Copy report** button (deterministic `navigator.clipboard`, with a
+  `window.prompt` fallback for insecure contexts) — copy no longer depends on text selection.
+
 ## Bugfix round 2 (2026-07-24) — v0.2.8
 
 - **Self-test STILL false-negative (v0.2.7 didn't fully fix it)** — passing embed on the query
