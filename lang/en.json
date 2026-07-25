@@ -180,8 +180,9 @@
   "NOODLR.Rag.IngestDone": "Ingested {docs} document(s) → {chunks} chunks into \"{silo}\".",
   "NOODLR.Rag.IngestFail": "Ingestion failed: {error}",
   "NOODLR.Rag.NoPacks": "No compendium packs found in this world.",
-  "NOODLR.Rag.Upload": "Upload TXT / PDF",
-  "NOODLR.Rag.UploadHint": "Upload a text or PDF file to ingest into a silo (PDF requires the service's pdf-parse dependency).",
+  "NOODLR.Rag.Upload": "Upload TXT / JSON / YAML / CSV / PDF",
+  "NOODLR.Rag.UploadHint": "Upload a file to ingest into a silo. TXT/Markdown ingest as-is. JSON, YAML, and CSV are split into one memory per record (array item, object, or row) so searches return the individual entry. PDF works only on the noodlr-memory backend (RAG Lite can't read PDFs — convert to .txt).",
+  "NOODLR.Rag.StructuredEmpty": "No records found in that file — check it's valid JSON/YAML/CSV with at least one entry (CSV needs a header row).",
   "NOODLR.Rag.UploadButton": "Upload & ingest",
   "NOODLR.Rag.NoFile": "Choose a file first.",
 

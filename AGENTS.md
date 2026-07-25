@@ -299,6 +299,22 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## v0.4.0-rc5 (2026-07-25) — structured imports (JSON / YAML / CSV)
+
+- **JSON, YAML, and CSV file import** for both memory backends. Parsing happens client-side at the
+  upload boundary (`rag/parse-structured.ts`) — the file is flattened to per-record text documents
+  *before* `ingest()`, so noodlr-memory and RAG Lite both get it with **zero backend/interface
+  change** (contrast PDF, which parses inside the service and is unsupported in Lite).
+  - One document per logical record: JSON/YAML array element or named object; CSV row (first row =
+    header). Nested objects flatten to `path: value` lines; a name/title/label/id field becomes the
+    record label + an `entities` tag for retrieval provenance.
+  - JSON = native parse; CSV = small built-in RFC-4180 parser; YAML via the `yaml` dep, **lazy
+    `import()`** so it only ships as a chunk when a YAML file is actually parsed.
+  - Wired in `apps/memory-app.ts` `#onIngestFile` (structured → `client.ingest(docs)`; else the old
+    text/pdf `ingestFile` path). Upload `accept` + hint updated; new `NOODLR.Rag.StructuredEmpty`.
+- New dep: `yaml`. Third-party lore importers (World Anvil/Dungeon Alchemist/etc.) deferred — most
+  export to JSON/CSV (now covered) or produce maps (out of scope for lore RAG). See `IDEAS.md`.
+
 ## v0.4.0-rc4 (2026-07-25) — RAG Lite (built-in memory) + backend-labeled config
 
 - **RAG Lite: a zero-config in-browser memory backend.** New `MemoryBackend` interface

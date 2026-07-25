@@ -8,6 +8,7 @@ import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
 import { RagClientError } from "../rag/client";
 import { SILOS, SILO_IDS, isSiloId, type SiloId } from "../rag/silos";
 import { ingestCompendium } from "../rag/ingest";
+import { parseStructuredFile, structuredFormatFor } from "../rag/parse-structured";
 import { bumpStats } from "../util/stats";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -164,8 +165,18 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const client = getRagClient();
       const embed = getEmbedOverride();
       const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
+      const structured = structuredFormatFor(file.name, file.type);
       let res: { inserted: number; chunks: number };
-      if (isPdf) {
+      if (structured) {
+        // JSON/YAML/CSV: parse client-side into per-record documents so BOTH backends handle them
+        // identically (no server/Lite change). Empty/garbage files surface a clear error.
+        const docs = await parseStructuredFile(file);
+        if (docs.length === 0) {
+          ui.notifications?.warn(game.i18n.localize("NOODLR.Rag.StructuredEmpty"));
+          return;
+        }
+        res = await client.ingest(silo, docs, embed);
+      } else if (isPdf) {
         const data = await fileToBase64(file);
         res = await client.ingestFile(silo, file.name, { fileType: "pdf", data }, embed);
       } else {

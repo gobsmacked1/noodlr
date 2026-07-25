@@ -10,3 +10,10 @@ Parked tangents — one line each. Promote to the roadmap in AGENTS.md when pick
   (no client slicing needed); client-side overlap+blend tiling only as a fallback. A
   disabled "Upscale to 4x (coming soon)" checkbox is shown in the Map generator config as a
   placeholder. Revisit when OpenRouter (or an easy hosted endpoint) exposes upscaling.
+- **Third-party lore importers (World Anvil / Dungeon Alchemist / etc.).** Deferred as low ROI:
+  most of these either export to JSON/CSV — already covered by the generic structured import
+  (rc5) — or produce maps/scenes (Dungeon Alchemist → images/UVTT), which is scene/map territory,
+  not lore RAG. A bespoke API integration (e.g. World Anvil's API) is only worth it if a user
+  actually asks and has a large existing world there. Until then, "export → drop the JSON/CSV in"
+  is the supported path. World-scoped Journal ingest + a "dump current NPC state" button are the
+  higher-value native additions to consider first.
