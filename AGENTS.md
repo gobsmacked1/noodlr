@@ -299,6 +299,15 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## v0.4.0-rc8 (2026-07-25) — RAG Lite embedder: trailing-slash fix on wasmPaths
+
+- Follow-up to rc6. The embedder still failed loading `ort-wasm-simd-threaded.asyncify.mjs` — this
+  time from `…/dist/` instead of `…/dist/ort/` (the `ort/` segment was dropped). Cause:
+  `foundry.utils.getRoute()` strips the trailing slash, and ORT/transformers resolve child files
+  relative to `wasmPaths`/`localModelPath` as directory prefixes — so a missing slash drops the last
+  segment. `moduleUrl()` now re-adds the trailing slash when the source path was a directory. Fixes
+  both `wasmPaths` (→ `…/dist/ort/`) and `localModelPath` (→ `…/models/`).
+
 ## v0.4.0-rc7 (2026-07-25) — Diagnostics tests gated to the active backend
 
 - The Diagnostics window now shows only the test relevant to the configured RAG backend, so a

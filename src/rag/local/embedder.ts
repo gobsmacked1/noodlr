@@ -29,7 +29,13 @@ let extractorPromise: Promise<FeatureExtractor> | null = null;
 function moduleUrl(path: string): string {
   const getRoute = (foundry as any).utils?.getRoute;
   const routed = typeof getRoute === "function" ? getRoute(path) : `/${path}`;
-  return new URL(routed, window.location.origin).href;
+  let href = new URL(routed, window.location.origin).href;
+  // CRITICAL: getRoute() strips a trailing slash. ORT/transformers treat wasmPaths/localModelPath
+  // as DIRECTORY prefixes and resolve child files relative to them, so a missing slash drops the
+  // last segment: ".../dist/ort" + "ort-wasm-*.mjs" -> ".../dist/ort-wasm-*.mjs" (404). Re-add the
+  // slash when the source path was a directory so the "ort/" (or "models/") segment survives.
+  if (path.endsWith("/") && !href.endsWith("/")) href += "/";
+  return href;
 }
 
 /** Configure transformers.js for fully-offline, module-local, single-threaded operation. */
