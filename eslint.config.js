@@ -24,7 +24,7 @@ export default tseslint.config(
   },
   {
     // Node-run build/config scripts (not bundled into the browser module).
-    files: ["*.mjs", "*.js"],
+    files: ["**/*.mjs", "**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -32,6 +32,8 @@ export default tseslint.config(
         process: "readonly",
         console: "readonly",
         URL: "readonly",
+        Buffer: "readonly",
+        fetch: "readonly",
       },
     },
   },

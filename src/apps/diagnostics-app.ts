@@ -26,6 +26,7 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       refreshDiag: NoodlrDiagnosticsApp.#onRefresh,
       resetDiag: NoodlrDiagnosticsApp.#onReset,
       selfTest: NoodlrDiagnosticsApp.#onSelfTest,
+      embedTest: NoodlrDiagnosticsApp.#onEmbedTest,
       copyDiag: NoodlrDiagnosticsApp.#onCopy,
     },
   };
@@ -100,6 +101,30 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
     } catch {
       // Clipboard API can be blocked (insecure context). Fall back to a selectable prompt.
       window.prompt(game.i18n.localize("NOODLR.Diagnostics.CopyManual"), text);
+    }
+  }
+
+  /**
+   * Load the bundled in-browser embedding model and embed one probe sentence. This validates
+   * that transformers.js + the ORT WASM + the offline weights all load under Foundry's CSP —
+   * the prerequisite for Memory Lite. First run is slow (model load); later runs are instant.
+   */
+  static async #onEmbedTest(this: NoodlrDiagnosticsApp): Promise<void> {
+    const el = this.#root()?.querySelector<HTMLElement>('[data-role="embedtest"]');
+    const set = (msg: string, ok?: boolean) => {
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.toggle("is-ok", ok === true);
+      el.classList.toggle("is-bad", ok === false);
+    };
+    set(game.i18n.localize("NOODLR.Diagnostics.EmbedTest.Running"));
+    try {
+      const { selfTestEmbedder, EMBED_DIM } = await import("../rag/local/embedder");
+      const { dims, ms } = await selfTestEmbedder();
+      const ok = dims === EMBED_DIM;
+      set(game.i18n.format("NOODLR.Diagnostics.EmbedTest.Ok", { dims, ms }), ok);
+    } catch (err) {
+      set(game.i18n.format("NOODLR.Diagnostics.EmbedTest.Fail", { error: String(err) }), false);
     }
   }
 

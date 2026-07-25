@@ -6,6 +6,18 @@
 
   <p class="noodlr-settings__intro">{{localize "NOODLR.Diagnostics.Intro"}}</p>
 
+  {{! ---- In-browser embedder (Memory Lite) ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-microchip"></i> {{localize "NOODLR.Diagnostics.Embedder"}}</legend>
+    <p class="notes">{{localize "NOODLR.Diagnostics.EmbedderHint"}}</p>
+    <div class="noodlr-settings__actions">
+      <button type="button" data-action="embedTest">
+        <i class="fa-solid fa-vial-circle-check"></i> {{localize "NOODLR.Diagnostics.EmbedTest.Button"}}
+      </button>
+    </div>
+    <p class="noodlr-diag-status" data-role="embedtest"></p>
+  </fieldset>
+
   {{! ---- Memory: live silo document counts ---- }}
   <fieldset class="noodlr-settings__section">
     <legend><i class="fa-solid fa-database"></i> {{localize "NOODLR.Diagnostics.Memory"}}</legend>

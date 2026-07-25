@@ -4,6 +4,9 @@ node_modules/
 # Build output
 dist/
 
+# Fetched offline embedding model (bundled into the release zip, not committed)
+models/
+
 # Editor / OS
 .DS_Store
 Thumbs.db
