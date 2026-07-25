@@ -299,6 +299,24 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## RAG root-cause FIXED (2026-07-25) — noodlr-memory service
+
+The "self-test 0 hits" saga resolved. Root cause was **not** embeddings/dimensions/LanceDB/legacy
+tables (all healthy). It was a plain bug in `noodlr-memory` `src/routes/vectors.js`: the hybrid
+candidate-pool size used `clampInt(topK*8, topK, 100)` — the `max` arg was omitted, so
+`clampInt(value, fallback, min, max)` did `Math.min(undefined, …) = NaN`, which became
+`vectorSearch.limit(NaN)` → LanceDB `"k must be positive"` → caught → `[]`. Since **hybrid is the
+default, every real RAG retrieval had silently returned zero hits** the entire time. Fixed to
+`clampInt(topK*8, topK, topK, 100)`; hardened `lance-store.query()` to clamp k to a positive int;
+added a regression test (store.query survives topK NaN/0/negative). Verified on the server:
+self-test round-trips (score 1.000) and semantic search ranks the right chunk #1.
+
+Debugging assets added along the way (kept): `scripts/seed.mjs` (health/collections/seed/query/
+selftest/purge/purge-all HTTP diagnostic), embedding-vector validation (`assertValidVectors`),
+and front-loaded `vectorSearch` failure logging (query dim vs table dim + full lance error). Module
+v0.2.9 added a Diagnostics **Copy report** button. Lesson: the query *route* had zero test coverage
+— unit tests exercised `store.query` directly and skipped the NaN path.
+
 ## Memory diagnosis round (2026-07-24) — v0.2.9 (module) + noodlr-memory update
 
 Self-test still "0 hits" after v0.2.8. Key finding: the LanceDB round-trip **test passes** locally
