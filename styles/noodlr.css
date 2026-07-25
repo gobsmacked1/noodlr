@@ -605,3 +605,8 @@
 .noodlr-bad {
   color: #b00020;
 }
+/* Disabled/"coming soon" controls read as inactive but stay visible as a roadmap hint. */
+.noodlr-inline.noodlr-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

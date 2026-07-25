@@ -155,6 +155,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
         without: game.i18n.localize(`${p}.Without`),
         icon: meta.icon,
         isScene: kind === "image",
+        isMap: kind === "map",
         subfolder: meta.subfolder,
         ext: meta.ext,
         positive: params.positive,

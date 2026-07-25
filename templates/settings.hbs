@@ -133,6 +133,14 @@
     </label>
     <p class="notes">{{localize "NOODLR.Media.ImageAllowPlayers.Hint"}}</p>
 
+    {{#if isMap}}
+    <label class="noodlr-inline noodlr-disabled">
+      <input type="checkbox" disabled />
+      {{localize "NOODLR.Media.MapUpscale.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.MapUpscale.Hint"}}</p>
+    {{/if}}
+
     {{#if isScene}}
       <div class="noodlr-field">
         <label>{{localize "NOODLR.Media.ImageFolder.Name"}}</label>

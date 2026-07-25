@@ -259,6 +259,8 @@
   "NOODLR.Media.ImageSize.Hint": "Pick a standard pixel size for this generator. Smaller sizes are faster and cheaper; larger ones show more detail. If a model rejects a size or gives odd results, choose 'Default (model's native size)' to let it decide, or 'Custom' to type your own width x height. Images are saved as .webp at whatever resolution the model returns.",
   "NOODLR.Media.ImageSize.Null": "Default (model's native size)",
   "NOODLR.Media.ImageSize.Custom": "Custom (enter width x height below)",
+  "NOODLR.Media.MapUpscale.Name": "Upscale to 4x (coming soon)",
+  "NOODLR.Media.MapUpscale.Hint": "Will slice the generated map and run each piece through an image upscaler to produce a much larger, high-detail battle map, then stitch it back together seamlessly. Disabled for now: it needs a dedicated super-resolution model, which OpenRouter does not yet offer. Planned for when that capability becomes available.",
   "NOODLR.Media.ImageSubfolderNote": "Saved under your media folder in:",
   "NOODLR.Media.Kind.Image.Title": "Scene Art (Generate Image)",
   "NOODLR.Media.Kind.Image.What": "Illustrates scenes, places, and moments from a description. Chat: \"Generate Image: a rain-soaked harbor at dusk\".",
