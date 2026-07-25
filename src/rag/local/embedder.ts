@@ -19,6 +19,19 @@ type FeatureExtractor = (
 
 let extractorPromise: Promise<FeatureExtractor> | null = null;
 
+/**
+ * Resolve a module-relative path to an ABSOLUTE URL. Two reasons this must be absolute:
+ *  1) ORT loads its WASM glue via dynamic import(); a bare specifier like "modules/noodlr/…"
+ *     is rejected by the browser ("must start with ./ ../ or /"). An absolute URL is valid.
+ *  2) Foundry can run under a route prefix — getRoute() accounts for it; new URL() with the
+ *     page origin then yields a fully-qualified href that works for both fetch and import().
+ */
+function moduleUrl(path: string): string {
+  const getRoute = (foundry as any).utils?.getRoute;
+  const routed = typeof getRoute === "function" ? getRoute(path) : `/${path}`;
+  return new URL(routed, window.location.origin).href;
+}
+
 /** Configure transformers.js for fully-offline, module-local, single-threaded operation. */
 async function loadTransformers(): Promise<typeof import("@huggingface/transformers")> {
   const tf = await import("@huggingface/transformers");
@@ -26,12 +39,13 @@ async function loadTransformers(): Promise<typeof import("@huggingface/transform
   // Only ever use the weights we ship; never phone home to the HF Hub.
   env.allowRemoteModels = false;
   env.allowLocalModels = true;
-  env.localModelPath = `modules/${MODULE_ID}/models/`;
+  env.localModelPath = moduleUrl(`modules/${MODULE_ID}/models/`);
   const wasm = env.backends?.onnx?.wasm;
   if (wasm) {
-    // ORT fetches its .wasm/.mjs helpers from here at runtime (copied in by esbuild).
-    wasm.wasmPaths = `modules/${MODULE_ID}/dist/ort/`;
-    // No cross-origin isolation in Foundry -> no SharedArrayBuffer -> single thread only.
+    // ORT fetches its .wasm and dynamic-imports its .mjs from here at runtime (copied by esbuild).
+    // Must be an absolute URL — see moduleUrl() above.
+    wasm.wasmPaths = moduleUrl(`modules/${MODULE_ID}/dist/ort/`);
+    // No cross-origin isolation in Foundry -> no SharedArrayBuffer -> single thread (asyncify build).
     wasm.numThreads = 1;
   }
   return tf;

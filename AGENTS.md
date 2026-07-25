@@ -299,6 +299,22 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## v0.4.0-rc6 (2026-07-25) — RAG Lite embedder loads (ORT asyncify + absolute wasmPaths)
+
+Fixes the rc4/rc5 in-browser embedder failure ("no available backend found" / bare-specifier on
+`ort-wasm-simd-threaded.asyncify.mjs"). Two root causes:
+
+- **Missing ASYNCIFY build.** Foundry isn't cross-origin isolated (no COOP/COEP → no
+  SharedArrayBuffer), so ONNX Runtime Web can't use its pthread-threaded WASM and loads the
+  **asyncify** single-threaded build instead — which esbuild wasn't copying. `ORT_FILES` now ships
+  `ort-wasm-simd-threaded.asyncify.{wasm,mjs}` (23.5 MB wasm) plus the base pair as fallback.
+- **Bare specifier.** `env.backends.onnx.wasm.wasmPaths` was `"modules/noodlr/dist/ort/"`; the
+  browser rejects a bare specifier for the dynamic `import()` of the ORT `.mjs`. New
+  `moduleUrl()` in `rag/local/embedder.ts` resolves via `getRoute()` + `new URL(..., origin)` to an
+  ABSOLUTE href (also route-prefix safe); applied to both `wasmPaths` and `localModelPath`.
+
+Zip grows ~+10 MB (compressed asyncify wasm). No API/behavior change otherwise.
+
 ## v0.4.0-rc5 (2026-07-25) — structured imports (JSON / YAML / CSV)
 
 - **JSON, YAML, and CSV file import** for both memory backends. Parsing happens client-side at the

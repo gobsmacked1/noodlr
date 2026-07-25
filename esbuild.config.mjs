@@ -13,8 +13,17 @@ import { join } from "node:path";
 
 const watch = process.argv.includes("--watch");
 
-// Single-threaded CPU WASM only (Foundry isn't cross-origin isolated, so no threads/WebGPU).
-const ORT_FILES = ["ort-wasm-simd-threaded.wasm", "ort-wasm-simd-threaded.mjs"];
+// Foundry isn't cross-origin isolated (no COOP/COEP -> no SharedArrayBuffer), so ONNX Runtime
+// Web can't use its pthread-threaded build and falls back to the ASYNCIFY (single-threaded)
+// variant — that's the one it actually loads at runtime, so it MUST be shipped. We include the
+// base pair too as a fallback. (jsep/jspi are WebGPU/JSPI builds we don't use — skipped to keep
+// the package small.)
+const ORT_FILES = [
+  "ort-wasm-simd-threaded.asyncify.wasm",
+  "ort-wasm-simd-threaded.asyncify.mjs",
+  "ort-wasm-simd-threaded.wasm",
+  "ort-wasm-simd-threaded.mjs",
+];
 
 async function copyOrtAssets() {
   const src = "node_modules/onnxruntime-web/dist";
