@@ -7,6 +7,11 @@
   "NOODLR.ChatPanel.Copy": "Copy to clipboard",
   "NOODLR.ChatPanel.Copied": "Copied to clipboard.",
 
+  "NOODLR.Artifact.Retry": "Retry",
+  "NOODLR.Artifact.RetryHint": "Discard this output and generate a new one. Available for 60 seconds (DM, or the player who made it), then the output is committed to memory.",
+  "NOODLR.Artifact.Reject": "Reject",
+  "NOODLR.Artifact.RejectHint": "Discard this output and commit nothing to memory. Available for 60 seconds (DM, or the player who made it).",
+
   "NOODLR.Controls.GroupTitle": "Noodlr — AI Dungeon Master",
 
   "NOODLR.Provider.Provider.Name": "Where the AI comes from (provider)",

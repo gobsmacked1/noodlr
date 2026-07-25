@@ -48,26 +48,47 @@ export async function createAndPlayMusic(input: {
     return;
   }
 
-  await addToPlaylist(cfg.playlist, path, input.description || "Noodlr track");
-  await postMediaCard(path, input.description || "Noodlr music", "audio");
+  const handle = await addToPlaylist(cfg.playlist, path, input.description || "Noodlr track");
+  // Retry/Reject: the RAG commit is deferred to the GM after the 60 s window; Reject also removes
+  // the generated PlaylistSound so a discarded track doesn't linger in the playlist.
+  await postMediaCard(path, input.description || "Noodlr music", "audio", {
+    gen: { fn: "music", description: input.description, seconds },
+    commit: {
+      rag: {
+        silo: "scenes",
+        text: `Music cue: ${input.description}`,
+        metadata: { source: "music", path, ts: Date.now() },
+      },
+    },
+    cleanup: handle ? { playlist: handle } : undefined,
+  });
   bumpStats({ music: 1 });
 }
 
-/** Find/create the named Playlist, add the track, and start playing it. GM only (needs create). */
-async function addToPlaylist(playlistName: string, path: string, title: string): Promise<void> {
+/**
+ * Find/create the named Playlist, add the track, and start playing it. GM only (needs create).
+ * Returns the created {playlistId, soundId} so a rejected track can be removed later.
+ */
+async function addToPlaylist(
+  playlistName: string,
+  path: string,
+  title: string,
+): Promise<{ playlistId: string; soundId: string } | null> {
   try {
     const PlaylistCls = (globalThis as any).Playlist;
     let pl = game.playlists?.getName(playlistName);
     if (!pl) pl = await PlaylistCls.create({ name: playlistName });
-    if (!pl) return;
+    if (!pl) return null;
     const created = await pl.createEmbeddedDocuments("PlaylistSound", [
       { name: title.slice(0, 120), path, repeat: false, volume: 0.8 },
     ]);
     const sound = Array.isArray(created) ? created[0] : created;
     if (sound) await pl.playSound(sound);
+    return sound ? { playlistId: pl.id, soundId: sound.id } : null;
   } catch (err) {
     log("could not add track to playlist:", err);
     ui.notifications?.warn(game.i18n.localize("NOODLR.Media.Music.NoPlaylist"));
+    return null;
   }
 }
 
@@ -120,6 +141,15 @@ export async function createAndShareVideo(input: {
     return;
   }
   await shareMediaPopout(path, input.description || "Noodlr video");
-  await postMediaCard(path, input.description || "Noodlr video", "video");
+  await postMediaCard(path, input.description || "Noodlr video", "video", {
+    gen: { fn: "video", description: input.description, seconds: duration },
+    commit: {
+      rag: {
+        silo: "scenes",
+        text: `Video: ${input.description}`,
+        metadata: { source: "video", path, ts: Date.now() },
+      },
+    },
+  });
   bumpStats({ video: 1 });
 }

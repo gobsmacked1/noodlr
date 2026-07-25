@@ -64,8 +64,15 @@ export const COMBAT_SETTINGS = {
   systemPrompt: "combat.systemPrompt",
 } as const;
 
-/** Module socket name for client<->GM relay (push-to-log transcripts). */
+/** Module socket name for client<->GM relay (push-to-log transcripts, artifact retire). */
 export const SOCKET = "module.noodlr" as const;
+
+/**
+ * How long the Retry/Reject controls stay active on an AI-generated output before it's committed
+ * to memory. The hidden timer starts once the finished output is displayed. After it elapses the
+ * controls disable (capping repeat OpenRouter calls) and the GM commits the output to RAG.
+ */
+export const RETRY_WINDOW_MS = 60_000;
 
 /** Media feature settings keys (TTS / Image / Transcription / push-to-log). */
 export const MEDIA_SETTINGS = {

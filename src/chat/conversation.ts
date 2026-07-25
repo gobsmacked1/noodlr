@@ -37,8 +37,28 @@ export class Conversation {
   /** User/assistant turns only; the system prompt is assembled fresh each request. */
   readonly messages: ChatMessage[] = [];
 
+  /** Synthetic roll-continuation user turns (marked so Retry can skip past them). */
+  #synthetic = new WeakSet<ChatMessage>();
+
   reset(): void {
     this.messages.length = 0;
+  }
+
+  /**
+   * Roll history back to just before the most recent *human* user turn (skipping synthetic
+   * roll-continuation turns), dropping that turn and everything after it. Returns the human
+   * text so the caller can re-send it (Retry) or discard it (Reject). Null if none found.
+   */
+  popLastUserTurn(): string | null {
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      const m = this.messages[i];
+      if (m.role === "user" && !this.#synthetic.has(m)) {
+        const text = m.content;
+        this.messages.length = i;
+        return text;
+      }
+    }
+    return null;
   }
 
   /**
@@ -94,10 +114,12 @@ export class Conversation {
 
       if (rolls.length > 0 && allowContinuation && continuations < MAX_CONTINUATIONS) {
         continuations++;
-        this.messages.push({
+        const cont: ChatMessage = {
           role: "user",
           content: `${formatRollResultsForModel(rolls)}\n\nContinue the scene from these results; do not repeat prior narration.`,
-        });
+        };
+        this.#synthetic.add(cont);
+        this.messages.push(cont);
         continue;
       }
       break;

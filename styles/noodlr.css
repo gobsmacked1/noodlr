@@ -473,6 +473,35 @@
   display: block;
 }
 
+/* Retry / Reject controls on AI-generated output panes (media chat cards + DM chat bubbles).
+   Bottom-right, active for 60s, then removed. */
+.noodlr-artifact-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.noodlr-artifact-btn {
+  flex: 0 0 auto;
+  width: auto;
+  line-height: 1.4;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.noodlr-artifact-btn--retry:hover {
+  background: rgba(70, 130, 180, 0.25);
+}
+
+.noodlr-artifact-btn--reject:hover {
+  background: rgba(200, 40, 40, 0.2);
+}
+
 /* Inline "input + button" row (e.g. the Test TTS control). */
 .noodlr-inline-controls {
   display: flex;

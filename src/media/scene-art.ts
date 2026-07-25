@@ -5,9 +5,9 @@
 
 import { MODULE_ID, log } from "../constants";
 import { generateSceneImage, ImageError } from "./image";
-import { saveMedia, setLedgerEntry, transcodeImage } from "./storage";
+import { saveMedia, transcodeImage } from "./storage";
 import { getImagePersist, IMAGE_KIND_META, type ImageKind } from "./config";
-import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
+import { artifactFlags, type ArtifactCommit, type ArtifactInput } from "../output/artifacts";
 import { bumpStats } from "../util/stats";
 
 /** Resolve the v13 ImagePopout class (namespaced), falling back to the legacy global. */
@@ -36,11 +36,16 @@ export async function shareMediaPopout(src: string, title: string): Promise<void
   }
 }
 
-/** Post a lightweight chat card referencing a stored media file (never inline base64). */
+/**
+ * Post a lightweight chat card referencing a stored media file (never inline base64). When an
+ * `artifact` is supplied the card carries the Retry/Reject + deferred-commit flag (see
+ * output/artifacts.ts); otherwise it's a plain scene-art card.
+ */
 export async function postMediaCard(
   path: string,
   title: string,
   kind: "image" | "video" | "audio" = "image",
+  artifact?: ArtifactInput,
 ): Promise<void> {
   try {
     const ChatMessage = (globalThis as any).ChatMessage;
@@ -53,35 +58,10 @@ export async function postMediaCard(
           ? `<audio src="${safePath}" controls style="width:100%;margin-top:4px"></audio>`
           : `<img src="${safePath}" alt="${safeTitle}" style="width:100%;border-radius:4px;margin-top:4px" />`;
     const content = `<div class="noodlr-scene-art"><strong>${safeTitle}</strong>${media}</div>`;
-    await ChatMessage.create({ content, flags: { [MODULE_ID]: { sceneArt: true } } });
+    const flags = artifact ? artifactFlags(artifact) : { [MODULE_ID]: { sceneArt: true } };
+    await ChatMessage.create({ content, flags });
   } catch (err) {
     log("could not post media chat card:", err);
-  }
-}
-
-/** Ingest image metadata (not pixels) into the `scenes` silo for later retrieval. GM only. */
-async function ingestSceneMeta(prompt: string, path: string, entityKey?: string): Promise<void> {
-  if (!isRagEnabled() || !game.user?.isGM) return;
-  try {
-    const label = entityKey ? `Image of ${entityKey}` : "Scene image";
-    await getRagClient().ingest(
-      "scenes",
-      [
-        {
-          text: `${label}: ${prompt}`,
-          metadata: {
-            source: "image",
-            entity: entityKey ?? "",
-            path,
-            ts: Date.now(),
-            ...(entityKey ? { entities: [entityKey] } : {}),
-          },
-        },
-      ],
-      getEmbedOverride(),
-    );
-  } catch (err) {
-    log("scene image RAG ingest failed:", err);
   }
 }
 
@@ -135,22 +115,46 @@ export async function createAndShareImage(
       subfolder: meta.subfolder || undefined,
       ext,
     });
-    if (path) {
-      if (meta.keyed && input.entityKey) {
-        await setLedgerEntry(kind, input.entityKey, {
+  }
+
+  const displaySrc = path ?? result.src;
+  await shareMediaPopout(displaySrc, title);
+
+  // Post the card with a Retry/Reject artifact. The RAG scene-meta ingest and the continuity
+  // ledger write are DEFERRED into the artifact commit (run by the GM only if the output survives
+  // the 60 s window), so a rejected/retried image never pollutes memory or the ledger.
+  if (path) {
+    const label = input.entityKey ? `Image of ${input.entityKey}` : "Scene image";
+    const commit: ArtifactCommit = {
+      rag: {
+        silo: "scenes",
+        text: `${label}: ${result.prompt}`,
+        metadata: {
+          source: "image",
+          entity: input.entityKey ?? "",
+          path,
+          ts: Date.now(),
+          ...(input.entityKey ? { entities: [input.entityKey] } : {}),
+        },
+      },
+    };
+    if (meta.keyed && input.entityKey) {
+      commit.ledger = {
+        kind,
+        entityKey: input.entityKey,
+        entry: {
           seed: result.seed,
           prompt: result.anchor ?? "",
           model: result.model,
           path,
           ts: Date.now(),
-        });
-      }
-      void ingestSceneMeta(result.prompt, path, input.entityKey);
+        },
+      };
     }
+    await postMediaCard(path, title, "image", {
+      gen: { fn: "image", kind, description: input.description, entityKey: input.entityKey },
+      commit,
+    });
   }
-
-  const displaySrc = path ?? result.src;
-  await shareMediaPopout(displaySrc, title);
-  if (path) await postMediaCard(path, title, "image");
   bumpStats({ images: 1 });
 }

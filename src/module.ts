@@ -25,6 +25,7 @@ import {
   type ImageKind,
 } from "./media/config";
 import { refreshPushToLogButton, pushToLog, type TranscriptPayload } from "./media/push-to-log";
+import { registerArtifactHooks, handleArtifactSocket } from "./output/artifacts";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 
 /** Public surface other code (macros, console, future features) can call. */
@@ -86,10 +87,16 @@ Hooks.once("init", () => {
 Hooks.once("ready", () => {
   log("ready");
 
-  // GM receives relayed push-to-log transcripts from player clients.
-  game.socket?.on(SOCKET, (data: TranscriptPayload) => {
-    if (game.user?.isGM && data?.type === "transcript") pushToLog.handleTranscript(data);
+  // GM receives relayed messages from player clients: push-to-log transcripts, and requests to
+  // retire (delete + clean up) an AI-output artifact card the player generated.
+  game.socket?.on(SOCKET, (data: { type?: string } & Record<string, unknown>) => {
+    if (!game.user?.isGM) return;
+    if (data?.type === "transcript") pushToLog.handleTranscript(data as unknown as TranscriptPayload);
+    else if (data?.type === "artifact-retire") handleArtifactSocket(data);
   });
+
+  // Retry/Reject controls + deferred RAG commit for AI-generated media outputs.
+  registerArtifactHooks();
 
   // Floating push-to-log button (bottom-center) — only when transcription is enabled.
   refreshPushToLogButton();
