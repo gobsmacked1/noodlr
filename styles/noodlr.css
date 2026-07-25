@@ -502,6 +502,27 @@
   background: rgba(200, 40, 40, 0.2);
 }
 
+/* "Hide output" toggle on the chat composer + media dialogs. */
+.noodlr-chat__hide,
+.noodlr-hide-output {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.noodlr-chat__hide input,
+.noodlr-hide-output input {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+/* DM narration mirrored to the shared chat log (players' view). */
+.noodlr-dm-narration {
+  font-style: normal;
+}
+
 /* Inline "input + button" row (e.g. the Test TTS control). */
 .noodlr-inline-controls {
   display: flex;

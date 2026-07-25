@@ -6,6 +6,11 @@
   "NOODLR.ChatPanel.Clear": "Clear conversation",
   "NOODLR.ChatPanel.Copy": "Copy to clipboard",
   "NOODLR.ChatPanel.Copied": "Copied to clipboard.",
+  "NOODLR.ChatPanel.HideOutput": "Hide from players (GM prep)",
+  "NOODLR.ChatPanel.HideOutputHint": "When checked, the DM's reply stays in this panel and is NOT mirrored to the players' chat log. Off by default. Your typed prompt is always private.",
+
+  "NOODLR.Media.HideOutput": "Hide output from players (GM prep)",
+  "NOODLR.Media.HideOutputHint": "When checked, this result shows only on your screen (no broadcast, a GM-only card, and no shared playback). Use it to prep maps, handouts, or surprise NPCs. Off by default.",
 
   "NOODLR.Artifact.Retry": "Retry",
   "NOODLR.Artifact.RetryHint": "Discard this output and generate a new one. Available for 60 seconds (DM, or the player who made it), then the output is committed to memory.",

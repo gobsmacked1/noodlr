@@ -17,10 +17,15 @@ function imagePopout(): any {
 }
 
 /**
- * Display a media file (image OR video — ImagePopout's src accepts both) locally and share it
- * with every connected user via Foundry's built-in broadcast.
+ * Display a media file (image OR video — ImagePopout's src accepts both) locally and, when
+ * `broadcast` is true (the default), share it with every connected user via Foundry's built-in
+ * broadcast. Pass broadcast=false for "hidden" GM-prep output (shows only on the GM's screen).
  */
-export async function shareMediaPopout(src: string, title: string): Promise<void> {
+export async function shareMediaPopout(
+  src: string,
+  title: string,
+  broadcast = true,
+): Promise<void> {
   const IP = imagePopout();
   if (!IP) {
     log("ImagePopout unavailable; cannot display media");
@@ -28,6 +33,7 @@ export async function shareMediaPopout(src: string, title: string): Promise<void
   }
   const pop = new IP({ src, window: { title } });
   await pop.render(true);
+  if (!broadcast) return;
   try {
     // Broadcasts to all connected users (they get their own popout).
     pop.shareImage();
@@ -46,6 +52,7 @@ export async function postMediaCard(
   title: string,
   kind: "image" | "video" | "audio" = "image",
   artifact?: ArtifactInput,
+  opts: { whisperGM?: boolean } = {},
 ): Promise<void> {
   try {
     const ChatMessage = (globalThis as any).ChatMessage;
@@ -59,7 +66,12 @@ export async function postMediaCard(
           : `<img src="${safePath}" alt="${safeTitle}" style="width:100%;border-radius:4px;margin-top:4px" />`;
     const content = `<div class="noodlr-scene-art"><strong>${safeTitle}</strong>${media}</div>`;
     const flags = artifact ? artifactFlags(artifact) : { [MODULE_ID]: { sceneArt: true } };
-    await ChatMessage.create({ content, flags });
+    const data: Record<string, unknown> = { content, flags };
+    // "Hidden" output whispers to GMs only, so players never see the prep card.
+    if (opts.whisperGM) {
+      data.whisper = ChatMessage.getWhisperRecipients("GM").map((u: any) => u.id);
+    }
+    await ChatMessage.create(data);
   } catch (err) {
     log("could not post media chat card:", err);
   }
@@ -72,6 +84,8 @@ export interface CreateImageInput {
   entityKey?: string;
   /** Popout/chat title; defaults to the entity name or a generic label. */
   title?: string;
+  /** GM-prep mode: show only on the GM's screen (no broadcast; card whispered to GMs). */
+  hidden?: boolean;
 }
 
 /**
@@ -118,7 +132,7 @@ export async function createAndShareImage(
   }
 
   const displaySrc = path ?? result.src;
-  await shareMediaPopout(displaySrc, title);
+  await shareMediaPopout(displaySrc, title, !input.hidden);
 
   // Post the card with a Retry/Reject artifact. The RAG scene-meta ingest and the continuity
   // ledger write are DEFERRED into the artifact commit (run by the GM only if the output survives
@@ -151,10 +165,13 @@ export async function createAndShareImage(
         },
       };
     }
-    await postMediaCard(path, title, "image", {
-      gen: { fn: "image", kind, description: input.description, entityKey: input.entityKey },
-      commit,
-    });
+    await postMediaCard(
+      path,
+      title,
+      "image",
+      { gen: { fn: "image", kind, description: input.description, entityKey: input.entityKey }, commit },
+      { whisperGM: input.hidden },
+    );
   }
   bumpStats({ images: 1 });
 }

@@ -21,5 +21,12 @@
     </button>
   </footer>
 
+  {{#if isGM}}
+    <label class="noodlr-chat__hide" title="{{localize "NOODLR.ChatPanel.HideOutputHint"}}">
+      <input type="checkbox" data-role="hide-output" />
+      {{localize "NOODLR.ChatPanel.HideOutput"}}
+    </label>
+  {{/if}}
+
   <p class="noodlr-chat__version">v{{version}}</p>
 </section>

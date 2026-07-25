@@ -257,51 +257,70 @@ function cap(s: string): string {
 /** Prompt the GM for a subject/scene description, then generate + display art for `kind`. */
 async function promptImage(kind: ImageKind): Promise<void> {
   const meta = IMAGE_KIND_META[kind];
-  const text = await promptDescription(
+  const { text, hideOutput } = await promptDescription(
     `NOODLR.Media.Kind.${cap(kind)}.Title`,
     `NOODLR.Media.Kind.${cap(kind)}.Prompt`,
     `NOODLR.Media.Kind.${cap(kind)}.Button`,
   );
   if (!text) return;
   const entityKey = meta.keyed ? text : undefined;
-  await createAndShareImage({ description: text, entityKey, title: entityKey }, kind);
+  await createAndShareImage({ description: text, entityKey, title: entityKey, hidden: hideOutput }, kind);
 }
 
-/** Small helper: prompt for a description in a DialogV2 textarea; returns trimmed text or "". */
-async function promptDescription(titleKey: string, hintKey: string, okKey: string): Promise<string> {
+/**
+ * Prompt for a description in a DialogV2 textarea with a "Hide output" toggle (off by default —
+ * output normally mirrors to all players; checking it keeps the result GM-only for prep). Returns
+ * the trimmed text ("" if cancelled) and the hide flag.
+ */
+async function promptDescription(
+  titleKey: string,
+  hintKey: string,
+  okKey: string,
+): Promise<{ text: string; hideOutput: boolean }> {
   try {
     const value = await foundry.applications.api.DialogV2.prompt({
       window: { title: game.i18n.localize(titleKey) },
-      content: `<p>${game.i18n.localize(hintKey)}</p><textarea name="desc" rows="3" style="width:100%"></textarea>`,
+      content:
+        `<p>${game.i18n.localize(hintKey)}</p>` +
+        `<textarea name="desc" rows="3" style="width:100%"></textarea>` +
+        `<label class="noodlr-hide-output"><input type="checkbox" name="hideOutput" /> ` +
+        `${game.i18n.localize("NOODLR.Media.HideOutput")}</label>` +
+        `<p class="notes">${game.i18n.localize("NOODLR.Media.HideOutputHint")}</p>`,
       ok: {
         label: game.i18n.localize(okKey),
-        callback: (_ev: Event, button: any) => button.form?.elements?.desc?.value ?? "",
+        callback: (_ev: Event, button: any) => ({
+          text: button.form?.elements?.desc?.value ?? "",
+          hideOutput: Boolean(button.form?.elements?.hideOutput?.checked),
+        }),
       },
     });
-    return String(value ?? "").trim();
+    return {
+      text: String((value as any)?.text ?? "").trim(),
+      hideOutput: Boolean((value as any)?.hideOutput),
+    };
   } catch {
-    return "";
+    return { text: "", hideOutput: false };
   }
 }
 
 /** Prompt the GM for a music description, then generate + play it via a Foundry Playlist. */
 async function promptMusic(): Promise<void> {
-  const text = await promptDescription(
+  const { text, hideOutput } = await promptDescription(
     "NOODLR.Media.MusicPromptTitle",
     "NOODLR.Media.MusicPromptHint",
     "NOODLR.Media.MusicPromptButton",
   );
-  if (text) await createAndPlayMusic({ description: text });
+  if (text) await createAndPlayMusic({ description: text, hidden: hideOutput });
 }
 
 /** Prompt the GM for a video description, then generate + broadcast it. */
 async function promptVideo(): Promise<void> {
-  const text = await promptDescription(
+  const { text, hideOutput } = await promptDescription(
     "NOODLR.Media.VideoPromptTitle",
     "NOODLR.Media.VideoPromptHint",
     "NOODLR.Media.VideoPromptButton",
   );
-  if (text) await createAndShareVideo({ description: text });
+  if (text) await createAndShareVideo({ description: text, hidden: hideOutput });
 }
 
 function registerKeybindings(): void {

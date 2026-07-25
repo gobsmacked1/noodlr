@@ -18,6 +18,7 @@ import { getTtsAutoRead } from "../media/config";
 import { speak } from "../media/tts";
 import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
 import { bumpStats } from "../util/stats";
+import { log } from "../constants";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -46,6 +47,16 @@ interface ActiveTurn {
   actionsEl: HTMLElement | null;
   disableTimer: number | null;
   commitTimer: number | null;
+  /** GM-prep mode: keep this turn's output in the panel only (don't mirror to players). */
+  hidden: boolean;
+  /** The public chat-log message mirroring this turn's narration to players (null if hidden). */
+  mirrorMsgId: string | null;
+  /** Accumulated narration mirrored to players (grows across roll continuations). */
+  mirrorText: string;
+  /** Serializes create/update of the mirror message so rapid turns can't double-post. */
+  mirrorChain: Promise<void>;
+  /** Set when the turn is retried/rejected so an in-flight mirror create self-deletes. */
+  retired: boolean;
 }
 
 export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -104,6 +115,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       moduleId: MODULE_ID,
       version,
       configured: isConfigured(getFeatureConfig("chat")),
+      isGM: Boolean(game.user?.isGM),
     };
   }
 
@@ -112,9 +124,9 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
 
     // Rebuild the visible transcript from the persisted store (survives reopen). Controls are
     // NOT restored — the retry window is bound to the live turn, not to reopened history.
-    const log = root.querySelector<HTMLElement>('[data-role="log"]');
-    if (log) {
-      log.replaceChildren();
+    const logEl = root.querySelector<HTMLElement>('[data-role="log"]');
+    if (logEl) {
+      logEl.replaceChildren();
       for (const entry of NoodlrChatPanel.#transcript) this.#renderBubble(entry);
       this.#scrollToBottom();
     }
@@ -168,10 +180,14 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     // latest turn) but leave its commit timer to fire on schedule.
     this.#sealActiveTurn();
 
-    const log = this.#log();
+    // "Hide output" (GM only): keep this turn in the panel; don't mirror it to players.
+    const hideBox = this.#root()?.querySelector<HTMLInputElement>('[data-role="hide-output"]');
+    const hidden = Boolean(game.user?.isGM && hideBox?.checked);
+
+    const logEl = this.#log();
     const turn: ActiveTurn = {
       startTranscriptLen: NoodlrChatPanel.#transcript.length,
-      startChildCount: log?.children.length ?? 0,
+      startChildCount: logEl?.children.length ?? 0,
       promptText: text,
       promptAuthor: game.user?.name ?? "You",
       finalText: "",
@@ -179,6 +195,11 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       actionsEl: null,
       disableTimer: null,
       commitTimer: null,
+      hidden,
+      mirrorMsgId: null,
+      mirrorText: "",
+      mirrorChain: Promise.resolve(),
+      retired: false,
     };
     this.#turn = turn;
 
@@ -219,6 +240,8 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
           // here, so it always begins once the final rendered output is displayed.
           turn.finalText = finalText;
           this.#attachTurnControls(turn);
+          // Mirror the narration to the players' shared chat log (unless the GM hid this turn).
+          if (game.user?.isGM && !turn.hidden) this.#mirrorNarration(turn, finalText);
         },
       });
     } catch (err) {
@@ -369,6 +392,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!turn || this.#streaming) return;
     this.#clearTurnTimers();
     this.#removeTurnDom(turn);
+    void this.#deleteMirror(turn);
     this.#turn = null;
     const text = NoodlrChatPanel.#conversation.popLastUserTurn() ?? turn.promptText;
     await this.#runSend(text);
@@ -379,8 +403,57 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!turn) return;
     this.#clearTurnTimers();
     this.#removeTurnDom(turn);
+    void this.#deleteMirror(turn);
     NoodlrChatPanel.#conversation.popLastUserTurn();
     this.#turn = null;
+  }
+
+  // ---- Mirroring the narration to players ---------------------------------------------------
+
+  /**
+   * Mirror this turn's narration to the shared Foundry chat log so players see it (the DM's typed
+   * prompt stays private). Serialized via the turn's promise chain so a roll continuation's second
+   * chunk can't race the first into two separate messages; both accumulate into one message.
+   */
+  #mirrorNarration(turn: ActiveTurn, text: string): void {
+    turn.mirrorChain = turn.mirrorChain.then(async () => {
+      if (turn.retired) return;
+      turn.mirrorText = turn.mirrorText ? `${turn.mirrorText}\n\n${text}` : text;
+      const content = `<div class="noodlr-dm-narration">${renderMarkdown(turn.mirrorText)}</div>`;
+      const ChatMessage = (globalThis as any).ChatMessage;
+      try {
+        if (turn.mirrorMsgId) {
+          await (game.messages as any)?.get(turn.mirrorMsgId)?.update({ content });
+          return;
+        }
+        const msg = await ChatMessage.create({
+          content,
+          speaker: { alias: "Dungeon Master" },
+          flags: { [MODULE_ID]: { dmNarration: true } },
+        });
+        turn.mirrorMsgId = msg?.id ?? null;
+        // If the turn was retired while the create was in flight, remove the orphan now.
+        if (turn.retired && turn.mirrorMsgId) {
+          await msg.delete();
+          turn.mirrorMsgId = null;
+        }
+      } catch (err) {
+        log("chat narration mirror failed:", err);
+      }
+    });
+  }
+
+  /** Remove the mirrored public message (Retry/Reject within the window). */
+  async #deleteMirror(turn: ActiveTurn): Promise<void> {
+    turn.retired = true;
+    await turn.mirrorChain.catch(() => undefined);
+    if (!turn.mirrorMsgId) return;
+    try {
+      await (game.messages as any)?.get(turn.mirrorMsgId)?.delete();
+    } catch (err) {
+      log("chat narration mirror delete failed:", err);
+    }
+    turn.mirrorMsgId = null;
   }
 
   /** GM-only: ingest the accepted DM turn (prompt + reply) into the `chat` silo. */

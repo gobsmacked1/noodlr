@@ -24,6 +24,8 @@ function clamp(n: number, lo: number, hi: number): number {
 export async function createAndPlayMusic(input: {
   description: string;
   seconds?: number;
+  /** GM-prep mode: don't play to the shared playlist; whisper a preview card to GMs only. */
+  hidden?: boolean;
 }): Promise<void> {
   const cfg = getMusicConfig();
   const seconds = clamp(input.seconds ?? cfg.minSec, cfg.minSec, cfg.maxSec);
@@ -48,20 +50,30 @@ export async function createAndPlayMusic(input: {
     return;
   }
 
-  const handle = await addToPlaylist(cfg.playlist, path, input.description || "Noodlr track");
+  // Hidden (GM prep): skip the shared playlist so nothing plays for the table; the whispered
+  // preview card lets the GM audition the track privately.
+  const handle = input.hidden
+    ? null
+    : await addToPlaylist(cfg.playlist, path, input.description || "Noodlr track");
   // Retry/Reject: the RAG commit is deferred to the GM after the 60 s window; Reject also removes
   // the generated PlaylistSound so a discarded track doesn't linger in the playlist.
-  await postMediaCard(path, input.description || "Noodlr music", "audio", {
-    gen: { fn: "music", description: input.description, seconds },
-    commit: {
-      rag: {
-        silo: "scenes",
-        text: `Music cue: ${input.description}`,
-        metadata: { source: "music", path, ts: Date.now() },
+  await postMediaCard(
+    path,
+    input.description || "Noodlr music",
+    "audio",
+    {
+      gen: { fn: "music", description: input.description, seconds },
+      commit: {
+        rag: {
+          silo: "scenes",
+          text: `Music cue: ${input.description}`,
+          metadata: { source: "music", path, ts: Date.now() },
+        },
       },
+      cleanup: handle ? { playlist: handle } : undefined,
     },
-    cleanup: handle ? { playlist: handle } : undefined,
-  });
+    { whisperGM: input.hidden },
+  );
   bumpStats({ music: 1 });
 }
 
@@ -99,6 +111,8 @@ async function addToPlaylist(
 export async function createAndShareVideo(input: {
   description: string;
   seconds?: number;
+  /** GM-prep mode: show only on the GM's screen (no broadcast; card whispered to GMs). */
+  hidden?: boolean;
 }): Promise<void> {
   const cfg = getVideoConfig();
   const duration = clamp(input.seconds ?? cfg.duration, 6, 30);
@@ -140,16 +154,22 @@ export async function createAndShareVideo(input: {
     ui.notifications?.error(game.i18n.localize("NOODLR.Media.Video.NoSave"));
     return;
   }
-  await shareMediaPopout(path, input.description || "Noodlr video");
-  await postMediaCard(path, input.description || "Noodlr video", "video", {
-    gen: { fn: "video", description: input.description, seconds: duration },
-    commit: {
-      rag: {
-        silo: "scenes",
-        text: `Video: ${input.description}`,
-        metadata: { source: "video", path, ts: Date.now() },
+  await shareMediaPopout(path, input.description || "Noodlr video", !input.hidden);
+  await postMediaCard(
+    path,
+    input.description || "Noodlr video",
+    "video",
+    {
+      gen: { fn: "video", description: input.description, seconds: duration },
+      commit: {
+        rag: {
+          silo: "scenes",
+          text: `Video: ${input.description}`,
+          metadata: { source: "video", path, ts: Date.now() },
+        },
       },
     },
-  });
+    { whisperGM: input.hidden },
+  );
   bumpStats({ video: 1 });
 }
