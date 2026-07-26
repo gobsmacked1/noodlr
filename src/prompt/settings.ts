@@ -42,7 +42,7 @@ export function registerPromptSettings(): void {
     scope: "world",
     config: true,
     type: Number,
-    default: 12000,
+    default: 64000,
   });
   game.settings.register(MODULE_ID, SETTINGS.chronicleAutoParse, {
     name: L("ChronicleAutoParse.Name"),
@@ -81,7 +81,7 @@ export function getCombatReminder(): string {
   return (game.settings.get(MODULE_ID, SETTINGS.combatReminder) as string) ?? "";
 }
 export function getContextBudget(): number {
-  return Number(game.settings.get(MODULE_ID, SETTINGS.contextTokenBudget)) || 12000;
+  return Number(game.settings.get(MODULE_ID, SETTINGS.contextTokenBudget)) || 64000;
 }
 
 export function loadLorebook(): LorebookEntry[] {

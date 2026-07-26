@@ -9,6 +9,8 @@
   "NOODLR.ChatPanel.HideOutput": "Hide from players (GM prep)",
   "NOODLR.ChatPanel.HideOutputHint": "When checked, the DM's reply stays in this panel and is NOT mirrored to the players' chat log. Off by default. Your typed prompt is always private.",
 
+  "NOODLR.Chat.BudgetExceedsModel": "Context token budget ({budget}) exceeds {model}'s context window ({limit} tokens). Lower the Context token budget in settings, or the model may truncate or reject long prompts.",
+
   "NOODLR.Media.HideOutput": "Hide output from players (GM prep)",
   "NOODLR.Media.HideOutputHint": "When checked, this result shows only on your screen (no broadcast, a GM-only card, and no shared playback). Use it to prep maps, handouts, or surprise NPCs. Off by default.",
 

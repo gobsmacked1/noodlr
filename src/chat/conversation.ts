@@ -5,7 +5,9 @@
 import { MODULE_ID, SETTINGS } from "../constants";
 import { getFeatureConfig } from "../providers/config";
 import { ChatClientError, streamChatCompletion } from "../providers/chat-client";
-import { type ChatMessage, isConfigured } from "../providers/types";
+import { type ChatMessage, type FeatureProviderConfig, isConfigured } from "../providers/types";
+import { fetchOpenRouterContextLength } from "../providers/models";
+import { getContextBudget } from "../prompt/settings";
 import {
   type ResolvedRoll,
   formatRollResultsForModel,
@@ -75,6 +77,9 @@ export class Conversation {
       );
     }
 
+    // One-time-per-model/budget sanity check: warn if the context budget can't fit the model.
+    maybeWarnBudgetVsModel(cfg);
+
     const userMsg: ChatMessage = { role: "user", content: userText };
     if (hooks.speakerName) userMsg.name = sanitizeName(hooks.speakerName);
     this.messages.push(userMsg);
@@ -142,4 +147,34 @@ export class Conversation {
 /** OpenAI message `name` fields disallow spaces/most punctuation; normalize. */
 function sanitizeName(name: string): string {
   return name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64) || "player";
+}
+
+// Remembers which (model:budget) combos we've already evaluated this session, so the check runs
+// once per change instead of every turn.
+const budgetChecked = new Set<string>();
+
+/**
+ * If the configured context budget exceeds the chosen OpenRouter model's real context window,
+ * warn the GM once (per model+budget). Best-effort and non-blocking: only OpenRouter (whose
+ * catalog exposes context_length), silent when the model/limit is unknown. Custom endpoints are
+ * skipped — we have no reliable way to know their window.
+ */
+function maybeWarnBudgetVsModel(cfg: FeatureProviderConfig): void {
+  if (cfg.provider !== "openrouter" || !cfg.model) return;
+  const budget = getContextBudget();
+  const key = `${cfg.model}:${budget}`;
+  if (budgetChecked.has(key)) return;
+  void fetchOpenRouterContextLength(cfg.model).then((limit) => {
+    if (!limit) return; // unknown — leave unmarked so we can retry once the catalog loads
+    budgetChecked.add(key);
+    if (budget > limit) {
+      ui.notifications?.warn(
+        game.i18n.format("NOODLR.Chat.BudgetExceedsModel", {
+          budget,
+          limit,
+          model: cfg.model,
+        }),
+      );
+    }
+  });
 }

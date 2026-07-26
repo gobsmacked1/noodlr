@@ -54,6 +54,39 @@ export async function fetchOpenRouterModels(
   return p;
 }
 
+// Cache of model id -> context window length (real tokens), from the full OpenRouter catalog.
+let contextLenCache: Map<string, number> | null = null;
+
+/**
+ * Look up a model's context window (max tokens) from OpenRouter's public catalog. Used to warn
+ * when the configured context budget exceeds what the chosen model can actually accept. Returns
+ * undefined when the model is unknown or the catalog is unreachable (caller then stays silent).
+ * Public catalog — never touches a stored key. Never throws.
+ */
+export async function fetchOpenRouterContextLength(modelId: string): Promise<number | undefined> {
+  const id = modelId.trim();
+  if (!id) return undefined;
+  try {
+    if (!contextLenCache) {
+      const res = await fetch(`${OPENROUTER_BASE}/models`, { headers: { Accept: "application/json" } });
+      if (!res.ok) return undefined;
+      const json = await res.json();
+      const list = Array.isArray(json?.data) ? json.data : [];
+      contextLenCache = new Map();
+      for (const m of list) {
+        const len = Number(m?.context_length ?? m?.top_provider?.context_length);
+        if (!Number.isFinite(len) || len <= 0) continue;
+        for (const key of [m?.id, m?.canonical_slug]) {
+          if (typeof key === "string" && key && !contextLenCache.has(key)) contextLenCache.set(key, len);
+        }
+      }
+    }
+    return contextLenCache.get(id);
+  } catch {
+    return undefined;
+  }
+}
+
 // Cache the full speech-model objects (they carry per-model `supported_voices`).
 let speechModelsCache: any[] | null = null;
 
