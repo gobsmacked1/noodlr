@@ -140,9 +140,9 @@
   "NOODLR.Rag.SendEmbedConfig.Name": "Send embedding config from Foundry",
   "NOODLR.Rag.SendEmbedConfig.Hint": "Send the module's embedding provider/model/key per request. Off = the service uses its own .env (recommended, keeps keys server-side).",
   "NOODLR.Rag.TokenBudget.Name": "Retrieval token budget",
-  "NOODLR.Rag.TokenBudget.Hint": "Approximate max tokens of retrieved memory injected into each prompt.",
+  "NOODLR.Rag.TokenBudget.Hint": "Approximate max tokens of retrieved memory injected into each prompt. 4000 suits large-context models; typical RAG setups allocate anywhere from 2500 to 25000 to knowledge. Raise it for richer recall, but it must fit inside the overall Context token budget alongside the system prompt and chat history.",
   "NOODLR.Rag.TopK.Name": "Results per query (topK)",
-  "NOODLR.Rag.TopK.Hint": "How many passages to retrieve before budgeting.",
+  "NOODLR.Rag.TopK.Hint": "How many passages to retrieve before budgeting. This is the ceiling on how many chunks CAN be injected - set it high enough to actually fill the token budget (e.g. ~8-12 chunks to fill 4000 tokens). Extra chunks beyond the budget are dropped.",
 
   "NOODLR.Rag.WebFallbackLegend": "Web-search fallback (OpenRouter chat only)",
   "NOODLR.Rag.WebFallback.Enable.Name": "Fall back to a web search when memory is unsure",

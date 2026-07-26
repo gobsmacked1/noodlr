@@ -39,8 +39,10 @@ export function registerRagSettings(): void {
   game.settings.register(MODULE_ID, S.hybrid, { ...worldBool, default: true });
   game.settings.register(MODULE_ID, S.agentMode, { ...worldBool, default: false });
   game.settings.register(MODULE_ID, S.sendEmbedConfig, { ...worldBool, default: false });
-  game.settings.register(MODULE_ID, S.tokenBudget, { ...worldNum, default: 1500 });
-  game.settings.register(MODULE_ID, S.topK, { ...worldNum, default: 5 });
+  // 4000 tokens of retrieved knowledge is a comfortable default for large-context models (200k-1M);
+  // topK 8 gives the budget enough candidate chunks to actually fill it (~400-800 tokens each).
+  game.settings.register(MODULE_ID, S.tokenBudget, { ...worldNum, default: 4000 });
+  game.settings.register(MODULE_ID, S.topK, { ...worldNum, default: 8 });
   // Managed in the Memory window; empty = use DEFAULT_QUERY_SILOS.
   game.settings.register(MODULE_ID, S.querySilos, { ...worldStr, default: "" });
 
@@ -152,8 +154,8 @@ export function getQuerySilos(): SiloId[] {
 
 export function getRagTuning(): { topK: number; hybrid: boolean; tokenBudget: number } {
   return {
-    topK: Number(game.settings.get(MODULE_ID, RAG_SETTINGS.topK)) || 5,
+    topK: Number(game.settings.get(MODULE_ID, RAG_SETTINGS.topK)) || 8,
     hybrid: (game.settings.get(MODULE_ID, RAG_SETTINGS.hybrid) as boolean) ?? true,
-    tokenBudget: Number(game.settings.get(MODULE_ID, RAG_SETTINGS.tokenBudget)) || 1500,
+    tokenBudget: Number(game.settings.get(MODULE_ID, RAG_SETTINGS.tokenBudget)) || 4000,
   };
 }
