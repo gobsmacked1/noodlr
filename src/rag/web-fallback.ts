@@ -8,6 +8,11 @@
 // and only for the OpenRouter chat provider (the `web` plugin is an OpenRouter feature; custom /
 // local OpenAI-compatible endpoints ignore it).
 //
+// IMPORTANT: OpenRouter's dashboard can't fully disable an account-level web default (min results
+// is 1, not 0). So chat-client.ts DISABLES the web plugin on every OpenRouter chat request
+// (`{id:"web",enabled:false}`) UNLESS this module returns a firing spec below. Net effect: Noodlr
+// is the sole arbiter of when a web search runs, regardless of the account default.
+//
 // NOTE: OpenRouter marks the `web` plugin deprecated in favor of the `openrouter:web_search`
 // *server tool*. We intentionally use the plugin here because it runs EXACTLY ONCE per request and
 // streams its results inline — a deterministic "search now" that fits a confidence gate. The server

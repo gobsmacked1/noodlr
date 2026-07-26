@@ -84,7 +84,18 @@ export async function* streamChatCompletion(
   };
   if (options.temperature !== undefined) body.temperature = options.temperature;
   if (options.maxTokens !== undefined) body.max_tokens = options.maxTokens;
-  if (options.plugins && options.plugins.length > 0) body.plugins = options.plugins;
+  // Web-plugin control (OpenRouter only). If the caller opted into a fallback search, send its
+  // spec. Otherwise EXPLICITLY DISABLE the web plugin: OpenRouter's dashboard can't fully turn
+  // off an account-level "default plugin" (min results is 1, not 0), but a per-request
+  // `{id:"web",enabled:false}` overrides the account default — so it never fires on our calls and
+  // bloats tokens/latency. Noodlr thus becomes the sole arbiter of when a web search happens.
+  // (Caveat: ineffective if the user enabled "Prevent overrides" for the web plugin.) Custom /
+  // local OpenAI-compatible endpoints don't understand `plugins`, so we never send it to them.
+  if (options.plugins && options.plugins.length > 0) {
+    body.plugins = options.plugins;
+  } else if (cfg.provider === "openrouter") {
+    body.plugins = [{ id: "web", enabled: false }];
+  }
 
   let res: Response;
   try {

@@ -84,7 +84,7 @@
   "NOODLR.Feature.Rerank.Without": "Memory still works using its own hybrid ranking; results are just a little less precise.",
 
   "NOODLR.Feature.WebFallback.What": "When the campaign's own memory has nothing confident to offer, let OpenRouter run a single web search for that one question and fold the results into the DM's answer.",
-  "NOODLR.Feature.WebFallback.Requires": "The chat provider set to OpenRouter (it uses OpenRouter's web plugin, billed per search). Do NOT also enable Web Search as an account-level default plugin, or it will run on every request.",
+  "NOODLR.Feature.WebFallback.Requires": "The chat provider set to OpenRouter (it uses OpenRouter's web plugin, billed per search). Noodlr already disables OpenRouter's account-level Web Search on every chat request, so it only ever runs when this fallback fires - unless you enabled 'Prevent overrides' for the web plugin on OpenRouter, which blocks that.",
   "NOODLR.Feature.WebFallback.Without": "Off by default. Without it, the DM answers weak-memory questions from the model's own knowledge only — no live web lookups, no per-search cost.",
 
   "NOODLR.Feature.Memory.What": "Gives Noodlr a long-term memory so it recalls people, places, and events across sessions.",
