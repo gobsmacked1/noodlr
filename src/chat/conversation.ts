@@ -16,7 +16,8 @@ import { buildWebFallbackPlugins } from "../rag/web-fallback";
 import { assemblePrompt } from "../prompt/assembler";
 import { captureChronicle } from "../prompt/chronicle";
 import { buildCombatStateBlock } from "../combat/tracker";
-import { bumpStats } from "../util/stats";
+import { bumpStats, noteContextEst } from "../util/stats";
+import { estimateMessagesTokens } from "../util/tokens";
 
 export interface SendHooks {
   /** Display name of the speaker (maps to a Foundry user). */
@@ -100,6 +101,9 @@ export class Conversation {
         ragBlock,
         foundryState,
       });
+      // Record how big the prompt we're about to send is (estimator tokens), so Diagnostics can
+      // show avg/peak against the context budget and the DM knows whether to raise the ceiling.
+      noteContextEst(estimateMessagesTokens(payload));
 
       hooks.onAssistantStart?.();
       let raw = "";

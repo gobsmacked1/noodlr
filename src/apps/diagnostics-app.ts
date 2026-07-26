@@ -4,10 +4,18 @@
 // retrieved vs. injected, rerank trim, ingests). GM-only in practice (memory is GM-gated).
 
 import { MODULE_ID, MODULE_TITLE } from "../constants";
-import { getRagClient, getRagBackend, isRagEnabled, getEmbedOverride } from "../rag/config";
-import { RagClientError } from "../rag/client";
-import { SILOS } from "../rag/silos";
+import {
+  getRagClient,
+  getRagBackend,
+  isRagEnabled,
+  getEmbedOverride,
+  getQuerySilos,
+  getRagTuning,
+} from "../rag/config";
+import { RagClientError, type RagHit } from "../rag/client";
+import { SILOS, isSiloId } from "../rag/silos";
 import { snapshotStats, resetStats } from "../util/stats";
+import { getContextBudget } from "../prompt/settings";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -28,6 +36,7 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       selfTest: NoodlrDiagnosticsApp.#onSelfTest,
       embedTest: NoodlrDiagnosticsApp.#onEmbedTest,
       copyDiag: NoodlrDiagnosticsApp.#onCopy,
+      ragQuery: NoodlrDiagnosticsApp.#onRagQuery,
     },
   };
 
@@ -41,13 +50,23 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
 
   async _prepareContext(): Promise<Record<string, unknown>> {
     const s = snapshotStats();
+    const budget = getContextBudget();
+    const avgCtx = s.ctxSentCount > 0 ? Math.round(s.ctxSentSum / s.ctxSentCount) : 0;
     const derived = {
       totalTokens: s.promptTokens + s.completionTokens,
       hitsPerQuery: s.ragQueries > 0 ? (s.ragHits / s.ragQueries).toFixed(1) : "—",
       keptPerRerank: s.rerankCalls > 0 ? (s.rerankKept / s.rerankCalls).toFixed(1) : "—",
       injectedTokens: Math.round(s.ragInjectedChars / 4),
       since: new Date(s.since).toLocaleString(),
+      contextBudget: budget,
+      avgCtxSent: s.ctxSentCount > 0 ? avgCtx : "—",
+      peakCtxSent: s.ctxSentPeak > 0 ? s.ctxSentPeak : "—",
+      // Fraction of the budget the peak turn used (helps decide whether to raise it).
+      peakPct: s.ctxSentPeak > 0 && budget > 0 ? Math.round((s.ctxSentPeak / budget) * 100) : "—",
     };
+
+    // Silo picker options for the raw-query review tool (an "all" default + each silo).
+    const siloOptions = Object.entries(SILOS).map(([id, label]) => ({ id, label }));
 
     // Live silo document counts (validates that ingestion actually committed rows to LanceDB).
     const rag: {
@@ -86,11 +105,52 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       backend,
       backendLite: backend === "lite",
       backendService: backend === "service",
+      siloOptions,
     };
   }
 
   static async #onRefresh(this: NoodlrDiagnosticsApp): Promise<void> {
     await this.render();
+  }
+
+  /**
+   * Raw RAG query inspector: run the DM's text against the configured backend and show the raw
+   * hits (score, silo/source, full text) with no LLM in the loop. Lets a GM see exactly what
+   * retrieval would feed the model. GM-only in practice (memory is GM-gated).
+   */
+  static async #onRagQuery(this: NoodlrDiagnosticsApp): Promise<void> {
+    const root = this.#root();
+    if (!root) return;
+    const input = root.querySelector<HTMLInputElement>('[data-role="ragq-input"]');
+    const siloSel = root.querySelector<HTMLSelectElement>('[data-role="ragq-silo"]');
+    const topkEl = root.querySelector<HTMLInputElement>('[data-role="ragq-topk"]');
+    const out = root.querySelector<HTMLElement>('[data-role="ragq-results"]');
+    if (!out) return;
+
+    const q = (input?.value ?? "").trim();
+    if (!q) {
+      out.textContent = game.i18n.localize("NOODLR.Diagnostics.RagQuery.NoQuery");
+      return;
+    }
+    if (!isRagEnabled()) {
+      out.textContent = game.i18n.localize("NOODLR.Diagnostics.RagDisabled");
+      return;
+    }
+    out.textContent = game.i18n.localize("NOODLR.Diagnostics.RagQuery.Running");
+    try {
+      const client = getRagClient();
+      const embed = getEmbedOverride();
+      const chosen = siloSel?.value ?? "__all__";
+      const collections =
+        chosen !== "__all__" && isSiloId(chosen) ? [chosen] : getQuerySilos();
+      const topK = Math.max(1, Math.min(50, Number(topkEl?.value) || 10));
+      const { hybrid } = getRagTuning();
+      const res = await client.query({ collections, searchText: q, topK, hybrid, embed }, undefined);
+      renderQueryHits(out, res.hits ?? [], res.mode ?? "hybrid");
+    } catch (err) {
+      const msg = err instanceof RagClientError ? err.message : String(err);
+      out.textContent = game.i18n.format("NOODLR.Diagnostics.RagQuery.Fail", { error: msg });
+    }
   }
 
   /** Copy the whole diagnostics report to the clipboard (reliable regardless of text selection). */
@@ -208,6 +268,40 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       setStatus(game.i18n.format("NOODLR.Diagnostics.SelfTest.Fail", { error: msg }), false);
     }
   }
+}
+
+/** Render raw query hits into the results container as selectable/copyable DOM (no HTML injection). */
+function renderQueryHits(out: HTMLElement, hits: RagHit[], mode: string): void {
+  out.textContent = "";
+  const header = document.createElement("p");
+  header.className = "notes";
+  header.textContent = game.i18n.format("NOODLR.Diagnostics.RagQuery.Summary", {
+    count: hits.length,
+    mode,
+  });
+  out.appendChild(header);
+  if (hits.length === 0) return;
+
+  const list = document.createElement("ol");
+  list.className = "noodlr-ragq-hits";
+  for (const h of hits) {
+    const li = document.createElement("li");
+    const meta = document.createElement("div");
+    meta.className = "noodlr-ragq-hit__meta";
+    const md = (h.metadata ?? {}) as Record<string, unknown>;
+    const silo = typeof md.collection === "string" ? md.collection : (md.silo as string) || "";
+    const source = typeof md.sourceName === "string" ? md.sourceName : "";
+    const bits = [`score ${Number(h.score).toFixed(3)}`];
+    if (silo) bits.push(silo);
+    if (source) bits.push(source);
+    meta.textContent = bits.join(" · ");
+    const body = document.createElement("div");
+    body.className = "noodlr-ragq-hit__text";
+    body.textContent = (h.text ?? "").trim();
+    li.append(meta, body);
+    list.appendChild(li);
+  }
+  out.appendChild(list);
 }
 
 /** Silo stats can be a plain count, or an object like { count: n }. Render a readable value. */

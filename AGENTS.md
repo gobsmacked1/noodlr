@@ -301,6 +301,23 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## v0.4.1-v0.4.3 (2026-07-26) — web-search fallback, OR plugin suppression, diag query tool + context stats
+
+- **v0.4.1** — opt-in, confidence-gated **web-search fallback** (`rag/web-fallback.ts`): when memory
+  returns nothing (or a top score `<= webFallbackMinScore`), fold OpenRouter's `web` plugin into that
+  one request. Off by default, OpenRouter chat only. `retrieveContext()` now returns a `RetrievalResult`
+  (`block`/`topScore`/`hitCount`/`queried`). Settings live in Memory & Knowledge; `stats.webFallbacks` counts.
+- **v0.4.2** — since OpenRouter's dashboard can't fully disable an account-level web default (min results
+  is 1, not 0) and Presets only bind to their chatroom, `chat-client.ts` now sends
+  `plugins:[{id:"web",enabled:false}]` on **every** OpenRouter chat request unless the fallback opts in.
+  Per-request overrides account defaults (unless the user set "Prevent overrides"). Noodlr is the sole
+  arbiter of when a web search runs.
+- **v0.4.3** — Diagnostics **Query inspector**: run raw retrieval (pick a silo or all defaults + topK),
+  see hits (score · silo/source · full text) with no LLM in the loop. Added **context-sent stats**:
+  `stats.ctxSent{Count,Sum,Peak}` sampled in `conversation.ts` via `noteContextEst(estimateMessagesTokens(payload))`,
+  shown as Avg/Peak vs the context budget. Also expanded the `ContextBudget` hint: 12000 is thrifty; with
+  200k-1M models, 32000-64000+ is safe (cost/latency scale per token; RAG+Chronicle backstop recall).
+
 ## v0.4.0-rc8 (2026-07-25) — RAG Lite embedder: trailing-slash fix on wasmPaths
 
 - Follow-up to rc6. The embedder still failed loading `ort-wasm-simd-threaded.asyncify.mjs` — this

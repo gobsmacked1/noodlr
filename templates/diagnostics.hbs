@@ -55,6 +55,37 @@
     {{/if}}
   </fieldset>
 
+  {{! ---- Raw RAG query inspector ---- }}
+  {{#if rag.enabled}}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-magnifying-glass"></i> {{localize "NOODLR.Diagnostics.RagQuery.Legend"}}</legend>
+    <p class="notes">{{localize "NOODLR.Diagnostics.RagQuery.Hint"}}</p>
+
+    <div class="noodlr-field">
+      <input type="text" data-role="ragq-input" placeholder="{{localize 'NOODLR.Diagnostics.RagQuery.Placeholder'}}" autocomplete="off" />
+    </div>
+    <div class="noodlr-grid">
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Diagnostics.RagQuery.Silo"}}</label>
+        <select data-role="ragq-silo">
+          <option value="__all__">{{localize "NOODLR.Diagnostics.RagQuery.AllSilos"}}</option>
+          {{#each siloOptions}}
+          <option value="{{this.id}}">{{this.label}}</option>
+          {{/each}}
+        </select>
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Diagnostics.RagQuery.TopK"}}</label>
+        <input type="number" data-role="ragq-topk" value="10" min="1" max="50" step="1" />
+      </div>
+    </div>
+    <div class="noodlr-settings__actions">
+      <button type="button" data-action="ragQuery"><i class="fa-solid fa-play"></i> {{localize "NOODLR.Diagnostics.RagQuery.Button"}}</button>
+    </div>
+    <div class="noodlr-ragq-out" data-role="ragq-results"></div>
+  </fieldset>
+  {{/if}}
+
   {{! ---- Session usage counters ---- }}
   <fieldset class="noodlr-settings__section">
     <legend><i class="fa-solid fa-gauge-high"></i> {{localize "NOODLR.Diagnostics.Usage"}}</legend>
@@ -65,6 +96,10 @@
         <tr><td>{{localize "NOODLR.Diagnostics.ChatTurns"}}</td><td>{{stats.chatTurns}}</td></tr>
         <tr><td>{{localize "NOODLR.Diagnostics.Tokens"}}</td>
             <td>{{derived.totalTokens}} ({{stats.promptTokens}} in / {{stats.completionTokens}} out)</td></tr>
+        <tr><td>{{localize "NOODLR.Diagnostics.AvgContext"}}</td>
+            <td>{{derived.avgCtxSent}} / {{derived.contextBudget}} {{localize "NOODLR.Diagnostics.TokensUnit"}}</td></tr>
+        <tr><td>{{localize "NOODLR.Diagnostics.PeakContext"}}</td>
+            <td>{{derived.peakCtxSent}} {{localize "NOODLR.Diagnostics.TokensUnit"}} ({{derived.peakPct}}% {{localize "NOODLR.Diagnostics.OfBudget"}})</td></tr>
         <tr><td>{{localize "NOODLR.Diagnostics.RagQueries"}}</td><td>{{stats.ragQueries}}</td></tr>
         <tr><td>{{localize "NOODLR.Diagnostics.HitsPerQuery"}}</td><td>{{derived.hitsPerQuery}}</td></tr>
         <tr><td>{{localize "NOODLR.Diagnostics.RerankCalls"}}</td>

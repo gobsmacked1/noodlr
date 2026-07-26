@@ -21,6 +21,10 @@ export interface StatCounters {
   rerankKept: number;
   /** Times the low-confidence web-search fallback fired (OpenRouter chat only). */
   webFallbacks: number;
+  /** Assembled DM-prompt size samples (estimator tokens), for avg/peak vs the context budget. */
+  ctxSentCount: number;
+  ctxSentSum: number;
+  ctxSentPeak: number;
   ingestDocs: number;
   ingestChunks: number;
   images: number;
@@ -41,6 +45,9 @@ function blank(): StatCounters {
     rerankCalls: 0,
     rerankKept: 0,
     webFallbacks: 0,
+    ctxSentCount: 0,
+    ctxSentSum: 0,
+    ctxSentPeak: 0,
     ingestDocs: 0,
     ingestChunks: 0,
     images: 0,
@@ -94,6 +101,22 @@ export function bumpStats(patch: Partial<StatCounters>): void {
   for (const [k, v] of Object.entries(patch)) {
     if (typeof v === "number" && k in s) (s as any)[k] += v;
   }
+  persist();
+}
+
+/**
+ * Record the estimated size (in estimator tokens) of one assembled DM prompt actually sent to the
+ * model. Kept separate from `bumpStats` because it needs a running max (peak), not a sum. This is
+ * measured with the same ~4-char/token estimator the context budget uses, so avg/peak are directly
+ * comparable to the configured budget — the DM can see how close each turn runs to the ceiling.
+ */
+export function noteContextEst(tokens: number): void {
+  if (!game.settings?.settings?.has?.(`${MODULE_ID}.${KEY}`)) return;
+  if (!Number.isFinite(tokens) || tokens <= 0) return;
+  const s = load();
+  s.ctxSentCount += 1;
+  s.ctxSentSum += tokens;
+  if (tokens > s.ctxSentPeak) s.ctxSentPeak = tokens;
   persist();
 }
 
