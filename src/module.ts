@@ -5,6 +5,7 @@
 import { MODULE_ID, KEYBINDINGS, SOCKET, log } from "./constants";
 import { registerSettings } from "./settings";
 import { registerStatsSettings } from "./util/stats";
+import { sanitizeUserText } from "./util/sanitize";
 import { NoodlrChatPanel } from "./apps/chat-panel";
 import { NoodlrSettingsApp } from "./apps/settings-app";
 import { NoodlrMemoryApp } from "./apps/memory-app";
@@ -132,7 +133,7 @@ Hooks.on("chatMessage", (_log: unknown, message: string): boolean => {
     if (!re.test(text)) continue;
     if (!getImageChatTrigger(kind)) return true;
     if (!gate(getImageAllowPlayers(kind))) return false;
-    const desc = text.replace(re, "").trim();
+    const desc = sanitizeUserText(text.replace(re, ""), { maxLength: 2000 });
     if (desc) {
       // Keyed kinds (portrait/token) use the subject text as the continuity key + title.
       const entityKey = meta.keyed ? desc : undefined;
@@ -146,7 +147,9 @@ Hooks.on("chatMessage", (_log: unknown, message: string): boolean => {
     const cfg = getMusicConfig();
     if (!cfg.enabled || !cfg.chatTrigger) return true;
     if (!gate(cfg.allowPlayers)) return false;
-    const desc = (text.match(/^generate\s+music\s*:\s*([\s\S]+)$/i)?.[1] ?? "").trim();
+    const desc = sanitizeUserText(text.match(/^generate\s+music\s*:\s*([\s\S]+)$/i)?.[1], {
+      maxLength: 2000,
+    });
     if (desc) void createAndPlayMusic({ description: desc });
     return false;
   }
@@ -156,7 +159,9 @@ Hooks.on("chatMessage", (_log: unknown, message: string): boolean => {
     const cfg = getVideoConfig();
     if (!cfg.enabled || !cfg.chatTrigger) return true;
     if (!gate(cfg.allowPlayers)) return false;
-    const desc = (text.match(/^generate\s+video\s*:\s*([\s\S]+)$/i)?.[1] ?? "").trim();
+    const desc = sanitizeUserText(text.match(/^generate\s+video\s*:\s*([\s\S]+)$/i)?.[1], {
+      maxLength: 2000,
+    });
     if (desc) void createAndShareVideo({ description: desc });
     return false;
   }
@@ -295,7 +300,7 @@ async function promptDescription(
       },
     });
     return {
-      text: String((value as any)?.text ?? "").trim(),
+      text: sanitizeUserText((value as any)?.text, { maxLength: 2000 }),
       hideOutput: Boolean((value as any)?.hideOutput),
     };
   } catch {

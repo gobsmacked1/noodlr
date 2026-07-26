@@ -13,6 +13,7 @@ import {
   DEFAULT_COMBAT_REMINDER,
   DEFAULT_COMBAT_PROMPT,
 } from "../prompts";
+import { sanitizeUserText } from "../util/sanitize";
 import {
   getFeatureConfig,
   getProviderView,
@@ -304,8 +305,8 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       await set(ik("cfg"), Number(d.cfg) || 7.0);
       await set(ik("sampler"), String(d.sampler ?? "Euler a").trim());
       await set(ik("seed"), Number.isFinite(Number(d.seed)) ? Number(d.seed) : -1);
-      await set(ik("positive"), String(d.positive ?? ""));
-      await set(ik("negative"), String(d.negative ?? ""));
+      await set(ik("positive"), sanitizeUserText(d.positive, { maxLength: 2000 }));
+      await set(ik("negative"), sanitizeUserText(d.negative, { maxLength: 2000 }));
       // Size: a preset "WxH", "" (native), or "custom" -> build from the width/height inputs.
       const sizeSel = String(d.size ?? meta.defaultSize);
       let size = sizeSel;
@@ -426,7 +427,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     }
 
     const text =
-      (input?.value ?? "").trim().slice(0, 140) ||
+      sanitizeUserText(input?.value, { maxLength: 140, allowNewlines: false }) ||
       game.i18n.localize("NOODLR.Media.TtsTest.Sample");
     const endpoint = `${resolveBaseUrl(cfg)}/audio/speech`;
     setStatus("pending", game.i18n.format("NOODLR.Media.TtsTest.Working", { endpoint }));

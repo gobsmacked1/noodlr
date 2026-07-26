@@ -13,6 +13,7 @@ import { ChatClientError } from "../providers/chat-client";
 import { getFeatureConfig } from "../providers/config";
 import { isConfigured } from "../providers/types";
 import { renderMarkdown } from "../util/markdown";
+import { sanitizeUserText } from "../util/sanitize";
 import type { ResolvedRoll } from "../dice/roll-macros";
 import { getTtsAutoRead } from "../media/config";
 import { speak } from "../media/tts";
@@ -166,7 +167,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
   async #onSend(): Promise<void> {
     const input = this.#root()?.querySelector<HTMLTextAreaElement>('[data-role="input"]');
     if (!input) return;
-    const text = input.value.trim();
+    const text = sanitizeUserText(input.value, { maxLength: 8000 });
     if (!text) return;
     input.value = "";
     await this.#runSend(text);

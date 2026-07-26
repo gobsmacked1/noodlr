@@ -194,6 +194,7 @@ Key engineering doctrines from it that shape the *module's* architecture:
 
 - TypeScript, esbuild bundle to `dist/`; `module.json` id **`noodlr`** (do not install alongside the legacy reference module in the same world).
 - Format: prettier (printWidth 100). Validate: `npm run check` (tsc) + build before commit. Small commits at working checkpoints.
+- **Release cadence (2026-07-25):** the `-rcN` prerelease series is retired. Every shipped change is a normal incremented release (`v0.4.0`, `v0.4.1`, ...) cut with `gh release create` **without `--prerelease`** — Foundry's auto-update reads `releases/latest/download/module.json`, and GitHub excludes prereleases from "latest", so rc URLs were never picked up. Per release: bump `version` in `package.json` + `module.json`, point `module.json.download` at the new tag, `npm run check`/`lint`/build, package `module.zip` (module.json, LICENSE, README.md, dist, lang, styles, templates, prompts, models), commit, tag, `gh release create <tag> module.zip module.json`. Bump to 1.0.0 at feature parity.
 - Windows host gotcha: the file-Write tool intermittently emits new files as UTF-16LE — after creating any file, verify the first bytes are UTF-8 and convert if needed. Watch CRLF/LF (.gitattributes) since Foundry servers are often Linux.
 - Never store secrets in this file or in module settings defaults.
 
