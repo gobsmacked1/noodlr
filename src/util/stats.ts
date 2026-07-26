@@ -19,6 +19,8 @@ export interface StatCounters {
   rerankCalls: number;
   /** Total chunks kept after rerank (compare with ragHits to see the trim). */
   rerankKept: number;
+  /** Times the low-confidence web-search fallback fired (OpenRouter chat only). */
+  webFallbacks: number;
   ingestDocs: number;
   ingestChunks: number;
   images: number;
@@ -38,6 +40,7 @@ function blank(): StatCounters {
     ragInjectedChars: 0,
     rerankCalls: 0,
     rerankKept: 0,
+    webFallbacks: 0,
     ingestDocs: 0,
     ingestChunks: 0,
     images: 0,

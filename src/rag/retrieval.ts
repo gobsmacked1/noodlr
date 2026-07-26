@@ -27,17 +27,36 @@ function estimateTokens(text: string): number {
 let offlineNotified = false;
 
 /**
- * Retrieve a labeled memory block for the given query, or null when RAG is disabled,
- * returns nothing, or the service is unreachable.
+ * Result of a retrieval pass. `block` is the labeled context (null when nothing usable was
+ * produced). `queried` distinguishes "we actually ran a query" from "we skipped it" (disabled,
+ * not GM, empty query, or the service was offline) — the web-search fallback must only consider
+ * confidence when we genuinely queried and came up short.
  */
-export async function retrieveContext(query: string, signal?: AbortSignal): Promise<string | null> {
-  if (!isRagEnabled()) return null;
+export interface RetrievalResult {
+  block: string | null;
+  /** Best relevance score among returned hits (backend-scaled); null when there were no hits. */
+  topScore: number | null;
+  hitCount: number;
+  queried: boolean;
+}
+
+const NOT_QUERIED: RetrievalResult = { block: null, topScore: null, hitCount: 0, queried: false };
+
+/**
+ * Retrieve a labeled memory block for the given query. See {@link RetrievalResult}. Degrades
+ * gracefully — a disabled/offline/empty case returns a not-queried result and the caller plays on.
+ */
+export async function retrieveContext(
+  query: string,
+  signal?: AbortSignal,
+): Promise<RetrievalResult> {
+  if (!isRagEnabled()) return NOT_QUERIED;
   // GM-only gate: memory is a GM-gated resource. Only the GM's client ever contacts
   // noodlr-memory, so the shared secret stays off player machines and shared chat isn't
   // written N times over. A player-initiated generation simply runs without a memory block.
-  if (!game.user?.isGM) return null;
+  if (!game.user?.isGM) return NOT_QUERIED;
   const trimmed = query.trim();
-  if (!trimmed) return null;
+  if (!trimmed) return NOT_QUERIED;
 
   const client = getRagClient();
   const silos = getQuerySilos();
@@ -70,14 +89,21 @@ export async function retrieveContext(query: string, signal?: AbortSignal): Prom
       log("memory service unreachable; continuing without long-term memory:", err);
       ui.notifications?.warn(game.i18n.localize("NOODLR.Rag.Offline"));
     }
-    return null;
+    return NOT_QUERIED;
   }
 
-  if (hits.length === 0) return null;
+  // Confidence signal for the web-search fallback: the best raw hit score (pre-budget/pre-dedupe).
+  const topScore = hits.length
+    ? Math.max(...hits.map((h) => Number(h.score) || 0))
+    : null;
+
+  if (hits.length === 0) {
+    return { block: null, topScore: null, hitCount: 0, queried: true };
+  }
   hits = await maybeRerank(trimmed, hits, signal);
   const block = formatContextBlock(hits, tokenBudget);
   if (block) bumpStats({ ragInjectedChars: block.length });
-  return block;
+  return { block, topScore, hitCount: hits.length, queried: true };
 }
 
 /**

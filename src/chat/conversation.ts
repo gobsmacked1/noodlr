@@ -12,6 +12,7 @@ import {
   resolveRollMacros,
 } from "../dice/roll-macros";
 import { retrieveContext } from "../rag/retrieval";
+import { buildWebFallbackPlugins } from "../rag/web-fallback";
 import { assemblePrompt } from "../prompt/assembler";
 import { captureChronicle } from "../prompt/chronicle";
 import { buildCombatStateBlock } from "../combat/tracker";
@@ -78,8 +79,13 @@ export class Conversation {
     this.messages.push(userMsg);
     bumpStats({ chatTurns: 1 });
 
-    // Retrieve campaign memory once per user turn (graceful null when disabled/offline).
-    const ragBlock = await retrieveContext(userText, hooks.signal);
+    // Retrieve campaign memory once per user turn (graceful not-queried when disabled/offline).
+    const rag = await retrieveContext(userText, hooks.signal);
+    const ragBlock = rag.block;
+    // When memory came back empty/weak and the GM opted in, fold a one-shot web search into the
+    // initial request only (OpenRouter chat provider; undefined otherwise). See rag/web-fallback.
+    const webPlugins = buildWebFallbackPlugins(cfg, rag);
+    if (webPlugins) bumpStats({ webFallbacks: 1 });
     // Ground-truth combat state (null outside combat).
     const foundryState = buildCombatStateBlock();
 
@@ -97,8 +103,10 @@ export class Conversation {
 
       hooks.onAssistantStart?.();
       let raw = "";
+      // Only ground the first request; roll continuations reason over dice results, not the web.
       for await (const delta of streamChatCompletion(cfg, {
         messages: payload,
+        plugins: continuations === 0 ? webPlugins : undefined,
         signal: hooks.signal,
       })) {
         raw += delta;

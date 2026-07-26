@@ -49,6 +49,12 @@ export function registerRagSettings(): void {
   game.settings.register(MODULE_ID, S.rerankEnabled, { ...worldBool, default: false });
   game.settings.register(MODULE_ID, S.rerankTopN, { ...worldNum, default: 5 });
 
+  // Web-search fallback (OpenRouter chat only). Off by default. minScore=0 means "fire only when
+  // memory returns nothing"; raise it to also fire when the best hit is weak (backend-scaled).
+  game.settings.register(MODULE_ID, S.webFallbackEnabled, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, S.webFallbackMinScore, { ...worldNum, default: 0 });
+  game.settings.register(MODULE_ID, S.webFallbackMaxResults, { ...worldNum, default: 3 });
+
   // Embedding + rerank providers (used only when their features are enabled).
   registerFeatureProviderSettings("embeddings");
   registerFeatureProviderSettings("rerank");
@@ -60,6 +66,25 @@ export function isRerankEnabled(): boolean {
 
 export function getRerankTopN(): number {
   return Number(game.settings.get(MODULE_ID, RAG_SETTINGS.rerankTopN)) || 5;
+}
+
+export interface WebFallbackConfig {
+  enabled: boolean;
+  /** Fire when the best hit's score is <= this (0 = only when nothing was retrieved). */
+  minScore: number;
+  /** Max web results to fold into the request. */
+  maxResults: number;
+}
+
+export function getWebFallbackConfig(): WebFallbackConfig {
+  return {
+    enabled: Boolean(game.settings.get(MODULE_ID, RAG_SETTINGS.webFallbackEnabled)),
+    minScore: Number(game.settings.get(MODULE_ID, RAG_SETTINGS.webFallbackMinScore)) || 0,
+    maxResults: Math.max(
+      1,
+      Math.min(10, Number(game.settings.get(MODULE_ID, RAG_SETTINGS.webFallbackMaxResults)) || 3),
+    ),
+  };
 }
 
 /** Whether a shared secret is stored (for a write-only "saved" placeholder in the UI). */

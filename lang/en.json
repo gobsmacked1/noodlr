@@ -83,6 +83,10 @@
   "NOODLR.Feature.Rerank.Requires": "A provider + a rerank model (e.g. cohere/rerank-4-fast) and a key for OpenRouter. Only used when memory is on.",
   "NOODLR.Feature.Rerank.Without": "Memory still works using its own hybrid ranking; results are just a little less precise.",
 
+  "NOODLR.Feature.WebFallback.What": "When the campaign's own memory has nothing confident to offer, let OpenRouter run a single web search for that one question and fold the results into the DM's answer.",
+  "NOODLR.Feature.WebFallback.Requires": "The chat provider set to OpenRouter (it uses OpenRouter's web plugin, billed per search). Do NOT also enable Web Search as an account-level default plugin, or it will run on every request.",
+  "NOODLR.Feature.WebFallback.Without": "Off by default. Without it, the DM answers weak-memory questions from the model's own knowledge only — no live web lookups, no per-search cost.",
+
   "NOODLR.Feature.Memory.What": "Gives Noodlr a long-term memory so it recalls people, places, and events across sessions.",
   "NOODLR.Feature.Memory.Requires": "The separate noodlr-memory service running, reachable at its address, with a matching shared secret.",
   "NOODLR.Feature.Memory.Without": "Noodlr still plays, but forgets between sessions — it only knows the current conversation.",
@@ -139,6 +143,14 @@
   "NOODLR.Rag.TokenBudget.Hint": "Approximate max tokens of retrieved memory injected into each prompt.",
   "NOODLR.Rag.TopK.Name": "Results per query (topK)",
   "NOODLR.Rag.TopK.Hint": "How many passages to retrieve before budgeting.",
+
+  "NOODLR.Rag.WebFallbackLegend": "Web-search fallback (OpenRouter chat only)",
+  "NOODLR.Rag.WebFallback.Enable.Name": "Fall back to a web search when memory is unsure",
+  "NOODLR.Rag.WebFallback.Enable.Hint": "Only fires on OpenRouter chat, and only for the one request where memory came up short. Each search adds a small OpenRouter charge. Leave off if your world is purely fictional (the web rarely helps).",
+  "NOODLR.Rag.WebFallback.MinScore.Name": "Confidence threshold (0-1)",
+  "NOODLR.Rag.WebFallback.MinScore.Hint": "0 = only search when memory returns nothing. Raise it to also search when the best match is weak. Scores are backend-scaled, so tune by watching results.",
+  "NOODLR.Rag.WebFallback.MaxResults.Name": "Max web results",
+  "NOODLR.Rag.WebFallback.MaxResults.Hint": "How many search results to fold in (1-10). More results = more grounding but more tokens/cost.",
 
   "NOODLR.Rag.Menu.Name": "Noodlr Memory & Knowledge",
   "NOODLR.Rag.Menu.Label": "Memory & Knowledge",
@@ -427,6 +439,7 @@
   "NOODLR.Diagnostics.RerankCalls": "Rerank runs",
   "NOODLR.Diagnostics.KeptPer": "avg kept:",
   "NOODLR.Diagnostics.Injected": "Memory injected into prompts",
+  "NOODLR.Diagnostics.WebFallbacks": "Web-search fallbacks fired",
   "NOODLR.Diagnostics.TokensUnit": "tokens",
   "NOODLR.Diagnostics.Chunks": "chunks",
   "NOODLR.Diagnostics.Ingested": "Documents ingested",

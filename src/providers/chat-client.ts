@@ -22,6 +22,8 @@ export interface ChatCompletionOptions {
   temperature?: number;
   /** Max tokens to generate; omitted when undefined. */
   maxTokens?: number;
+  /** Optional OpenRouter request plugins (e.g. the confidence-gated web-search fallback). */
+  plugins?: unknown[];
   /** Abort signal to cancel an in-flight stream. */
   signal?: AbortSignal;
 }
@@ -82,6 +84,7 @@ export async function* streamChatCompletion(
   };
   if (options.temperature !== undefined) body.temperature = options.temperature;
   if (options.maxTokens !== undefined) body.max_tokens = options.maxTokens;
+  if (options.plugins && options.plugins.length > 0) body.plugins = options.plugins;
 
   let res: Response;
   try {

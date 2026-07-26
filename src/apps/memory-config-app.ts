@@ -15,6 +15,7 @@ import {
   getRagTuning,
   isRerankEnabled,
   getRerankTopN,
+  getWebFallbackConfig,
 } from "../rag/config";
 import { RagClientError } from "../rag/client";
 import { getProviderView, saveProviderFromForm, type ProviderFormData } from "../providers/config";
@@ -88,6 +89,10 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
       sendEmbedConfig: Boolean(g(RAG_SETTINGS.sendEmbedConfig)),
       embeddings: { id: "embeddings", ...getProviderView("embeddings") },
 
+      webFallbackEnabled: getWebFallbackConfig().enabled,
+      webFallbackMinScore: getWebFallbackConfig().minScore,
+      webFallbackMaxResults: getWebFallbackConfig().maxResults,
+
       rerankEnabled: isRerankEnabled(),
       rerankTopN: getRerankTopN(),
       rerank: {
@@ -133,6 +138,13 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
     await set(RAG_SETTINGS.agentMode, Boolean(o.agentMode));
     await set(RAG_SETTINGS.tokenBudget, Number(o.tokenBudget) || 1500);
     await set(RAG_SETTINGS.topK, Number(o.topK) || 5);
+
+    // Web-search fallback (OpenRouter chat only)
+    await set(RAG_SETTINGS.webFallbackEnabled, Boolean(o.webFallbackEnabled));
+    const minScore = Number(o.webFallbackMinScore);
+    await set(RAG_SETTINGS.webFallbackMinScore, minScore >= 0 && minScore <= 1 ? minScore : 0);
+    const maxRes = Number(o.webFallbackMaxResults);
+    await set(RAG_SETTINGS.webFallbackMaxResults, maxRes >= 1 && maxRes <= 10 ? maxRes : 3);
 
     // Embeddings
     await set(RAG_SETTINGS.sendEmbedConfig, Boolean(o.sendEmbedConfig));

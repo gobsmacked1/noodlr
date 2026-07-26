@@ -132,6 +132,11 @@ export const RAG_SETTINGS = {
   // Rerank refinement (runs module-side, after /query, before injection).
   rerankEnabled: "rag.rerankEnabled",
   rerankTopN: "rag.rerankTopN",
+  // Web-search fallback: when memory comes back empty/weak, let OpenRouter ground THIS request
+  // with a one-shot web search. Off by default; OpenRouter chat provider only. (shared RAG setting)
+  webFallbackEnabled: "rag.webFallbackEnabled",
+  webFallbackMinScore: "rag.webFallbackMinScore",
+  webFallbackMaxResults: "rag.webFallbackMaxResults",
 } as const;
 
 /** Keybinding action ids. */

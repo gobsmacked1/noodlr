@@ -111,6 +111,7 @@ How noodlr-main interacts with it (the integration contract):
 3. **Retrieval at prompt-assembly time:** before each generation, query relevant silos (scene-aware: `rules` when adjudicating, `npc_state`/`factions` when NPCs are present, etc.) and inject results into the context under a labeled block, budgeted like lorebook entries.
 4. **Graceful degradation:** if the service is down, the module still works — it just plays without long-term memory and says so once.
 5. Structured events (`kind:"event"` with `importance`/`entities`/`keywords`/`event_type`/`ts`) feed the re-ranker; the Chronicle pipeline (below) is the main producer.
+6. **RAG is pre-injected context, NOT a model-chosen tool.** `retrieveContext()` runs unconditionally (when enabled) *before* the LLM call and the result is baked into the prompt (`assembler.ts`). Consequence: OpenRouter's account-level Web Search "default plugin" cannot "preempt" RAG — the two are independent. Do NOT enable Web Search as an OpenRouter account default (it fires on *every* request, bloating tokens for a fictional world). Instead, an opt-in **confidence-gated web fallback** (`rag/web-fallback.ts`, v0.4.1, off by default, OpenRouter chat only) adds the `web` plugin to a *single* request only when memory returns nothing (or a score `<= webFallbackMinScore`). Settings live in the Memory & Knowledge window; `stats.webFallbacks` counts fires.
 
 ## The Dungeon Master core
 

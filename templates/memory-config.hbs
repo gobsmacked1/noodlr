@@ -120,6 +120,32 @@
     </div>
   </fieldset>
 
+  {{! ---- Web-search fallback (OpenRouter chat only) ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-globe"></i> {{localize "NOODLR.Rag.WebFallbackLegend"}} <span class="noodlr-tag noodlr-tag--shared">{{localize "NOODLR.Rag.Tag.Shared"}}</span></legend>
+    <ul class="noodlr-help">
+      <li><strong>{{localize "NOODLR.Help.What"}}</strong> {{localize "NOODLR.Feature.WebFallback.What"}}</li>
+      <li><strong>{{localize "NOODLR.Help.Requires"}}</strong> {{localize "NOODLR.Feature.WebFallback.Requires"}}</li>
+      <li><strong>{{localize "NOODLR.Help.Without"}}</strong> {{localize "NOODLR.Feature.WebFallback.Without"}}</li>
+    </ul>
+
+    <label class="noodlr-inline"><input type="checkbox" name="webFallbackEnabled" {{#if webFallbackEnabled}}checked{{/if}} /> {{localize "NOODLR.Rag.WebFallback.Enable.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Rag.WebFallback.Enable.Hint"}}</p>
+
+    <div class="noodlr-grid">
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Rag.WebFallback.MinScore.Name"}}</label>
+        <p class="notes">{{localize "NOODLR.Rag.WebFallback.MinScore.Hint"}}</p>
+        <input type="number" name="webFallbackMinScore" value="{{webFallbackMinScore}}" min="0" max="1" step="0.05" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Rag.WebFallback.MaxResults.Name"}}</label>
+        <p class="notes">{{localize "NOODLR.Rag.WebFallback.MaxResults.Hint"}}</p>
+        <input type="number" name="webFallbackMaxResults" value="{{webFallbackMaxResults}}" min="1" max="10" step="1" />
+      </div>
+    </div>
+  </fieldset>
+
   {{! ---- Embeddings (service backend only; Lite uses the bundled in-browser model) ---- }}
   <p class="notes noodlr-backend-note" data-backend="lite"><i class="fa-solid fa-microchip"></i> {{localize "NOODLR.Rag.Backend.LiteEmbedNote"}}</p>
 
