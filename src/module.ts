@@ -11,7 +11,7 @@ import { NoodlrPlayerPanel } from "./apps/player-panel";
 import { NoodlrSettingsApp } from "./apps/settings-app";
 import { NoodlrMemoryApp } from "./apps/memory-app";
 import { NoodlrLorebookApp } from "./apps/lorebook-app";
-import { NoodlrChronicleApp } from "./apps/chronicle-app";
+import { NoodlrRagBrowserApp } from "./apps/rag-browser-app";
 import { speak, stopSpeaking } from "./media/tts";
 import { createAndShareImage } from "./media/scene-art";
 import { createAndPlayMusic, createAndShareVideo } from "./media/av-gen";
@@ -28,6 +28,8 @@ import {
 } from "./media/config";
 import { refreshPushToLogButton, pushToLog, type TranscriptPayload } from "./media/push-to-log";
 import { registerArtifactHooks, handleArtifactSocket } from "./output/artifacts";
+import { initChatSniffer } from "./log/chat-sniffer";
+import { initAdjudicationCapture } from "./players/adjudication";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 import {
   PLAYER_ASK,
@@ -43,7 +45,7 @@ export interface NoodlrApi {
   openSettings(): void;
   openMemory(): void;
   openLorebook(): void;
-  openChronicle(): void;
+  openRagBrowser(): void;
   speak(text: string): void;
   stopSpeaking(): void;
   generateSceneImage(description: string): Promise<void>;
@@ -74,8 +76,8 @@ const api: NoodlrApi = {
   openLorebook: () => {
     new NoodlrLorebookApp().render({ force: true });
   },
-  openChronicle: () => {
-    new NoodlrChronicleApp().render({ force: true });
+  openRagBrowser: () => {
+    new NoodlrRagBrowserApp().render({ force: true });
   },
   speak: (text: string) => void speak(text),
   stopSpeaking: () => stopSpeaking(),
@@ -128,6 +130,11 @@ Hooks.once("ready", () => {
   if (game.user?.isGM) {
     void ensureMediaFolder();
     void seedMapDefaults();
+    // Native Foundry chat-log capture -> unfiltered_chat silo (only the primary GM records; the
+    // handler self-gates on the enable toggle + primary-GM check).
+    initChatSniffer();
+    // Players-bot adjudication: capture player rolls from chat to resolve pending checks.
+    initAdjudicationCapture();
   }
 });
 
@@ -271,6 +278,25 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
           onChange: () => void promptVideo(),
         };
       }
+      // Session-time knowledge tools (periodic use → toolbar, not buried in config).
+      tools.lorebook = {
+        name: "lorebook",
+        title: "NOODLR.Lorebook.Title",
+        icon: "fa-solid fa-book",
+        order: order++,
+        button: true,
+        visible: true,
+        onChange: () => api.openLorebook(),
+      };
+      tools.ragBrowser = {
+        name: "ragBrowser",
+        title: "NOODLR.RagBrowser.Title",
+        icon: "fa-solid fa-magnifying-glass-chart",
+        order: order++,
+        button: true,
+        visible: true,
+        onChange: () => api.openRagBrowser(),
+      };
     }
 
     controls.noodlr = {

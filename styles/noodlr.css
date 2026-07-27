@@ -410,40 +410,75 @@
   margin-bottom: 0.5rem;
 }
 
-/* ---- Chronicle window ---- */
-.noodlr-chronicle {
+/* ---- Memory browser (RAG) window ---- */
+.noodlr-rag-browser {
   padding: 0.75rem;
   overflow-y: auto;
 }
 
-.noodlr-chronicle__list {
+.noodlr-rag-browser__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.noodlr-rag-browser__bar {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.noodlr-rag-browser__bar input[name="query"] {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+}
+
+.noodlr-rag-browser__list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.noodlr-chronicle__item {
+.noodlr-rag-browser__item {
   border: 1px solid var(--color-border-light-tertiary, #666);
   border-radius: 4px;
   padding: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
-.noodlr-chronicle__fact {
-  font-weight: 500;
+.noodlr-rag-browser__text {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.noodlr-chronicle__meta {
+.noodlr-rag-browser__meta {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.noodlr-rag-browser__score {
   font-size: 0.7rem;
   opacity: 0.6;
-  margin: 0.2rem 0;
 }
 
-.noodlr-chronicle__controls {
+.noodlr-rag-browser__controls {
   display: flex;
   gap: 0.4rem;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.noodlr-rag-editor .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 /* ---- Push-to-log floating button ---- */

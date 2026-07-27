@@ -2,7 +2,7 @@
 
 import { MODULE_ID, SETTINGS } from "../constants";
 import { DEFAULT_COMBAT_REMINDER } from "../prompts";
-import type { ChronicleItem, LorebookEntry } from "./types";
+import type { LorebookEntry } from "./types";
 
 export function registerPromptSettings(): void {
   const L = (s: string) => `NOODLR.Prompt.${s}`;
@@ -44,9 +44,9 @@ export function registerPromptSettings(): void {
     type: Number,
     default: 64000,
   });
-  game.settings.register(MODULE_ID, SETTINGS.chronicleAutoParse, {
-    name: L("ChronicleAutoParse.Name"),
-    hint: L("ChronicleAutoParse.Hint"),
+  game.settings.register(MODULE_ID, SETTINGS.chatMemoryWrites, {
+    name: L("ChatMemoryWrites.Name"),
+    hint: L("ChatMemoryWrites.Hint"),
     scope: "world",
     config: true,
     type: Boolean,
@@ -55,12 +55,6 @@ export function registerPromptSettings(): void {
 
   // JSON stores (config:false).
   game.settings.register(MODULE_ID, SETTINGS.lorebook, {
-    scope: "world",
-    config: false,
-    type: Array,
-    default: [],
-  });
-  game.settings.register(MODULE_ID, SETTINGS.chronicleQueue, {
     scope: "world",
     config: false,
     type: Array,
@@ -83,6 +77,9 @@ export function getCombatReminder(): string {
 export function getContextBudget(): number {
   return Number(game.settings.get(MODULE_ID, SETTINGS.contextTokenBudget)) || 64000;
 }
+export function isChatMemoryWritesEnabled(): boolean {
+  return (game.settings.get(MODULE_ID, SETTINGS.chatMemoryWrites) as boolean) ?? true;
+}
 
 export function loadLorebook(): LorebookEntry[] {
   const raw = game.settings.get(MODULE_ID, SETTINGS.lorebook);
@@ -90,12 +87,4 @@ export function loadLorebook(): LorebookEntry[] {
 }
 export async function saveLorebook(entries: LorebookEntry[]): Promise<void> {
   await game.settings.set(MODULE_ID, SETTINGS.lorebook, entries);
-}
-
-export function loadChronicleQueue(): ChronicleItem[] {
-  const raw = game.settings.get(MODULE_ID, SETTINGS.chronicleQueue);
-  return Array.isArray(raw) ? (raw as ChronicleItem[]) : [];
-}
-export async function saveChronicleQueue(items: ChronicleItem[]): Promise<void> {
-  await game.settings.set(MODULE_ID, SETTINGS.chronicleQueue, items);
 }

@@ -7,7 +7,7 @@ import { getFeatureConfig } from "../providers/config";
 import { ChatClientError, streamChatCompletion } from "../providers/chat-client";
 import { type ChatMessage, type FeatureProviderConfig, isConfigured } from "../providers/types";
 import { fetchOpenRouterContextLength } from "../providers/models";
-import { getContextBudget } from "../prompt/settings";
+import { getContextBudget, isChatMemoryWritesEnabled } from "../prompt/settings";
 import {
   type ResolvedRoll,
   formatRollResultsForModel,
@@ -16,7 +16,8 @@ import {
 import { retrieveContext } from "../rag/retrieval";
 import { buildWebFallbackPlugins } from "../rag/web-fallback";
 import { assemblePrompt } from "../prompt/assembler";
-import { captureChronicle } from "../prompt/chronicle";
+import { parseDirectives } from "../players/directives";
+import { applyMemoryDirectives } from "../rag/memory-writes";
 import { buildCombatStateBlock } from "../combat/tracker";
 import { bumpStats, noteContextEst } from "../util/stats";
 import { estimateMessagesTokens } from "../util/tokens";
@@ -122,12 +123,16 @@ export class Conversation {
         hooks.onDelta?.(delta);
       }
 
-      const { text: resolved, rolls } = await resolveRollMacros(raw);
+      const { text: withRolls, rolls } = await resolveRollMacros(raw);
+      // Strip any @@NOODLR memory directives before display/history; execute them with the "gm"
+      // audience (enforced to gm/player-writable silos + audited) when the toggle is on.
+      const { text: resolved, directives } = parseDirectives(withRolls);
       this.messages.push({ role: "assistant", content: resolved });
       hooks.onAssistantDone?.(resolved, rolls);
 
-      // Anti-amnesia: queue any 📜 Chronicle facts for GM review.
-      await captureChronicle(resolved);
+      if (isChatMemoryWritesEnabled() && directives.length > 0) {
+        await applyMemoryDirectives("gm", directives);
+      }
 
       if (rolls.length > 0 && allowContinuation && continuations < MAX_CONTINUATIONS) {
         continuations++;

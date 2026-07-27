@@ -29,12 +29,10 @@ export const SETTINGS = {
   combatReminder: "combatReminder",
   /** Overall context token budget for the assembled prompt. */
   contextTokenBudget: "contextTokenBudget",
-  /** Auto-parse 📜 Chronicle lines from DM output into the review queue. */
-  chronicleAutoParse: "chronicleAutoParse",
+  /** Let the GM co-pilot autonomously write memory via @@NOODLR directives (REMEMBER/UPDATE/FORGET). */
+  chatMemoryWrites: "chatMemoryWrites",
   /** Persisted lorebook entries (JSON array; world-scoped). */
   lorebook: "lorebook",
-  /** Persisted Chronicle review queue (JSON array; world-scoped). */
-  chronicleQueue: "chronicleQueue",
 } as const;
 
 /** Settings-menu keys (open dedicated ApplicationV2 config windows). */
@@ -42,7 +40,6 @@ export const MENUS = {
   config: "noodlrConfig",
   memory: "noodlrMemory",
   lorebook: "noodlrLorebook",
-  chronicle: "noodlrChronicle",
 } as const;
 
 // Default combat prompts (DEFAULT_COMBAT_PROMPT / DEFAULT_COMBAT_REMINDER) now live with all
@@ -137,6 +134,11 @@ export const RAG_SETTINGS = {
   webFallbackEnabled: "rag.webFallbackEnabled",
   webFallbackMinScore: "rag.webFallbackMinScore",
   webFallbackMaxResults: "rag.webFallbackMaxResults",
+  // Native Foundry chat-log capture: distill each chat message to timestamped text and ingest it
+  // into the `unfiltered_chat` silo. Off by default; only the primary GM records. (shared RAG setting)
+  chatLogEnabled: "rag.chatLog.enabled",
+  chatLogInterval: "rag.chatLog.interval",
+  chatLogWhispers: "rag.chatLog.whispers",
 } as const;
 
 /** Keybinding action ids. */

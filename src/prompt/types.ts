@@ -36,14 +36,3 @@ export function makeLorebookEntry(partial: Partial<LorebookEntry> = {}): Loreboo
     vector: partial.vector ?? false,
   };
 }
-
-/** A candidate canon fact parsed from a 📜 Chronicle line, awaiting GM review. */
-export interface ChronicleItem {
-  id: string;
-  /** The fact text. */
-  text: string;
-  /** When it was captured (ms epoch). */
-  ts: number;
-  /** Optional detected entities/keywords (future use). */
-  entities?: string[];
-}

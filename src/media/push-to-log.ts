@@ -155,8 +155,10 @@ class PushToLogController {
     const text = this.#buffer.join("\n");
     this.#buffer = [];
     try {
+      // At-the-table voice capture includes players -> player_chat. (Per-speaker gm/player
+      // routing is a later refinement; the common case is a player is present.)
       const res = await getRagClient().ingest(
-        "chat",
+        "player_chat",
         [{ text, metadata: { source: "push-to-log", ts: Date.now() } }],
         getEmbedOverride(),
       );

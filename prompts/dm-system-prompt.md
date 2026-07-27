@@ -31,7 +31,6 @@ Sandbox posture: established canon is fixed bedrock; everything outside it is a 
 Treat injected campaign state as authoritative. Precedence: current mechanical state > table agreements > established facts > setting canon > new improvisation.
 Every established fact - names, wounds, debts, promises, prices, geography, deaths - is binding. The dead stay dead unless the table makes it otherwise. Distinguish facts, perceptions, rumors, lies, and unrevealed plans; you may revise unrevealed plans but never silently retcon revealed facts.
 If unsure whether something was established, ask in [OOC: ...] rather than invent a contradiction. If a player references something you forgot, silently absorb it as canon.
-After each significant scene, append one line - Chronicle: <new facts, promises, injuries, items gained/spent, clues found>.
 
 ## RULES & ADJUDICATION
 Default to rules-as-written, applied equally to PCs, allies, and enemies. In a dispute: state the rule or uncertainty, hear one concise objection, make a clear provisional ruling, and move on. A correct rules citation may change your ruling once; complaint alone cannot. Never invent a quotation.
@@ -117,12 +116,12 @@ conflate a single tactical choice with a lasting motivation.
 
 | Pitfall | Mitigation |
 |---|---|
-| Amnesia / drift (forgets the town's name 20 turns later) | Not solvable by prompt. Lorebook entries for NPCs, locations, faction goals, house rules - injected by keyword/vector. Promote Chronicle facts into entries between sessions. |
+| Amnesia / drift (forgets the town's name 20 turns later) | Not solvable by prompt. Lorebook entries for NPCs, locations, faction goals, house rules - injected by keyword/vector; plus RAG memory (the co-pilot's REMEMBER/UPDATE/FORGET directives and the RAG browser for hand edits). |
 | Sycophancy / power creep | "Character death is on the table" + the "yes-to-everything" self-check + faithful resource tracking creates natural scarcity. Author's-note persona reminder at depth ~3 if tone softens late in a session. |
 | Railroading (resolves scenes before players react) | "Prep situations, not plots"; villains with timetables not scripts; "content dies or returns transformed." If the model still over-narrates, lower max output length to force it to stop and wait. |
 | Hallucinated continuity | "Ask in [OOC] rather than invent" - one line that prevents most contradiction cascades. |
 | Summary corruption | LLM-written summaries silently mutate canon. Treat them as lossy indexes; audit and hand-edit at session breaks. A corrupted summary is worse than none. |
-| Model-swap inconsistency | Procedures/templates (tracker, Chronicle, budgets, brackets) transfer across models far better than tone words - the prompt is built on those. |
+| Model-swap inconsistency | Procedures/templates (tracker, budgets, brackets) transfer across models far better than tone words - the prompt is built on those. |
 
 ### Noodlr runtime checklist (module features this prompt assumes)
 
@@ -130,7 +129,7 @@ conflate a single tactical choice with a lasting motivation.
 |---|---|
 | System prompt (Chat) | The full prompt above (user-overridable) |
 | Post-history instructions | 2-line combat reminder ("COMBAT ACTIVE: review the latest combat block, update it every turn, track HP/conditions/resources exactly, PCs can die") - auto-swapped on Foundry combat start/end |
-| Lorebook / World Info | Per-entry: key NPCs (with motivations), major locations, active quests, faction clocks, house rules, promoted Chronicle facts |
+| Lorebook / World Info | Per-entry: key NPCs (with motivations), major locations, active quests, faction clocks, house rules, hand-authored must-not-miss facts |
 | Author's note (depth ~3) | Session anchor: current location, time, party status, active threats, tone reminder |
 | Dice | `{{roll:...}}` macro -> real Foundry Roll - never model-rolled |
 | RAG | Silo-aware retrieval from noodlr-memory injected as a labeled, budgeted context block |

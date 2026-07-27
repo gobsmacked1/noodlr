@@ -457,13 +457,14 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     turn.mirrorMsgId = null;
   }
 
-  /** GM-only: ingest the accepted DM turn (prompt + reply) into the `chat` silo. */
+  /** GM-only: ingest the accepted DM turn (prompt + reply) into the `gm_chat` silo. */
   async #commitTurn(turn: ActiveTurn): Promise<void> {
     if (!game.user?.isGM || !isRagEnabled() || !turn.finalText.trim()) return;
     try {
+      // GM co-pilot dialogue is GM-only prep (no player present) -> gm_chat.
       const text = `${turn.promptAuthor}: ${turn.promptText}\nDungeon Master: ${turn.finalText}`;
       const res = await getRagClient().ingest(
-        "chat",
+        "gm_chat",
         [{ text, metadata: { source: "chat", ts: Date.now() } }],
         getEmbedOverride(),
       );

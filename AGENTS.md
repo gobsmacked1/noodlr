@@ -241,9 +241,10 @@ SillyTavern-informed prompt architecture. Lorebook storage decision: **world-sco
 
 - **Context assembler** (`src/prompt/assembler.ts`): single ordered payload — system prompt · top lorebook · RAG · Foundry state (Phase 5 hook) · [history + author's note at depth] · bottom lorebook · post-history. One token budget (`contextTokenBudget`, default 12000, ~4ch/token via `util/tokens.ts`); history trimmed oldest-first to fit fixed blocks. Replaces the ad-hoc payload in `conversation.ts`.
 - **Lorebook** (`prompt/lorebook.ts` + `apps/lorebook-app.ts`): keyword (plaintext or `/regex/flags`) + constant activation, position top/bottom, order, enabled. CRUD via a DialogV2 single-entry editor. Vector activation is a stored flag, not yet wired.
-- **Author's note / post-history / combat reminder**: edited in the settings window (textareas); depth + context budget + chronicle toggle are native settings. Combat reminder auto-swaps into the post-history slot when `game.combat?.started` (computed at assembly time — no hooks needed).
-- **Chronicle pipeline** (`prompt/chronicle.ts` + `apps/chronicle-app.ts`): parses `📜 Chronicle:` lines from DM output into a world-scoped review queue; GM promotes to a lorebook entry and/or ingests as a `kind:"event"` memory (importance/entities/ts) into a chosen silo, or dismisses. Capture runs after each assistant turn (toggle `chronicleAutoParse`).
-- New settings menus: "Edit Lorebook", "Review Chronicle". API: `openLorebook()`, `openChronicle()`.
+- **Author's note / post-history / combat reminder**: edited in the settings window (textareas); depth + context budget are native settings. Combat reminder auto-swaps into the post-history slot when `game.combat?.started` (computed at assembly time — no hooks needed).
+- **Chronicle pipeline: REMOVED 2026-07-27** (see the dated section above). Lorebook stays.
+- **Memory browser** (`apps/rag-browser-app.ts`): GM-only search-driven CRUD over any RAG collection.
+- Session tools live on the DM scene-control toolbar. API: `openLorebook()`, `openRagBrowser()`.
 
 Known gaps: no vector-activated lorebook entries yet; author's note/post-history are plain text (no per-entry token budgets beyond the global one); FormDataExtended path in the lorebook editor is defensive but unverified in v14; no in-Foundry test.
 
@@ -301,6 +302,50 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## Native chat-log sniffer -> unfiltered_chat (2026-07-27)
+
+`src/log/chat-sniffer.ts` (`initChatSniffer()`, called from `module.ts` ready on GM clients).
+Listens on `createChatMessage`; only the **primary GM** records (`isPrimaryGM()`). Each message is
+distilled to one line `[YYYY-MM-DD HH:MM:SS] (whisper→…) Speaker: text — [roll: 1d20+5 = 18]`:
+`message.alias`/`speakerActor`/`author` for the name, `message.content` HTML stripped via a detached
+div (imgs → `[image: alt]`), `message.flavor` + evaluated `message.rolls` folded in. Lines buffer and
+flush as ONE combined doc to the `unfiltered_chat` silo every N sec (default 300) or at 200 lines;
+failed flush re-queues (bounded 2000) and re-arms. Skips any `flags.noodlr` message (DM narration,
+player-bot, artifacts) to avoid double-ingest; whispers excluded unless opted in (privacy). Settings:
+`RAG_SETTINGS.chatLog{Enabled,Interval,Whispers}` (`getChatLogConfig()`), UI in the Memory & Knowledge
+window (`memory-config.hbs` / `memory-config-app.ts`), default OFF. No universal "target" field exists
+on ChatMessage (system/module-specific) — v1 is best-effort text; system target extractors are a TODO.
+
+## RAG collection schema migration (2026-07-27, DONE — build green)
+
+Replaced the original 9 silos with a **knowledge-partitioned set of 35**: `system_rules`, `docs`,
+`unfiltered_chat` (raw native Foundry logs), and 16 topics each split into `player_*` (at least one
+player knows) vs `gm_*` (no player knows) —
+`locations, npc_state, calendar, chat, history, lore, quests, macguffin, puzzle, goals, story_arc,
+factions, reputations, effects, sheets, inventory`. Mirrored in `noodlr-memory/src/collections.js`
+and `noodlr-main/src/rag/silos.ts`.
+
+**Authoritative access matrix:** `noodlr-memory/scripts/RAG_Collections_Access-Order-Intent.csv`
+(per-bot SELECT/INSERT/UPDATE/DELETE rights + query order + intent). Encoded so far as two ordered
+retrieval lists in `silos.ts`: `GM_QUERY_SILOS` (all 35, gm_* prioritized above the player mirror)
+and `PLAYER_QUERY_SILOS` (the 19 player-visible ids — also the **hard whitelist** for the
+players-only bot's RagClient; gm_* is unreachable at the retrieval layer, not just the prompt).
+`DEFAULT_QUERY_SILOS = GM_QUERY_SILOS`. Still TODO: encode the INSERT/UPDATE/DELETE rights as data
+and enforce them when the bots get memory-write tools (P4).
+
+Wiring resolved (all 6 former build-breaks, `npm run check` green):
+- `retrieval.ts` — combat force-add `"rules"` → `system_rules`; also copy the silo list before
+  mutating (was mutating the shared const).
+- `chat-panel.ts` — GM co-pilot turn commit → `gm_chat` (GM-only prep, no player present).
+- `push-to-log.ts` — transcript ingest → `player_chat` (table voice usually includes a player;
+  per-speaker gm/player routing is a later refinement — SHORTCUT).
+- `av-gen.ts` (music/video) + `scene-art.ts` (image) — media artifact silo now
+  `input.hidden ? "gm_locations" : "player_locations"` (shared art the players saw vs hidden GM prep).
+
+Open follow-ups: the Manage-Memory ingest/reset/query UIs now list 35 rows (fine, but busy — may
+group by player_/gm_); the players-only bot retrieval + the bot-to-bot adjudication relay (below)
+are the next build once the design questions are answered.
+
 ## Players-only chatbot "Ask the Table" (2026-07-26, in progress — unreleased)
 
 A SECOND chatbot for the human players, separate from the GM co-pilot. Rationale for separation
@@ -327,9 +372,111 @@ Locked design decisions (user, 2026-07-26):
   interactions are NOT auto-ingested (GM stays sole RAG writer; curate via Retry/Reject + Chronicle);
   player bot reuses the GM's chat provider/model (separate/cheaper model override deferred).
 
-Phase plan: **P1** transport + role-gated UI (done, this entry) · P2 player prompt + relayed mundane
-generation (restricted scope) · P3 real check rolls · P4 sealed ground-truth adjudication + tiers ·
-P5 polish (model override, config labels, docs, release).
+Phase plan (revised 2026-07-27 after the access-matrix CSV + design forks): **P1** transport +
+role-gated UI (done) · **P2** relayed mundane generation with player-scoped RAG (DONE, below) ·
+**P3** bot-to-bot adjudication relay · **P4** full CRUD memory tools · P5 polish (prompt override,
+config labels, docs, release).
+
+Design forks resolved (user, 2026-07-27):
+- **Adjudication trigger** = LLM tool-call: the players-bot calls `adjudicate(...)` when a request
+  needs privileged/hidden info; the STRUCTURED payload (PC, target, skill, rollTotal, question) — not
+  the player's verbatim text — crosses to the GM bot (a second injection boundary).
+- **NPC opposition** = hybrid: a REAL Foundry roll on the NPC's actor sheet when resolvable, else a
+  rules-based DC from the stat block. Player's own check is always a real Foundry roll (anti-cheat).
+- **Oversight** = auto-resolve + log every adjudication to the GM side for audit/override.
+- **Writes** = full CRUD per the matrix (P4). Needs the noodlr-memory service to expose update/
+  delete-by-id — verify its API before building.
+- Both bots run on the GM client, so bot-to-bot is a LOCAL call chain (one extra LLM call), not a
+  network hop. The GM bot returns a CONSTRAINED verdict (confirmed | unfounded | no_secret + short
+  tier flavor), never raw gm_* text — the return channel is the one leak surface.
+
+**P2 shipped (code, unreleased):**
+- `src/rag/silos.ts` → `GM_QUERY_SILOS` (all 35, gm_* prioritized) + `PLAYER_QUERY_SILOS` (19
+  player-visible ids; also the hard retrieval whitelist for the players-bot). `DEFAULT_QUERY_SILOS`
+  aliases `GM_QUERY_SILOS`. Source of truth = the access-matrix CSV.
+- `src/rag/retrieval.ts` → `retrieveContext(query, signal, { silos })`: optional silo override so the
+  players-bot queries only `PLAYER_QUERY_SILOS`. gm_* is never queried on a player's behalf.
+- `src/players/answer.ts` → `generatePlayerAnswer()`: minimal path (players system prompt +
+  player-scoped RAG block + question) via the GM's `chat` provider (`chatCompletion`, web-plugin
+  auto-disabled). No lorebook/author's-note/Chronicle/combat (GM canon — would leak). GM-side
+  re-sanitize of the question (crafted socket payload can bypass the panel). Not auto-ingested.
+- `src/players/relay.ts` → `handlePlayerAsk` now calls `generatePlayerAnswer` (was the P1
+  placeholder); friendly `NOODLR.Players.GenFailed` on error/empty.
+
+**P3 shipped — bot-to-bot adjudication (code, unreleased):**
+- Roll capture uses the chat-log feed: the players-bot asks the player to roll from their sheet and
+  emits an `ADJUDICATE` directive; the GM client registers a pending check keyed by userId; the
+  player's REAL Foundry roll (a `createChatMessage` with `rolls`) is matched by author id and the
+  total consumed. No bespoke roll button.
+- `src/players/directives.ts` → provider-agnostic "tool call": model emits `@@NOODLR VERB {json}`
+  lines (ADJUDICATE/REMEMBER/UPDATE/FORGET); `parseDirectives()` extracts + strips them. Chosen over
+  native function-calling because our custom/local OpenAI-compatible endpoints don't reliably support
+  tools.
+- `src/players/adjudication.ts` → pending registry (180 s TTL), `initAdjudicationCapture()` (GM
+  `createChatMessage` hook), `adjudicateAndPost()`: retrieves `GM_SECRET_SILOS` (gm_* + system_rules
+  — the players-bot can never query these), rolls a REAL d20 for NPC opposition, calls
+  `GM_ADJUDICATION_PROMPT` (produces the player-facing tiered narration directly — the secret never
+  leaves the GM client except as the earned reveal), posts via `postPlayerResult`, audits to GM.
+- `prompts/index.ts` → `GM_ADJUDICATION_PROMPT` (section 7); PLAYERS prompt updated to the directive
+  handoff (no more injected sealed block).
+- Hybrid NPC opposition: real Foundry `1d20` on the GM client + the NPC's modifier reasoned by the
+  adjudicator from the stat block/rules (system-agnostic — we never hardcode 5e skill tables; dice
+  are always real, per the DM doctrine).
+
+**P4 shipped — CRUD memory tools (code, unreleased):**
+- Service already supports it: `/insert`, `/delete` (ids/hashes), `/query` (returns `id`), `/purge`.
+  Added `RagClient.delete()` + `MemoryBackend.delete()` + RAG-Lite `LocalMemory.delete()` (new
+  `store.removeRecords()`), so CRUD works on BOTH backends.
+- `src/rag/silos.ts` → `SILO_RIGHTS` matrix (SELECT/INSERT/UPDATE/DELETE per audience, transcribed
+  from the CSV) + `canWrite()` + `writableSilos()` + `GM_SECRET_SILOS`.
+- `src/rag/memory-writes.ts` → `applyMemoryDirective(audience, directive)`: enforces the matrix
+  (a bot can never mutate a silo it isn't entitled to; players-bot has ZERO gm_* write access),
+  REMEMBER=ingest, UPDATE=fuzzy-match→delete→ingest, FORGET=fuzzy-match→delete (no-op if no match —
+  never guesses a destructive target), every write audited to the GM (`util/audit.ts`).
+- Players-bot executes its directives (`applyMemoryDirectives("player", …)`); the adjudicator writes
+  per-silo audience (player_* as player, gm_* as gm).
+
+**GM co-pilot CRUD — ENABLED (2026-07-27).** The GM co-pilot now emits autonomous `@@NOODLR
+REMEMBER/UPDATE/FORGET` directives, executed with `audience:"gm"` (writes to gm_* and player_* per
+`canWrite`, every write whispered to GMs as an audit line). Implementation without touching the
+verbatim DM prompt:
+- `rag/memory-writes.ts` → `buildMemoryToolsPrompt(audience)`: compact capability block listing the
+  audience's writable silos + directive syntax + "durable state only, not rules/chatter".
+- `prompt/assembler.ts`: injects `buildMemoryToolsPrompt("gm")` as a separate leading system message,
+  gated on `isRagEnabled() && isChatMemoryWritesEnabled()`.
+- `chat/conversation.ts`: after roll resolution, `parseDirectives()` strips directive lines from the
+  displayed/stored text; `applyMemoryDirectives("gm", …)` runs them when the toggle is on.
+- New world setting `chatMemoryWrites` (default ON, config:true) — flip off to keep all GM memory
+  edits manual (via the Memory browser, below).
+
+## Chronicle removed; Lorebook → toolbar; Memory browser added (2026-07-27)
+
+Decision (user): **Chronicle was gutted entirely.** Rationale: with 35 RAG silos + the GM co-pilot's
+CRUD directives + the new Memory browser, a separate LLM-summary review queue was redundant and noisy
+(it kept capturing non-canon like a rules dump of the Artificer class — `captureChronicle` had no
+relevance filter, and the DM prompt told the model to emit a `Chronicle:` line after every scene).
+
+Removed: `apps/chronicle-app.ts`, `prompt/chronicle.ts`, `templates/chronicle.hbs`, the
+`chronicleQueue`/`chronicleAutoParse` settings, `MENUS.chronicle`, `ChronicleItem`, the
+`captureChronicle` call in `conversation.ts`, the "append one line - Chronicle:" line from the DM
+prompt (both `prompts/index.ts` and `prompts/dm-system-prompt.md`), and all `NOODLR.Chronicle.*` i18n.
+
+Why these are NOT redundant with RAG (the audit that drove this):
+- **Lorebook** stays a world-setting store because its job is *deterministic, always-/keyword-injected*
+  World Info read *synchronously* at prompt assembly — a guarantee RAG's top-K similarity cannot make.
+  RAG is *not* a superior backend for it. Kept as-is.
+- **RAG** stores the original chunk text alongside the vector, so hand CRUD is feasible (only retrieval
+  is fuzzy/one-way, not storage).
+
+Added/moved:
+- **Memory browser** (`apps/rag-browser-app.ts` + `templates/rag-browser.hbs`, `api.openRagBrowser`):
+  GM-only, search-driven CRUD over any collection. SELECT = hybrid query (topK 25, single collection);
+  UPDATE = delete-by-id + re-ingest; DELETE = delete-by-id; INSERT = grouped-picker dialog. Uses the
+  shared `MemoryBackend` (works on service + Lite). Grouped silo picker via `groupedSilos()` in
+  `silos.ts` (Player-visible / GM-secret / Shared·system optgroups).
+- **Lorebook + Memory browser now live on the Dungeon Master scene-control toolbar** (GM-only tools),
+  not in the Memory & Knowledge config window (periodic-use tools, per user). The config window's
+  Lorebook/Chronicle buttons + their actions/imports were removed; `openManage`/`openDiagnostics` stay.
 
 **P1 shipped (code, unreleased):**
 - `src/prompts/index.ts` → `PLAYERS_SYSTEM_PROMPT` (section 6): the gatekeeper/unreliable-narrator

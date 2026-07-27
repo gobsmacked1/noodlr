@@ -158,7 +158,8 @@ export async function createAndShareImage(
     const label = input.entityKey ? `Image of ${input.entityKey}` : "Scene image";
     const commit: ArtifactCommit = {
       rag: {
-        silo: "scenes",
+        // Shared art is scene context the players saw -> player_locations; hidden GM prep -> gm_locations.
+        silo: input.hidden ? "gm_locations" : "player_locations",
         text: `${label}: ${result.prompt}`,
         metadata: {
           source: "image",

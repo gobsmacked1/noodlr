@@ -6,10 +6,15 @@
 // machine only - players never call OpenRouter or noodlr-memory directly, and privilege is enforced
 // at the access layer (not by trusting a prompt to detect the user's role).
 //
-// Phase P1: the GM side echoes a placeholder answer so we can verify relay + role gating +
-// player-wide mirroring end to end. Real generation (restricted RAG + LLM) lands in P2+.
+// P2: the GM side now generates a real answer via the players-only bot (player-scoped RAG + LLM;
+// see answer.ts) and posts it as a public ChatMessage that Foundry mirrors to every client.
+// Privileged adjudication (the bot-to-bot relay) is P3.
 
 import { MODULE_ID, SOCKET, log } from "../constants";
+import { generatePlayerAnswer } from "./answer";
+import { firstDirective } from "./directives";
+import { registerPendingAdjudication } from "./adjudication";
+import { applyMemoryDirectives } from "../rag/memory-writes";
 
 /** Socket message type for a player -> GM "Ask the Table" request. */
 export const PLAYER_ASK = "player-ask" as const;
@@ -67,8 +72,7 @@ export function sendPlayerAsk(text: string): PlayerAskPayload {
 
 /**
  * GM-side handler. `local` means this GM invoked it directly (testing their own panel), so the
- * primary-GM dedupe guard is skipped. Phase P1: post a placeholder answer as a public ChatMessage
- * to prove relay + role gating + player-wide mirroring.
+ * primary-GM dedupe guard is skipped. Generates the players-only bot answer and posts it publicly.
  */
 export async function handlePlayerAsk(
   payload: PlayerAskPayload,
@@ -79,7 +83,38 @@ export async function handlePlayerAsk(
   const text = (payload.text ?? "").trim();
   if (!text) return;
 
-  const answer = game.i18n.localize("NOODLR.Players.P1Placeholder");
+  let answer: string;
+  try {
+    const result = await generatePlayerAnswer(text, payload.userName);
+    answer = result.text;
+
+    // If the bot escalated a privileged check, register it so the player's real roll (captured from
+    // the chat log) resolves it against gm_* truth. The posted text is the "roll X" ask.
+    const adj = firstDirective(result.directives, "ADJUDICATE");
+    if (adj) {
+      const d = adj.data as Record<string, unknown>;
+      registerPendingAdjudication({
+        requestId: payload.requestId,
+        userId: payload.userId,
+        askUserName: payload.userName,
+        pc: String(d.pc ?? payload.userName),
+        target: String(d.target ?? ""),
+        skill: String(d.skill ?? "a check"),
+        question: String(d.question ?? text),
+      });
+      if (!answer.trim()) {
+        answer = game.i18n.format("NOODLR.Players.RollPrompt", { skill: String(d.skill ?? "a") });
+      }
+    }
+
+    // Execute any memory writes the players-bot emitted (enforced to player_* silos + audited).
+    await applyMemoryDirectives("player", result.directives);
+  } catch (err) {
+    log("player-bot generation failed:", err);
+    answer = game.i18n.localize("NOODLR.Players.GenFailed");
+  }
+  if (!answer.trim()) answer = game.i18n.localize("NOODLR.Players.GenFailed");
+
   await postPlayerResult({
     requestId: payload.requestId,
     askUserId: payload.userId,
@@ -90,7 +125,7 @@ export async function handlePlayerAsk(
 }
 
 /** Post the player-bot result as a public ChatMessage (Foundry mirrors it to all clients). */
-async function postPlayerResult(flag: PlayerBotFlag): Promise<void> {
+export async function postPlayerResult(flag: PlayerBotFlag): Promise<void> {
   const esc = (s: string): string =>
     (globalThis as any).Handlebars?.escapeExpression?.(s) ?? String(s);
   const content =

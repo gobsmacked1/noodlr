@@ -65,7 +65,8 @@ export async function createAndPlayMusic(input: {
       gen: { fn: "music", description: input.description, seconds },
       commit: {
         rag: {
-          silo: "scenes",
+          // Shared art is scene context the players saw -> player_locations; hidden GM prep -> gm_locations.
+          silo: input.hidden ? "gm_locations" : "player_locations",
           text: `Music cue: ${input.description}`,
           metadata: { source: "music", path, ts: Date.now() },
         },
@@ -163,7 +164,7 @@ export async function createAndShareVideo(input: {
       gen: { fn: "video", description: input.description, seconds: duration },
       commit: {
         rag: {
-          silo: "scenes",
+          silo: input.hidden ? "gm_locations" : "player_locations",
           text: `Video: ${input.description}`,
           metadata: { source: "video", path, ts: Date.now() },
         },

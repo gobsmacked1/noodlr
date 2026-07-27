@@ -1,8 +1,8 @@
 // The consolidated "Memory & Knowledge" window: one place for everything about long-term
 // memory. Connection to the noodlr-memory service (URL + write-only shared secret), what to
 // retrieve and how (hybrid / Agent Mode / budget), the embedding settings, session
-// transcript ingestion, and buttons that open the Manage Memory (silos/ingest), Lorebook,
-// and Chronicle sub-windows.
+// transcript ingestion, and buttons that open the Manage Memory (silos/ingest) and Diagnostics
+// sub-windows. (Lorebook + the Memory browser live on the Dungeon Master toolbar.)
 
 import { MODULE_ID, MODULE_TITLE, RAG_SETTINGS, MEDIA_SETTINGS } from "../constants";
 import {
@@ -16,6 +16,7 @@ import {
   isRerankEnabled,
   getRerankTopN,
   getWebFallbackConfig,
+  getChatLogConfig,
 } from "../rag/config";
 import { RagClientError } from "../rag/client";
 import { getProviderView, saveProviderFromForm, type ProviderFormData } from "../providers/config";
@@ -23,8 +24,6 @@ import { getPushToLogConfig } from "../media/config";
 import { wireProviderBlocks } from "./provider-ui";
 import { installHeaderSaveButton } from "./header-save";
 import { NoodlrMemoryApp } from "./memory-app";
-import { NoodlrLorebookApp } from "./lorebook-app";
-import { NoodlrChronicleApp } from "./chronicle-app";
 import { NoodlrDiagnosticsApp } from "./diagnostics-app";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -48,8 +47,6 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
     actions: {
       testConnection: NoodlrMemoryConfigApp.#onTest,
       openManage: NoodlrMemoryConfigApp.#openManage,
-      openLorebook: NoodlrMemoryConfigApp.#openLorebook,
-      openChronicle: NoodlrMemoryConfigApp.#openChronicle,
       openDiagnostics: NoodlrMemoryConfigApp.#openDiagnostics,
     },
   };
@@ -67,6 +64,7 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
     const g = (k: string) => game.settings.get(MODULE_ID, k);
     const tuning = getRagTuning();
     const push = getPushToLogConfig();
+    const chatLog = getChatLogConfig();
     const backend = getRagBackend();
 
     return {
@@ -106,6 +104,10 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
 
       transcriptIngest: push.ingest,
       transcriptIngestInterval: push.ingestInterval,
+
+      chatLogEnabled: chatLog.enabled,
+      chatLogWhispers: chatLog.includeWhispers,
+      chatLogInterval: chatLog.intervalSec,
     };
   }
 
@@ -163,6 +165,15 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
       interval >= 60 && interval <= 3600 ? interval : 300,
     );
 
+    // Native Foundry chat-log capture
+    await set(RAG_SETTINGS.chatLogEnabled, Boolean(o.chatLogEnabled));
+    await set(RAG_SETTINGS.chatLogWhispers, Boolean(o.chatLogWhispers));
+    const clInterval = Number(o.chatLogInterval);
+    await set(
+      RAG_SETTINGS.chatLogInterval,
+      clInterval >= 30 && clInterval <= 3600 ? clInterval : 300,
+    );
+
     ui.notifications?.info(game.i18n.localize("NOODLR.Settings.Saved"));
     this.render();
   }
@@ -185,12 +196,6 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
 
   static #openManage(): void {
     new NoodlrMemoryApp().render({ force: true });
-  }
-  static #openLorebook(): void {
-    new NoodlrLorebookApp().render({ force: true });
-  }
-  static #openChronicle(): void {
-    new NoodlrChronicleApp().render({ force: true });
   }
   static #openDiagnostics(): void {
     new NoodlrDiagnosticsApp().render({ force: true });

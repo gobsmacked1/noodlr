@@ -158,4 +158,18 @@ export class RagClient {
   purge(collection: SiloId, signal?: AbortSignal): Promise<{ ok: boolean; purged: string }> {
     return this.request("POST", "/purge", { collection }, signal);
   }
+
+  /** Delete specific rows from a collection by id and/or content hash. */
+  delete(
+    collection: SiloId,
+    sel: { ids?: string[]; hashes?: number[] },
+    signal?: AbortSignal,
+  ): Promise<{ ok: boolean }> {
+    return this.request(
+      "POST",
+      "/delete",
+      { collection, ids: sel.ids ?? [], hashes: sel.hashes ?? [] },
+      signal,
+    );
+  }
 }

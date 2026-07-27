@@ -31,4 +31,10 @@ export interface MemoryBackend {
     signal?: AbortSignal,
   ): Promise<{ inserted: number; chunks: number }>;
   purge(collection: SiloId, signal?: AbortSignal): Promise<{ ok: boolean; purged: string }>;
+  /** Delete specific rows by id and/or content hash (bot-driven UPDATE/FORGET). */
+  delete(
+    collection: SiloId,
+    sel: { ids?: string[]; hashes?: number[] },
+    signal?: AbortSignal,
+  ): Promise<{ ok: boolean }>;
 }

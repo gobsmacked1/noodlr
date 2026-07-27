@@ -18,6 +18,7 @@ import {
   encodeVec,
   getRecords,
   hashText,
+  removeRecords,
   type LocalRecord,
 } from "./store";
 import { bm25Scores, cosine, rankByScore, rrf, tokenize } from "./search";
@@ -182,6 +183,15 @@ export class LocalMemory implements MemoryBackend {
     if (!isSiloId(collection)) throw new RagClientError(`Unknown silo: ${collection}`);
     await clearSilo(collection);
     return { ok: true, purged: collection };
+  }
+
+  async delete(
+    collection: SiloId,
+    sel: { ids?: string[]; hashes?: number[] },
+  ): Promise<{ ok: boolean }> {
+    if (!isSiloId(collection)) throw new RagClientError(`Unknown silo: ${collection}`);
+    await removeRecords(collection, sel);
+    return { ok: true };
   }
 }
 

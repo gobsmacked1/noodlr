@@ -119,6 +119,25 @@ export async function addRecords(silo: SiloId, incoming: LocalRecord[]): Promise
   return added;
 }
 
+/** Remove records by id and/or content hash; persists. Returns how many were removed. */
+export async function removeRecords(
+  silo: SiloId,
+  sel: { ids?: string[]; hashes?: Array<string | number> },
+): Promise<number> {
+  const records = await loadSilo(silo);
+  const idSet = new Set((sel.ids ?? []).map(String));
+  const hashSet = new Set((sel.hashes ?? []).map(String));
+  if (idSet.size === 0 && hashSet.size === 0) return 0;
+  const kept = records.filter((r) => !idSet.has(r.id) && !hashSet.has(String(r.hash)));
+  const removed = records.length - kept.length;
+  if (removed > 0) {
+    cache.set(silo, kept);
+    loaded.add(silo);
+    await saveSilo(silo);
+  }
+  return removed;
+}
+
 export async function clearSilo(silo: SiloId): Promise<void> {
   cache.set(silo, []);
   loaded.add(silo);

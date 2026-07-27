@@ -57,6 +57,12 @@ export function registerRagSettings(): void {
   game.settings.register(MODULE_ID, S.webFallbackMinScore, { ...worldNum, default: 0 });
   game.settings.register(MODULE_ID, S.webFallbackMaxResults, { ...worldNum, default: 3 });
 
+  // Native Foundry chat-log capture (-> unfiltered_chat silo). Off by default; whispers excluded
+  // by default (privacy); 300 s flush interval matches push-to-log.
+  game.settings.register(MODULE_ID, S.chatLogEnabled, { ...worldBool, default: false });
+  game.settings.register(MODULE_ID, S.chatLogInterval, { ...worldNum, default: 300 });
+  game.settings.register(MODULE_ID, S.chatLogWhispers, { ...worldBool, default: false });
+
   // Embedding + rerank providers (used only when their features are enabled).
   registerFeatureProviderSettings("embeddings");
   registerFeatureProviderSettings("rerank");
@@ -150,6 +156,23 @@ export function getQuerySilos(): SiloId[] {
     .map((s) => s.trim())
     .filter((s): s is SiloId => isSiloId(s));
   return parsed.length > 0 ? parsed : DEFAULT_QUERY_SILOS;
+}
+
+export interface ChatLogConfig {
+  enabled: boolean;
+  /** Flush interval in seconds (clamped 30-3600 elsewhere). */
+  intervalSec: number;
+  /** Include whispered messages (private by default). */
+  includeWhispers: boolean;
+}
+
+/** Native Foundry chat-log capture config (feeds the `unfiltered_chat` silo). */
+export function getChatLogConfig(): ChatLogConfig {
+  return {
+    enabled: Boolean(game.settings.get(MODULE_ID, RAG_SETTINGS.chatLogEnabled)),
+    intervalSec: Number(game.settings.get(MODULE_ID, RAG_SETTINGS.chatLogInterval)) || 300,
+    includeWhispers: Boolean(game.settings.get(MODULE_ID, RAG_SETTINGS.chatLogWhispers)),
+  };
 }
 
 export function getRagTuning(): { topK: number; hybrid: boolean; tokenBudget: number } {

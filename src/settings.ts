@@ -56,7 +56,7 @@ export function registerSettings(): void {
   registerCombatSettings();
 
   // Two sidebar menus only: the main config window, and the consolidated Memory & Knowledge
-  // window (which itself opens the Manage Memory, Lorebook, and Chronicle sub-windows).
+  // window (which itself opens the Manage Memory + Diagnostics sub-windows).
   game.settings.registerMenu(MODULE_ID, MENUS.config, {
     name: "NOODLR.Settings.Menu.Name",
     label: "NOODLR.Settings.Menu.Label",

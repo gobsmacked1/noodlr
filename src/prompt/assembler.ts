@@ -17,8 +17,11 @@ import {
   getCombatReminder,
   getContextBudget,
   getPostHistory,
+  isChatMemoryWritesEnabled,
   loadLorebook,
 } from "./settings";
+import { buildMemoryToolsPrompt } from "../rag/memory-writes";
+import { isRagEnabled } from "../rag/config";
 import { estimateMessagesTokens, estimateMessageTokens } from "../util/tokens";
 
 export interface AssembleInput {
@@ -79,6 +82,12 @@ function injectAuthorNote(history: ChatMessage[], note: string, depth: number): 
 
 export function assemblePrompt(input: AssembleInput): ChatMessage[] {
   const leading: ChatMessage[] = [sys(getEffectiveChatSystemPrompt())];
+
+  // GM co-pilot memory tools: tell the model the write-directive syntax (kept out of the verbatim
+  // DM prompt). Only when RAG + the toggle are on; the GM co-pilot writes with the "gm" audience.
+  if (isRagEnabled() && isChatMemoryWritesEnabled()) {
+    leading.push(sys(buildMemoryToolsPrompt("gm")));
+  }
 
   const active = activateEntries(loadLorebook(), buildScanText(input));
   const topEntries = active.filter((e) => e.position === "top");

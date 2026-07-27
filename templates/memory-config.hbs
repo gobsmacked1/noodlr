@@ -44,8 +44,6 @@
   {{! ---- Quick access to the sub-tools ---- }}
   <div class="noodlr-memory-config__tools">
     <button type="button" data-action="openManage"><i class="fa-solid fa-database"></i> {{localize "NOODLR.Rag.Manage.Label"}}</button>
-    <button type="button" data-action="openLorebook"><i class="fa-solid fa-book"></i> {{localize "NOODLR.Lorebook.Menu.Label"}}</button>
-    <button type="button" data-action="openChronicle"><i class="fa-solid fa-scroll"></i> {{localize "NOODLR.Chronicle.Menu.Label"}}</button>
     <button type="button" data-action="openDiagnostics"><i class="fa-solid fa-chart-line"></i> {{localize "NOODLR.Diagnostics.Menu.Label"}}</button>
   </div>
 
@@ -195,6 +193,23 @@
       <label>{{localize "NOODLR.Media.PushIngestInterval.Name"}}</label>
       <p class="notes">{{localize "NOODLR.Media.PushIngestInterval.Hint"}}</p>
       <input type="number" name="transcriptIngestInterval" value="{{transcriptIngestInterval}}" min="60" max="3600" step="30" />
+    </div>
+  </fieldset>
+
+  {{! ---- Native Foundry chat-log capture ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-comment-dots"></i> {{localize "NOODLR.Rag.ChatLogLegend"}} <span class="noodlr-tag noodlr-tag--shared">{{localize "NOODLR.Rag.Tag.Shared"}}</span></legend>
+
+    <label class="noodlr-inline"><input type="checkbox" name="chatLogEnabled" {{#if chatLogEnabled}}checked{{/if}} /> {{localize "NOODLR.Rag.ChatLog.Enable.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Rag.ChatLog.Enable.Hint"}}</p>
+
+    <label class="noodlr-inline"><input type="checkbox" name="chatLogWhispers" {{#if chatLogWhispers}}checked{{/if}} /> {{localize "NOODLR.Rag.ChatLog.Whispers.Name"}}</label>
+    <p class="notes">{{localize "NOODLR.Rag.ChatLog.Whispers.Hint"}}</p>
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Rag.ChatLog.Interval.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Rag.ChatLog.Interval.Hint"}}</p>
+      <input type="number" name="chatLogInterval" value="{{chatLogInterval}}" min="30" max="3600" step="30" />
     </div>
   </fieldset>
 </section>

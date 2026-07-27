@@ -17,7 +17,7 @@ import { rerankDocuments } from "../providers/rerank";
 import { bumpStats } from "../util/stats";
 import type { RagHit } from "./client";
 import { isCombatActive } from "../combat/tracker";
-import { isSiloId } from "./silos";
+import { isSiloId, type SiloId } from "./silos";
 
 /** Rough token estimate (~4 chars/token) — good enough for budgeting. */
 function estimateTokens(text: string): number {
@@ -49,19 +49,25 @@ const NOT_QUERIED: RetrievalResult = { block: null, topScore: null, hitCount: 0,
 export async function retrieveContext(
   query: string,
   signal?: AbortSignal,
+  opts: { silos?: SiloId[] } = {},
 ): Promise<RetrievalResult> {
   if (!isRagEnabled()) return NOT_QUERIED;
   // GM-only gate: memory is a GM-gated resource. Only the GM's client ever contacts
   // noodlr-memory, so the shared secret stays off player machines and shared chat isn't
   // written N times over. A player-initiated generation simply runs without a memory block.
+  // (The players-only bot runs ON the GM's client via the relay, so this still holds — but it
+  // must pass `opts.silos = PLAYER_QUERY_SILOS` so gm_* is never queried on a player's behalf.)
   if (!game.user?.isGM) return NOT_QUERIED;
   const trimmed = query.trim();
   if (!trimmed) return NOT_QUERIED;
 
   const client = getRagClient();
-  const silos = getQuerySilos();
+  // Copy: getQuerySilos()/the shared query consts are mutated below; never mutate the source.
+  const silos = [...(opts.silos ?? getQuerySilos())];
   // During combat, always consult the rules silo (adjudication is frequent).
-  if (isCombatActive() && isSiloId("rules") && !silos.includes("rules")) silos.push("rules");
+  if (isCombatActive() && isSiloId("system_rules") && !silos.includes("system_rules")) {
+    silos.push("system_rules");
+  }
   const { topK, hybrid, tokenBudget } = getRagTuning();
   const embed = getEmbedOverride();
   const agentMode = (game.settings.get(MODULE_ID, RAG_SETTINGS.agentMode) as boolean) ?? false;

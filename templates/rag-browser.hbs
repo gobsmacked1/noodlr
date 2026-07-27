@@ -1,0 +1,55 @@
+{{! Noodlr Memory browser (RAG): search-driven CRUD over any collection. }}
+<section class="noodlr-rag-browser">
+  <header class="noodlr-rag-browser__header">
+    <i class="fa-solid fa-magnifying-glass-chart"></i>
+    <h2>{{localize "NOODLR.RagBrowser.Title"}}</h2>
+  </header>
+
+  <p class="notes">{{localize "NOODLR.RagBrowser.Intro"}}</p>
+
+  {{#if enabled}}
+    <div class="noodlr-rag-browser__bar">
+      <select name="collection">
+        {{#each groups}}
+          <optgroup label="{{this.label}}">
+            {{#each this.silos}}
+              <option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </optgroup>
+        {{/each}}
+      </select>
+      <input type="text" name="query" value="{{query}}" placeholder="{{localize "NOODLR.RagBrowser.Query"}}" />
+      <button type="button" data-action="search">
+        <i class="fa-solid fa-magnifying-glass"></i> {{localize "NOODLR.RagBrowser.Search"}}
+      </button>
+      <button type="button" data-action="addRecord">
+        <i class="fa-solid fa-plus"></i> {{localize "NOODLR.RagBrowser.Add"}}
+      </button>
+    </div>
+
+    {{#if hasHits}}
+      <ul class="noodlr-rag-browser__list">
+        {{#each hits}}
+          <li class="noodlr-rag-browser__item">
+            <div class="noodlr-rag-browser__text">{{this.text}}</div>
+            <div class="noodlr-rag-browser__meta">
+              <span class="noodlr-rag-browser__score">{{localize "NOODLR.RagBrowser.Score"}}: {{this.score}}</span>
+              <span class="noodlr-rag-browser__controls">
+                <button type="button" data-action="editRecord" data-id="{{this.id}}">
+                  <i class="fa-solid fa-pen"></i> {{localize "NOODLR.RagBrowser.Edit"}}
+                </button>
+                <button type="button" class="noodlr-danger" data-action="deleteRecord" data-id="{{this.id}}">
+                  <i class="fa-solid fa-trash"></i> {{localize "NOODLR.RagBrowser.Delete"}}
+                </button>
+              </span>
+            </div>
+          </li>
+        {{/each}}
+      </ul>
+    {{else}}
+      <p>{{#if searched}}{{localize "NOODLR.RagBrowser.Empty"}}{{else}}{{localize "NOODLR.RagBrowser.Prompt"}}{{/if}}</p>
+    {{/if}}
+  {{else}}
+    <p class="noodlr-warn">{{localize "NOODLR.RagBrowser.Disabled"}}</p>
+  {{/if}}
+</section>
