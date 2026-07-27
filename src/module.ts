@@ -7,6 +7,7 @@ import { registerSettings } from "./settings";
 import { registerStatsSettings } from "./util/stats";
 import { sanitizeUserText } from "./util/sanitize";
 import { NoodlrChatPanel } from "./apps/chat-panel";
+import { NoodlrPlayerPanel } from "./apps/player-panel";
 import { NoodlrSettingsApp } from "./apps/settings-app";
 import { NoodlrMemoryApp } from "./apps/memory-app";
 import { NoodlrLorebookApp } from "./apps/lorebook-app";
@@ -28,10 +29,17 @@ import {
 import { refreshPushToLogButton, pushToLog, type TranscriptPayload } from "./media/push-to-log";
 import { registerArtifactHooks, handleArtifactSocket } from "./output/artifacts";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
+import {
+  PLAYER_ASK,
+  handlePlayerAsk,
+  type PlayerAskPayload,
+  type PlayerBotFlag,
+} from "./players/relay";
 
 /** Public surface other code (macros, console, future features) can call. */
 export interface NoodlrApi {
   openChat(): void;
+  openPlayerChat(): void;
   openSettings(): void;
   openMemory(): void;
   openLorebook(): void;
@@ -51,6 +59,11 @@ const api: NoodlrApi = {
     const existing = foundry.applications.instances?.get("noodlr-chat-panel");
     if (existing) void existing.render({ force: true });
     else new NoodlrChatPanel().render({ force: true });
+  },
+  openPlayerChat: () => {
+    const existing = foundry.applications.instances?.get("noodlr-player-panel");
+    if (existing) void existing.render({ force: true });
+    else new NoodlrPlayerPanel().render({ force: true });
   },
   openSettings: () => {
     new NoodlrSettingsApp().render({ force: true });
@@ -88,12 +101,21 @@ Hooks.once("init", () => {
 Hooks.once("ready", () => {
   log("ready");
 
-  // GM receives relayed messages from player clients: push-to-log transcripts, and requests to
-  // retire (delete + clean up) an AI-output artifact card the player generated.
+  // GM receives relayed messages from player clients: push-to-log transcripts, requests to retire
+  // (delete + clean up) an AI-output artifact card, and players-only "Ask the Table" requests.
   game.socket?.on(SOCKET, (data: { type?: string } & Record<string, unknown>) => {
     if (!game.user?.isGM) return;
     if (data?.type === "transcript") pushToLog.handleTranscript(data as unknown as TranscriptPayload);
     else if (data?.type === "artifact-retire") handleArtifactSocket(data);
+    else if (data?.type === PLAYER_ASK) void handlePlayerAsk(data as unknown as PlayerAskPayload);
+  });
+
+  // Adopt players-only "Ask the Table" results into any open player panel (all clients). The
+  // result rides a public ChatMessage (Foundry mirrors it), so this fires everywhere.
+  Hooks.on("createChatMessage", (message: any) => {
+    const flag =
+      message?.getFlag?.(MODULE_ID, "playerBot") ?? message?.flags?.[MODULE_ID]?.playerBot;
+    if (flag) NoodlrPlayerPanel.receive(flag as PlayerBotFlag);
   });
 
   // Retry/Reject controls + deferred RAG commit for AI-generated media outputs.
@@ -181,19 +203,31 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
     const isGM = Boolean(game.user?.isGM);
 
     const tools: Record<string, any> = {
+      // GM co-pilot: the trusted-ally chatbot, restricted to Assistant GM + Gamemaster.
       chat: {
         name: "chat",
         title: "NOODLR.ChatPanel.Title",
         icon: "fa-solid fa-comments",
         order: 1,
         button: true,
-        visible: true,
+        visible: isGM,
         onChange: () => api.openChat(),
+      },
+      // Players-only "Ask the Table": the gatekeeper/unreliable-narrator chatbot. Visible to all
+      // (Players/Trusted Players use it; the GM sees it to test their players' experience).
+      playerChat: {
+        name: "playerChat",
+        title: "NOODLR.Players.Tool",
+        icon: "fa-solid fa-masks-theater",
+        order: 2,
+        button: true,
+        visible: true,
+        onChange: () => api.openPlayerChat(),
       },
     };
     if (isGM) {
       // One button per image generator (scene art, portrait, token, map), each with its icon.
-      let order = 2;
+      let order = 3;
       for (const kind of IMAGE_KINDS) {
         const meta = IMAGE_KIND_META[kind];
         tools[`image-${kind}`] = {
@@ -334,7 +368,10 @@ function registerKeybindings(): void {
     hint: "NOODLR.Keybindings.ToggleChatPanel.Hint",
     editable: [{ key: "KeyN", modifiers: ["Control", "Shift"] }],
     onDown: () => {
-      NoodlrChatPanel.toggle();
+      // Open the chatbot appropriate to this user's role: GM/AGM get the co-pilot; Players and
+      // Trusted Players get the players-only "Ask the Table" panel.
+      if (game.user?.isGM) NoodlrChatPanel.toggle();
+      else NoodlrPlayerPanel.toggle();
       return true;
     },
     restricted: false,

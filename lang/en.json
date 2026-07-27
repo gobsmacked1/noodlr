@@ -21,6 +21,14 @@
 
   "NOODLR.Controls.GroupTitle": "Noodlr — AI Dungeon Master",
 
+  "NOODLR.Players.Title": "Noodlr — Ask the Table",
+  "NOODLR.Players.Tool": "Ask the Table (players)",
+  "NOODLR.Players.Speaker": "Noodlr (Players)",
+  "NOODLR.Players.Intro": "Ask about what your party already knows, or try your luck uncovering something hidden — you may be asked to make a roll.",
+  "NOODLR.Players.InputPlaceholder": "Ask the table… (Enter to send, Shift+Enter for a new line)",
+  "NOODLR.Players.Send": "Send",
+  "NOODLR.Players.P1Placeholder": "Your question reached the GM's table. (Noodlr's player guide is being wired up — full answers arrive in the next update.)",
+
   "NOODLR.Provider.Provider.Name": "Where the AI comes from (provider)",
   "NOODLR.Provider.Provider.Hint": "Pick OpenRouter (one account, one key, hundreds of models) or a Custom endpoint you run/host yourself.",
   "NOODLR.Provider.Custom": "Custom (OpenAI-compatible)",

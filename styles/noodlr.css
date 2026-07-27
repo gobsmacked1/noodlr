@@ -553,6 +553,29 @@
   font-style: normal;
 }
 
+/* Players-only "Ask the Table" panel: the question line + the answer body per bubble. */
+.noodlr-player__q {
+  font-style: italic;
+  opacity: 0.8;
+  margin-bottom: 0.25rem;
+}
+.noodlr-player__a {
+  margin-top: 0.25rem;
+}
+.noodlr-player__intro {
+  border-color: #6c5ce7;
+  background: rgba(108, 92, 231, 0.12);
+}
+
+/* Players-only result card mirrored to the shared Foundry chat log. */
+.noodlr-player-card__q {
+  margin: 0 0 0.35rem;
+  opacity: 0.85;
+}
+.noodlr-player-card__a {
+  white-space: pre-wrap;
+}
+
 /* Inline "input + button" row (e.g. the Test TTS control). */
 .noodlr-inline-controls {
   display: flex;

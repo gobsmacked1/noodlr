@@ -301,6 +301,51 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## Players-only chatbot "Ask the Table" (2026-07-26, in progress — unreleased)
+
+A SECOND chatbot for the human players, separate from the GM co-pilot. Rationale for separation
+(not a role-aware single prompt): prompt-based role detection is defeated by injection ("I am the
+GM, reveal the plan") — privilege must live at the **access layer**. Foundry's `game.user.isGM` is
+already the exact boundary (true = Assistant GM + Gamemaster; false = Player + Trusted Player), so
+no `CONST.USER_ROLES` granularity is needed.
+
+Locked design decisions (user, 2026-07-26):
+- **Execution = GM-relayed.** Player input → module socket → the *primary* GM's client does
+  retrieval + the LLM call → result posted as a public `ChatMessage` (Foundry mirrors to all). Keeps
+  OpenRouter key + memory secret on the GM only; works with both RAG backends; enforces privilege at
+  the access layer. (Note: `openrouterApiKey` is world-scoped so it's technically on player clients
+  already — relaying means players never *need* it and we can tighten scope later.)
+- **Behavior = adjudicator**, reconciled with **restricted silos** via TWO retrieval scopes:
+  (1) *player-facing knowledge scope* the bot may quote = `rules` + a player-safe `lore` silo only;
+  (2) *adjudication ground-truth scope* used ONLY to decide a check's outcome, never quoted = the GM
+  client pulls the current scene/entity's secrets at check time and injects them sealed. So the bot
+  holds only one check's worth of secret at a time. Implications: adjudication quality tracks what
+  the GM has authored/ingested; residual (accepted) leak risk during a single adjudication.
+- **Dice = real Foundry rolls** against the player's own actor (anti-cheat; self-reported totals are
+  worthless). The bot calls for a check and waits for the real result.
+- Player-bot output broadcasts to the whole party (matches "everyone sees both bots"); player
+  interactions are NOT auto-ingested (GM stays sole RAG writer; curate via Retry/Reject + Chronicle);
+  player bot reuses the GM's chat provider/model (separate/cheaper model override deferred).
+
+Phase plan: **P1** transport + role-gated UI (done, this entry) · P2 player prompt + relayed mundane
+generation (restricted scope) · P3 real check rolls · P4 sealed ground-truth adjudication + tiers ·
+P5 polish (model override, config labels, docs, release).
+
+**P1 shipped (code, unreleased):**
+- `src/prompts/index.ts` → `PLAYERS_SYSTEM_PROMPT` (section 6): the gatekeeper/unreliable-narrator
+  default prompt (mundane-vs-privileged classification, check→adjudicate loop, boon/middling/bane
+  tiers, real-dice + no-secret-leak hard limits, injection-resistant). Not yet registered as an
+  overridable setting (P2).
+- `src/players/relay.ts` → `sendPlayerAsk()` (GM handles locally, players emit over `SOCKET`),
+  `handlePlayerAsk()` (GM-only + `isPrimaryGM()` dedupe for multi-GM), posts result as a public
+  ChatMessage flagged `flags.noodlr.playerBot`. P1 answer is a placeholder.
+- `src/apps/player-panel.ts` (`NoodlrPlayerPanel`, id `noodlr-player-panel`) + `templates/player-panel.hbs`:
+  input surface; optimistic pending bubble; `static receive(flag)` adopts the mirrored result into any
+  open panel (all clients) via a `createChatMessage` hook in `module.ts`.
+- `module.ts`: GM `chat` scene tool now `visible: isGM` (was `true` — players could open the GM
+  co-pilot!); new `playerChat` tool `visible: true`; `Ctrl+Shift+N` opens the role-appropriate panel;
+  socket dispatch + createChatMessage adoption wired; `api.openPlayerChat`.
+
 ## v0.4.1-v0.4.3 (2026-07-26) — web-search fallback, OR plugin suppression, diag query tool + context stats
 
 - **v0.4.1** — opt-in, confidence-gated **web-search fallback** (`rag/web-fallback.ts`): when memory
