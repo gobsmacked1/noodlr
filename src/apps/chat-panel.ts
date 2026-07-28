@@ -217,7 +217,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
         signal: this.#abort.signal,
         onAssistantStart: () => {
           raw = "";
-          this.#liveEntry = { role: "assistant", author: "Dungeon Master", content: "", html: false };
+          this.#liveEntry = { role: "assistant", author: "Polly Histor", content: "", html: false };
           const rendered = this.#appendMessage(this.#liveEntry);
           bodyEl = rendered.bodyEl;
           turn.assistantMsgEl = rendered.msgEl;
@@ -429,7 +429,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         const msg = await ChatMessage.create({
           content,
-          speaker: { alias: "Dungeon Master" },
+          speaker: { alias: "Polly Histor" },
           flags: { [MODULE_ID]: { dmNarration: true } },
         });
         turn.mirrorMsgId = msg?.id ?? null;
@@ -462,7 +462,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!game.user?.isGM || !isRagEnabled() || !turn.finalText.trim()) return;
     try {
       // GM co-pilot dialogue is GM-only prep (no player present) -> gm_chat.
-      const text = `${turn.promptAuthor}: ${turn.promptText}\nDungeon Master: ${turn.finalText}`;
+      const text = `${turn.promptAuthor}: ${turn.promptText}\nGamemaster: ${turn.finalText}`;
       const res = await getRagClient().ingest(
         "gm_chat",
         [{ text, metadata: { source: "chat", ts: Date.now() } }],

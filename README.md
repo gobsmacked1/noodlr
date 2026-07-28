@@ -1,6 +1,6 @@
-# Noodlr — AI Dungeon Master for Foundry VTT
+# Noodlr for Foundry VTT
 
-Noodlr is an AI Dungeon Master module for [Foundry VTT](https://foundryvtt.com/)
+Noodlr is an AI Gamemaster module for [Foundry VTT](https://foundryvtt.com/)
 (game-system-agnostic by design, with D&D 5e as the first-class test case).
 
 **Core thesis:** modern flagship LLMs are already competent, creative game masters. What
@@ -30,8 +30,8 @@ supplies all three:
 
 ## Features
 
-- **Chat co-pilot** — streaming DM chat with markdown, real dice macros, per-user
-  identity, and the built-in Dungeon Master system prompt (fully overridable, 65k chars).
+- **Chat** — streaming GM chat with markdown, real dice macros, per-user
+  identity, and the built-in Gamemaster system prompt (fully overridable, 65k chars).
 - **Memory (RAG)** — connect to the `noodlr-memory` service: siloed vector DBs, hybrid
   retrieval, optional Agent-Mode query decomposition, compendium ingestion matrix, and
   TXT/PDF upload. Graceful degradation when the service is offline.
@@ -43,7 +43,7 @@ supplies all three:
   auto-read), image generation (OpenAI/SD-compatible with SD params + prompt expansion),
   and push-to-log voice capture (segmented transcription → chat + session journal +
   periodic RAG ingest).
-- **Combat co-pilot** — a ground-truth ⚔️ state block rebuilt from Foundry each turn, and
+- **Combat** — a ground-truth ⚔️ state block rebuilt from Foundry each turn, and
   AI-run NPC/monster turns that decide + narrate while real dice and your automation
   modules resolve the mechanics.
 
@@ -67,7 +67,7 @@ npm run format     # prettier --write
 ```
 
 Then symlink or copy this folder into your Foundry `Data/modules/noodlr` directory and
-enable **Noodlr — AI Dungeon Master** in your world. The distributed module needs:
+enable **Noodlr** in your world. The distributed module needs:
 `module.json`, `dist/`, `templates/`, `styles/`, `lang/`, and `LICENSE`.
 
 ## Configure
@@ -75,7 +75,7 @@ enable **Noodlr — AI Dungeon Master** in your world. The distributed module ne
 Open **Game Settings → Configure Settings → Noodlr**:
 
 - **Chat provider / model / key** (native settings) — start here.
-- **Configure Noodlr** — edit the DM system prompt, author's note, post-history, combat
+- **Configure Noodlr** — edit the GM system prompt, author's note, post-history, combat
   reminder, and the combat NPC-turn prompt; test the chat connection.
 - **Manage Memory** — point at the `noodlr-memory` service, test it, view/reset silos,
   and ingest compendia or files.

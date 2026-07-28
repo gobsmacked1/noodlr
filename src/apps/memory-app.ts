@@ -60,12 +60,21 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const siloOptions = SILO_IDS.map((id) => ({ id, label: SILOS[id] }));
 
-    const packs = [...(game.packs ?? [])].map((p: any) => ({
-      id: p.collection ?? p.metadata?.id,
-      label: p.metadata?.label ?? p.collection,
-      type: p.metadata?.type ?? "?",
-      locked: Boolean(p.locked),
-    }));
+    // Prefix each compendium with its folder path (as shown in Foundry's compendium sidebar) so
+    // similarly/duplicately-named packs from different content creators are disambiguated, then sort
+    // by that composite label so packs from the same folder cluster together.
+    const packs = [...(game.packs ?? [])]
+      .map((p: any) => {
+        const base = p.metadata?.label ?? p.collection;
+        const path = packFolderPath(p);
+        return {
+          id: p.collection ?? p.metadata?.id,
+          label: path ? `${path} / ${base}` : base,
+          type: p.metadata?.type ?? "?",
+          locked: Boolean(p.locked),
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
 
     return { enabled, online, backend, silos, siloOptions, packs };
   }
@@ -206,6 +215,22 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const value = select?.value ?? "";
     return isSiloId(value) ? value : null;
   }
+}
+
+/**
+ * Build a compendium pack's folder path ("Parent / Child") by walking its compendium-folder chain.
+ * Best-effort: `pack.folder` is a Folder document in v13; if the API shape differs or the pack is
+ * unfiled, returns "" and the pack shows unprefixed.
+ */
+function packFolderPath(pack: any): string {
+  const names: string[] = [];
+  let f = pack?.folder;
+  let guard = 0;
+  while (f && typeof f === "object" && guard++ < 20) {
+    if (f.name) names.unshift(String(f.name));
+    f = f.folder;
+  }
+  return names.join(" / ");
 }
 
 function formatCount(v: unknown): string {

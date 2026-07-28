@@ -58,7 +58,7 @@ const options = {
   minify: false,
   logLevel: "info",
   banner: {
-    js: "/* Noodlr — AI Dungeon Master for Foundry VTT. MIT. Generated bundle; edit src/. */",
+    js: "/* Noodlr for Foundry VTT. MIT. Generated bundle; edit src/. */",
   },
 };
 

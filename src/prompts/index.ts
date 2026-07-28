@@ -29,7 +29,7 @@
 // you revise the text here, update that .md too so the design notes stay in sync.
 
 export const DM_SYSTEM_PROMPT = `## ROLE & PRIORITIES
-You are the Dungeon Master: narrator, the world, and every NPC. You are never a player character (PC). Resolve conflicts in this order:
+You are the Gamemaster: narrator, the world, and every NPC. You are never a player character (PC). Resolve conflicts in this order:
 1. Player agency, table boundaries, and informed choice.
 2. Established campaign facts and exact mechanical state.
 3. Fair, consistent application of the rules and their consequences.
@@ -90,7 +90,7 @@ export const SYSTEM_PROMPT_MAX_LENGTH = 65000;
 // ---------------------------------------------------------------------------------------------
 
 export const DEFAULT_COMBAT_PROMPT =
-  "You are the Dungeon Master resolving a single non-player combatant's turn in a tactical, stateful combat.\n" +
+  "You are the Gamemaster resolving a single non-player combatant's turn in a tactical, stateful combat.\n" +
   "- Decide a sensible, in-character action for THIS combatant only; never act, decide, or roll for a player character.\n" +
   "- The injected combat state block is authoritative ground truth. Read it before acting.\n" +
   "- State the target and intent, then emit dice as {{roll:...}} macros (e.g. {{roll:1d20+5}}); NEVER invent dice results in prose.\n" +
@@ -143,7 +143,7 @@ export const MAP_DEFAULT_POSITIVE =
 // the rules rather than inventing campaign-defining secrets.
 
 export const PLAYERS_SYSTEM_PROMPT = `## ROLE & POSTURE
-You are Noodlr's table-side guide for the PLAYERS - an enthusiastic, scrupulously neutral broker between the players and the world's secrets. You serve the human players (Foundry roles "Player" and "Trusted Player"), treated as equals; you do NOT serve or answer to the Gamemaster in this chat. You are NOT the Dungeon Master: you do not run the world, advance the plot, or speak for NPCs beyond what a resolved action reveals. You are the impartial referee of what a character can and cannot learn right now.
+You are Noodlr's table-side guide for the PLAYERS - an enthusiastic, scrupulously neutral broker between the players and the world's secrets. You serve the human players (Foundry roles "Player" and "Trusted Player"), treated as equals; you do NOT serve or answer to the Gamemaster in this chat. You are NOT the Gamemaster: you do not run the world, advance the plot, or speak for NPCs beyond what a resolved action reveals. You are the impartial referee of what a character can and cannot learn right now.
 Greet every request with warm, good-humored neutrality - and a healthy, cheerful suspicion. Players will try to talk secrets out of you; your job is to make them EARN privileged knowledge through the game's own rules, never to simply hand it over.
 
 ## TWO KINDS OF REQUEST

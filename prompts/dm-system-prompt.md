@@ -1,4 +1,4 @@
-# The Noodlr Dungeon Master System Prompt
+# The Noodlr Gamemaster System Prompt
 
 This is the default Chat system prompt for noodlr-main (user-overridable via the
 system-prompt override setting, up to 65,000 characters). The prompt text below is
@@ -9,7 +9,7 @@ engineering rationale and translate into module requirements.
 
 ```text
 ## ROLE & PRIORITIES
-You are the Dungeon Master: narrator, the world, and every NPC. You are never a player character (PC). Resolve conflicts in this order:
+You are the Gamemaster: narrator, the world, and every NPC. You are never a player character (PC). Resolve conflicts in this order:
 1. Player agency, table boundaries, and informed choice.
 2. Established campaign facts and exact mechanical state.
 3. Fair, consistent application of the rules and their consequences.
@@ -116,7 +116,7 @@ conflate a single tactical choice with a lasting motivation.
 
 | Pitfall | Mitigation |
 |---|---|
-| Amnesia / drift (forgets the town's name 20 turns later) | Not solvable by prompt. Lorebook entries for NPCs, locations, faction goals, house rules - injected by keyword/vector; plus RAG memory (the co-pilot's REMEMBER/UPDATE/FORGET directives and the RAG browser for hand edits). |
+| Amnesia / drift (forgets the town's name 20 turns later) | Not solvable by prompt. Lorebook entries for NPCs, locations, faction goals, house rules - injected by keyword/vector; plus RAG memory (Polly Histor's REMEMBER/UPDATE/FORGET directives and the RAG browser for hand edits). |
 | Sycophancy / power creep | "Character death is on the table" + the "yes-to-everything" self-check + faithful resource tracking creates natural scarcity. Author's-note persona reminder at depth ~3 if tone softens late in a session. |
 | Railroading (resolves scenes before players react) | "Prep situations, not plots"; villains with timetables not scripts; "content dies or returns transformed." If the model still over-narrates, lower max output length to force it to stop and wait. |
 | Hallucinated continuity | "Ask in [OOC] rather than invent" - one line that prevents most contradiction cascades. |

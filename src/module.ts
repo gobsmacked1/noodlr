@@ -210,6 +210,17 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
     const isGM = Boolean(game.user?.isGM);
 
     const tools: Record<string, any> = {
+      // Inert default tool: selecting the Noodlr group just opens the flyout and rests here, so no
+      // action auto-fires (and, since it's the activeTool, the real action buttons never become
+      // "active" — meaning e.g. the chat button re-fires on every click even after you close it).
+      home: {
+        name: "home",
+        title: "NOODLR.Controls.GroupTitle",
+        icon: "fa-solid fa-dragon",
+        order: 0,
+        visible: true,
+        onChange: () => {},
+      },
       // GM co-pilot: the trusted-ally chatbot, restricted to Assistant GM + Gamemaster.
       chat: {
         name: "chat",
@@ -305,8 +316,9 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
       icon: "fa-solid fa-dragon",
       order: Object.keys(controls).length,
       visible: true,
-      // Buttons never become "active", but Foundry requires a valid tool name here.
-      activeTool: "chat",
+      // Rest on the inert `home` tool so opening the group fires no action and the real buttons
+      // stay momentary (re-clickable). Foundry requires activeTool to name a valid, visible tool.
+      activeTool: "home",
       tools,
     };
   } catch (err) {

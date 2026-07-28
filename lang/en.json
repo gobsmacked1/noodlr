@@ -1,13 +1,13 @@
 {
-  "NOODLR.ChatPanel.Title": "Noodlr — Dungeon Master",
-  "NOODLR.ChatPanel.InputPlaceholder": "Talk to the DM… (Enter to send, Shift+Enter for a new line)",
+  "NOODLR.ChatPanel.Title": "Noodlr - Polly Histor (GM)",
+  "NOODLR.ChatPanel.InputPlaceholder": "Talk to Polly Histor… (Enter to send, Shift+Enter for a new line)",
   "NOODLR.ChatPanel.NotConfigured": "Chat provider not configured. Set the provider, model, and API key in module settings.",
   "NOODLR.ChatPanel.Send": "Send",
   "NOODLR.ChatPanel.Clear": "Clear conversation",
   "NOODLR.ChatPanel.Copy": "Copy to clipboard",
   "NOODLR.ChatPanel.Copied": "Copied to clipboard.",
   "NOODLR.ChatPanel.HideOutput": "Hide from players (GM prep)",
-  "NOODLR.ChatPanel.HideOutputHint": "When checked, the DM's reply stays in this panel and is NOT mirrored to the players' chat log. Off by default. Your typed prompt is always private.",
+  "NOODLR.ChatPanel.HideOutputHint": "When checked, the GM's reply stays in this panel and is NOT mirrored to the players' chat log. Off by default. Your typed prompt is always private.",
 
   "NOODLR.Chat.BudgetExceedsModel": "Context token budget ({budget}) exceeds {model}'s context window ({limit} tokens). Lower the Context token budget in settings, or the model may truncate or reject long prompts.",
 
@@ -15,15 +15,15 @@
   "NOODLR.Media.HideOutputHint": "When checked, this result shows only on your screen (no broadcast, a GM-only card, and no shared playback). Use it to prep maps, handouts, or surprise NPCs. Off by default.",
 
   "NOODLR.Artifact.Retry": "Retry",
-  "NOODLR.Artifact.RetryHint": "Discard this output and generate a new one. Available for 60 seconds (DM, or the player who made it), then the output is committed to memory.",
+  "NOODLR.Artifact.RetryHint": "Discard this output and generate a new one. Available for 60 seconds (GM, or the player who made it), then the output is committed to memory.",
   "NOODLR.Artifact.Reject": "Reject",
-  "NOODLR.Artifact.RejectHint": "Discard this output and commit nothing to memory. Available for 60 seconds (DM, or the player who made it).",
+  "NOODLR.Artifact.RejectHint": "Discard this output and commit nothing to memory. Available for 60 seconds (GM, or the player who made it).",
 
-  "NOODLR.Controls.GroupTitle": "Noodlr — AI Dungeon Master",
+  "NOODLR.Controls.GroupTitle": "Noodlr",
 
-  "NOODLR.Players.Title": "Noodlr — Ask the Table",
-  "NOODLR.Players.Tool": "Ask the Table (players)",
-  "NOODLR.Players.Speaker": "Noodlr (Players)",
+  "NOODLR.Players.Title": "Noodlr - Polly Histor",
+  "NOODLR.Players.Tool": "Noodlr - Polly Histor",
+  "NOODLR.Players.Speaker": "Polly Histor",
   "NOODLR.Players.Intro": "Ask about what your party already knows, or try your luck uncovering something hidden — you may be asked to make a roll.",
   "NOODLR.Players.InputPlaceholder": "Ask the table… (Enter to send, Shift+Enter for a new line)",
   "NOODLR.Players.Send": "Send",
@@ -60,15 +60,15 @@
   "NOODLR.Help.Requires": "What it needs:",
   "NOODLR.Help.Without": "If you skip it:",
 
-  "NOODLR.Feature.Chat.Title": "Dungeon Master Chat",
-  "NOODLR.Feature.Chat.What": "The core AI Dungeon Master you talk to — it narrates, answers, and rolls real Foundry dice.",
+  "NOODLR.Feature.Chat.Title": "Gamemaster Chat",
+  "NOODLR.Feature.Chat.What": "The core AI Gamemaster you talk to — it narrates, answers, and rolls real Foundry dice.",
   "NOODLR.Feature.Chat.Requires": "A provider, a chat model, and (for OpenRouter) an API key.",
   "NOODLR.Feature.Chat.Without": "Nothing else in Noodlr works — this is the heart of the module.",
 
   "NOODLR.Feature.Tts.Title": "Spoken Voice (Text-to-Speech)",
-  "NOODLR.Feature.Tts.What": "Reads the Dungeon Master's replies out loud in a chosen voice.",
+  "NOODLR.Feature.Tts.What": "Reads the Gamemaster's replies out loud in a chosen voice.",
   "NOODLR.Feature.Tts.Requires": "A provider + a speech model + a voice name (and a key for OpenRouter).",
-  "NOODLR.Feature.Tts.Without": "The DM still works perfectly, just silently — you read replies instead of hearing them.",
+  "NOODLR.Feature.Tts.Without": "The GM still works perfectly, just silently — you read replies instead of hearing them.",
 
   "NOODLR.Feature.Image.Title": "Scene Art (Image Generation)",
   "NOODLR.Feature.Image.What": "Creates illustrations of scenes, places, and characters from a text description.",
@@ -91,13 +91,13 @@
   "NOODLR.Feature.Video.Without": "No AI video; images and everything else are unaffected.",
 
   "NOODLR.Feature.Rerank.Title": "Rerank (Search Refinement)",
-  "NOODLR.Feature.Rerank.What": "Re-scores the memory chunks found for a question and keeps only the most relevant, so the DM gets tighter context and spends fewer tokens.",
+  "NOODLR.Feature.Rerank.What": "Re-scores the memory chunks found for a question and keeps only the most relevant, so the GM gets tighter context and spends fewer tokens.",
   "NOODLR.Feature.Rerank.Requires": "A provider + a rerank model (e.g. cohere/rerank-4-fast) and a key for OpenRouter. Only used when memory is on.",
   "NOODLR.Feature.Rerank.Without": "Memory still works using its own hybrid ranking; results are just a little less precise.",
 
-  "NOODLR.Feature.WebFallback.What": "When the campaign's own memory has nothing confident to offer, let OpenRouter run a single web search for that one question and fold the results into the DM's answer.",
+  "NOODLR.Feature.WebFallback.What": "When the campaign's own memory has nothing confident to offer, let OpenRouter run a single web search for that one question and fold the results into the GM's answer.",
   "NOODLR.Feature.WebFallback.Requires": "The chat provider set to OpenRouter (it uses OpenRouter's web plugin, billed per search). Noodlr already disables OpenRouter's account-level Web Search on every chat request, so it only ever runs when this fallback fires - unless you enabled 'Prevent overrides' for the web plugin on OpenRouter, which blocks that.",
-  "NOODLR.Feature.WebFallback.Without": "Off by default. Without it, the DM answers weak-memory questions from the model's own knowledge only — no live web lookups, no per-search cost.",
+  "NOODLR.Feature.WebFallback.Without": "Off by default. Without it, the GM answers weak-memory questions from the model's own knowledge only — no live web lookups, no per-search cost.",
 
   "NOODLR.Feature.Memory.What": "Gives Noodlr a long-term memory so it recalls people, places, and events across sessions.",
   "NOODLR.Feature.Memory.Requires": "The separate noodlr-memory service running, reachable at its address, with a matching shared secret.",
@@ -108,7 +108,7 @@
   "NOODLR.Feature.Embeddings.Without": "The memory service uses its own built-in embedding settings (recommended).",
 
   "NOODLR.Settings.Title": "Configuration",
-  "NOODLR.Settings.Intro": "Noodlr is an AI Dungeon Master for Foundry VTT: reliable RAG memory, Foundry-authoritative game state, and deliberate restraint.",
+  "NOODLR.Settings.Intro": "Noodlr is an AI Gamemaster for Foundry VTT: reliable RAG memory, Foundry-authoritative game state, and deliberate restraint.",
   "NOODLR.Settings.Version": "Version",
   "NOODLR.Settings.PhaseNote": "Provider, Memory (RAG), Prompts, TTS, Image, and Transcription tabs continue to grow across phases.",
 
@@ -116,13 +116,13 @@
   "NOODLR.Settings.Enabled.Hint": "Turn Noodlr's features on or off for this world.",
 
   "NOODLR.Settings.ChatSystemPrompt.Name": "Chat system prompt override",
-  "NOODLR.Settings.ChatSystemPrompt.Hint": "Optional. Overrides the built-in Dungeon Master system prompt. Leave empty to use the default.",
+  "NOODLR.Settings.ChatSystemPrompt.Hint": "Optional. Overrides the built-in Gamemaster system prompt. Leave empty to use the default.",
 
   "NOODLR.Settings.ChatContinueAfterRoll.Name": "Continue after dice rolls",
-  "NOODLR.Settings.ChatContinueAfterRoll.Hint": "After a DM reply that rolls dice, automatically ask the DM to continue once from the authoritative results.",
+  "NOODLR.Settings.ChatContinueAfterRoll.Hint": "After a GM reply that rolls dice, automatically ask the GM to continue once from the authoritative results.",
 
   "NOODLR.Settings.ChatPromptLegend": "Chat system prompt",
-  "NOODLR.Settings.ChatPromptHint": "The Dungeon Master system prompt used for Chat. Edit to override; up to 65,000 characters.",
+  "NOODLR.Settings.ChatPromptHint": "The Gamemaster system prompt used for Chat. Edit to override; up to 65,000 characters.",
   "NOODLR.Settings.UsingDefault": "currently using the built-in default",
   "NOODLR.Settings.ResetPrompt": "Reset to default",
   "NOODLR.Settings.TestConnection": "Test connection",
@@ -178,7 +178,7 @@
 
   "NOODLR.Rag.Manage.Label": "Manage Memory (silos & ingest)",
   "NOODLR.Rag.ConfigTitle": "Memory & Knowledge",
-  "NOODLR.Rag.ConfigIntro": "Everything about Noodlr's long-term memory lives here. Pick a memory backend, choose how it recalls information, and open the Manage Memory and Diagnostics tools. (Lorebook and the Memory browser live on the Dungeon Master toolbar.)",
+  "NOODLR.Rag.ConfigIntro": "Everything about Noodlr's long-term memory lives here. Pick a memory backend, choose how it recalls information, and open the Manage Memory and Diagnostics tools. (Lorebook and the Memory browser live on the Noodlr toolbar.)",
   "NOODLR.Rag.ConnectionLegend": "Memory backend & connection",
 
   "NOODLR.Rag.Tag.ServiceOnly": "(noodlr-memory only)",
@@ -240,8 +240,8 @@
   "NOODLR.Prompt.AuthorNoteDepth.Hint": "How many messages from the end to inject the author's note before (default 3).",
   "NOODLR.Prompt.ContextBudget.Name": "Context token budget",
   "NOODLR.Prompt.ContextBudget.Hint": "Approximate max tokens for the WHOLE assembled prompt (system prompt + lorebook + retrieved memory + Foundry state + chat history); older history is trimmed to fit. 12000 is deliberately thrifty. With large-context models (200k-1M) you can safely raise this to 32000-64000+ to keep more of the recent conversation in play - but cost and latency scale with every token you send each turn, and RAG + Lorebook already backstop long-term recall, so there's rarely a reason to go near the model's true maximum. Watch Diagnostics 'Avg/Peak context sent' to tune it.",
-  "NOODLR.Prompt.ChatMemoryWrites.Name": "GM co-pilot memory writes",
-  "NOODLR.Prompt.ChatMemoryWrites.Hint": "Let the GM co-pilot autonomously record, revise, or remove long-term memory facts when it establishes durable world-state. Every write is enforced to the allowed silos and whispered to the GM as an audit line. Requires Memory (RAG) enabled. Disable to keep all memory edits manual (via the Memory browser).",
+  "NOODLR.Prompt.ChatMemoryWrites.Name": "Polly Histor memory writes",
+  "NOODLR.Prompt.ChatMemoryWrites.Hint": "Let Polly Histor autonomously record, revise, or remove long-term memory facts when it establishes durable world-state. Every write is enforced to the allowed silos and whispered to the GM as an audit line. Requires Memory (RAG) enabled. Disable to keep all memory edits manual (via the Memory browser).",
 
   "NOODLR.Lorebook.Menu.Name": "Noodlr Lorebook",
   "NOODLR.Lorebook.Menu.Label": "Edit Lorebook",
@@ -296,8 +296,8 @@
   "NOODLR.Media.TtsEnabled.Hint": "Allow Noodlr to synthesize speech via the TTS provider.",
   "NOODLR.Media.TtsVoice.Name": "TTS voice",
   "NOODLR.Media.TtsVoice.Hint": "Default voice id/name for speech (see your provider's voice list).",
-  "NOODLR.Media.TtsAutoRead.Name": "Read DM replies aloud",
-  "NOODLR.Media.TtsAutoRead.Hint": "Automatically speak each DM chat reply on this client.",
+  "NOODLR.Media.TtsAutoRead.Name": "Read GM replies aloud",
+  "NOODLR.Media.TtsAutoRead.Hint": "Automatically speak each GM chat reply on this client.",
   "NOODLR.Media.TtsTest.Name": "Test voice output",
   "NOODLR.Media.TtsTest.Hint": "Type up to 140 characters, then Test to synthesize and play a sample using your SAVED TTS settings (save first if you just changed them). The result or error appears below — handy because audio problems are often unrelated to the provider.",
   "NOODLR.Media.TtsTest.Placeholder": "Type a short phrase to hear it spoken…",
@@ -390,7 +390,7 @@
   "NOODLR.Media.VideoPromptButton": "Generate",
 
   "NOODLR.Media.MusicEnabled.Name": "Enable music generation",
-  "NOODLR.Media.MusicEnabled.Hint": "What it does: lets the DM generate mood/combat music. What it needs: a music model + key. Without it: no AI music.",
+  "NOODLR.Media.MusicEnabled.Hint": "What it does: lets the GM generate mood/combat music. What it needs: a music model + key. Without it: no AI music.",
   "NOODLR.Media.MusicPlaylist.Name": "Playlist name",
   "NOODLR.Media.MusicPlaylist.Hint": "Generated tracks are added to (and this playlist is created if missing) so you can loop, fade, and reuse them.",
   "NOODLR.Media.MusicMin.Name": "Min seconds",
@@ -406,7 +406,7 @@
   "NOODLR.Media.Music.NoPlaylist": "Couldn't add the track to a playlist; it was still saved to disk.",
 
   "NOODLR.Media.VideoEnabled.Name": "Enable video generation (experimental)",
-  "NOODLR.Media.VideoEnabled.Hint": "What it does: lets the DM generate a short clip shown to everyone. What it needs: a video model + key. Without it: no AI video. Note: slow and comparatively expensive.",
+  "NOODLR.Media.VideoEnabled.Hint": "What it does: lets the GM generate a short clip shown to everyone. What it needs: a video model + key. Without it: no AI video. Note: slow and comparatively expensive.",
   "NOODLR.Media.VideoDuration.Name": "Duration (sec)",
   "NOODLR.Media.VideoResolution.Name": "Resolution",
   "NOODLR.Media.VideoAspect.Name": "Aspect ratio",
@@ -452,7 +452,7 @@
   "NOODLR.Combat.NotConfigured": "Chat provider is not configured.",
 
   "NOODLR.Keybindings.ToggleChatPanel.Name": "Toggle Noodlr chat panel",
-  "NOODLR.Keybindings.ToggleChatPanel.Hint": "Open or close the Noodlr Dungeon Master chat panel.",
+  "NOODLR.Keybindings.ToggleChatPanel.Hint": "Open or close the Noodlr chat panel.",
 
   "NOODLR.Diagnostics.Menu.Label": "Diagnostics",
   "NOODLR.Diagnostics.Title": "Diagnostics & Statistics",
@@ -495,7 +495,7 @@
   "NOODLR.Diagnostics.SelfTest.Disabled": "Memory is disabled — enable it first.",
 
   "NOODLR.Diagnostics.RagQuery.Legend": "Query inspector (raw retrieval)",
-  "NOODLR.Diagnostics.RagQuery.Hint": "Run a search against memory and see the raw hits the model would receive — score, silo/source, and full text — with no AI in the loop. Great for checking what the DM is actually pulling from the rules or lore.",
+  "NOODLR.Diagnostics.RagQuery.Hint": "Run a search against memory and see the raw hits the model would receive — score, silo/source, and full text — with no AI in the loop. Great for checking what the GM is actually pulling from the rules or lore.",
   "NOODLR.Diagnostics.RagQuery.Placeholder": "Ask memory something (e.g. 'grappling rules', 'who is the baron?')",
   "NOODLR.Diagnostics.RagQuery.Silo": "Silo",
   "NOODLR.Diagnostics.RagQuery.AllSilos": "All default silos",
