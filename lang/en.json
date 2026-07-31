@@ -30,6 +30,8 @@
   "NOODLR.Players.P1Placeholder": "Your question reached the GM's table. (Noodlr's player guide is being wired up — full answers arrive in the next update.)",
   "NOODLR.Players.NoGM": "No Gamemaster is online, so nobody can answer right now. Your question needs a connected GM - Noodlr answers players through the GM's client.",
   "NOODLR.Players.GenFailed": "The table guide couldn't answer just now — the GM's AI may be unconfigured or unreachable. Try again in a moment.",
+  "NOODLR.Players.Timeout": "The table guide took too long to answer and gave up. The GM's AI provider may be slow or stalled — try again.",
+  "NOODLR.Players.NoReply": "No answer came back. The GM's client may have disconnected or hit an error — ask your GM to check their console, then try again.",
   "NOODLR.Players.RollPrompt": "Give me a {skill} check from your character sheet, and we'll see what you turn up.",
 
   "NOODLR.Provider.Provider.Name": "Where the AI comes from (provider)",

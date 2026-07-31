@@ -597,6 +597,10 @@
 .noodlr-player__a {
   margin-top: 0.25rem;
 }
+.noodlr-player__a--error {
+  color: rgb(200, 40, 40);
+  font-style: italic;
+}
 .noodlr-player__intro {
   border-color: #6c5ce7;
   background: rgba(108, 92, 231, 0.12);

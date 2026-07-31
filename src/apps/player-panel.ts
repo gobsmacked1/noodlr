@@ -8,12 +8,15 @@
 // socket -> GM -> mirrored result -> panel). Streaming, Retry/Reject, and real generation land in
 // later phases.
 
-import { MODULE_ID } from "../constants";
+import { MODULE_ID, warn } from "../constants";
 import { sanitizeUserText } from "../util/sanitize";
 import { renderMarkdown } from "../util/markdown";
 import { sendPlayerAsk, type PlayerBotFlag } from "../players/relay";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+/** Deliberately longer than the GM-side generation timeout (90s) so a real GM error wins the race. */
+const NO_REPLY_TIMEOUT_MS = 120_000;
 
 /** One completed exchange, persisted statically so it survives closing/reopening the panel. */
 interface PanelEntry {
@@ -45,6 +48,14 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
   /** Optimistic pending bubbles for questions this client asked, keyed by requestId. */
   #pending = new Map<string, HTMLElement>();
 
+  /**
+   * Watchdogs for those bubbles. Last-resort client-side guarantee: whatever goes wrong on the GM
+   * (offline mid-request, an exception before it can post, a request the primary GM never picked up),
+   * the asker gets told instead of watching a spinner forever. Longer than the GM's own generation
+   * timeout so a real error message from the GM wins the race.
+   */
+  #pendingTimers = new Map<string, number>();
+
   #root(): HTMLElement | null {
     return (this.element as HTMLElement | null) ?? null;
   }
@@ -63,7 +74,7 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
     const logEl = root.querySelector<HTMLElement>('[data-role="log"]');
     if (logEl) {
       logEl.replaceChildren();
-      this.#pending.clear();
+      this.#clearPending();
       for (const entry of NoodlrPlayerPanel.#entries) this.#renderEntry(entry);
       this.#scrollToBottom();
     }
@@ -97,6 +108,30 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
       true,
     );
     this.#pending.set(payload.requestId, el);
+    this.#pendingTimers.set(
+      payload.requestId,
+      window.setTimeout(() => this.#onNoReply(payload.requestId), NO_REPLY_TIMEOUT_MS),
+    );
+  }
+
+  /** A pending question went unanswered long enough that something is wrong; say so in the bubble. */
+  #onNoReply(requestId: string): void {
+    const el = this.#pending.get(requestId);
+    this.#pendingTimers.delete(requestId);
+    if (!el) return;
+    this.#pending.delete(requestId);
+    warn("player-bot: no answer came back for this question", { requestId });
+    const ans = el.querySelector<HTMLElement>('[data-role="answer"]');
+    if (ans) {
+      ans.classList.add("noodlr-player__a--error");
+      ans.textContent = game.i18n.localize("NOODLR.Players.NoReply");
+    }
+  }
+
+  #clearPending(): void {
+    for (const timer of this.#pendingTimers.values()) window.clearTimeout(timer);
+    this.#pendingTimers.clear();
+    this.#pending.clear();
   }
 
   /**
@@ -120,6 +155,11 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
 
   #applyAnswer(flag: PlayerBotFlag): void {
     const pendingEl = this.#pending.get(flag.requestId);
+    const timer = this.#pendingTimers.get(flag.requestId);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      this.#pendingTimers.delete(flag.requestId);
+    }
     if (pendingEl) {
       this.#pending.delete(flag.requestId);
       const ans = pendingEl.querySelector<HTMLElement>('[data-role="answer"]');

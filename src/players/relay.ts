@@ -42,6 +42,13 @@ function randomId(): string {
 }
 
 /**
+ * Hard ceiling on one player question. Nothing in the provider path times out on its own — a stalled
+ * request or a stream that never closes would otherwise leave the asking player watching a spinner
+ * forever with no error anywhere. Generous enough for a slow model, short enough to stay a chat.
+ */
+const GENERATION_TIMEOUT_MS = 90_000;
+
+/**
  * True when this client is the GM responsible for handling relayed player requests. With several
  * GMs/assistant-GMs online, only the designated primary handles socket relays so a request is not
  * answered twice. Falls back to "any GM" if Foundry reports no active GM.
@@ -113,8 +120,19 @@ export async function handlePlayerAsk(
   });
 
   let answer: string;
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), GENERATION_TIMEOUT_MS);
+  let timedOut = false;
+  abort.signal.addEventListener("abort", () => {
+    timedOut = true;
+  });
   try {
-    const result = await generatePlayerAnswer(text, payload.userName, undefined, payload.userId);
+    const result = await generatePlayerAnswer(
+      text,
+      payload.userName,
+      abort.signal,
+      payload.userId,
+    );
     answer = result.text;
 
     // If the bot escalated a privileged check, register it so the player's real roll (captured from
@@ -140,8 +158,15 @@ export async function handlePlayerAsk(
     await applyMemoryDirectives("player", result.directives);
   } catch (err) {
     // Always warn (not debug-gated): a swallowed failure here is exactly what made this silent.
-    warn("player-bot generation failed:", err);
-    answer = game.i18n.localize("NOODLR.Players.GenFailed");
+    if (timedOut) {
+      warn(`player-bot generation timed out after ${GENERATION_TIMEOUT_MS / 1000}s`);
+      answer = game.i18n.localize("NOODLR.Players.Timeout");
+    } else {
+      warn("player-bot generation failed:", err);
+      answer = game.i18n.localize("NOODLR.Players.GenFailed");
+    }
+  } finally {
+    clearTimeout(timer);
   }
   if (!answer.trim()) {
     warn("player-bot produced an empty answer; posting the fallback notice");
