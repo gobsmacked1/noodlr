@@ -53,6 +53,25 @@ export function registerPromptSettings(): void {
     default: true,
   });
 
+  // Tipster (live scene briefing) — enabled independently per chatbot, since the GM and the
+  // players-only bot have different needs and the GM may want to trial it on one side first.
+  game.settings.register(MODULE_ID, SETTINGS.tipsterGm, {
+    name: L("TipsterGm.Name"),
+    hint: L("TipsterGm.Hint"),
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+  game.settings.register(MODULE_ID, SETTINGS.tipsterPlayers, {
+    name: L("TipsterPlayers.Name"),
+    hint: L("TipsterPlayers.Hint"),
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   // JSON stores (config:false).
   game.settings.register(MODULE_ID, SETTINGS.lorebook, {
     scope: "world",
@@ -79,6 +98,10 @@ export function getContextBudget(): number {
 }
 export function isChatMemoryWritesEnabled(): boolean {
   return (game.settings.get(MODULE_ID, SETTINGS.chatMemoryWrites) as boolean) ?? true;
+}
+export function isTipsterEnabled(which: "gm" | "players"): boolean {
+  const key = which === "gm" ? SETTINGS.tipsterGm : SETTINGS.tipsterPlayers;
+  return (game.settings.get(MODULE_ID, key) as boolean) ?? true;
 }
 
 export function loadLorebook(): LorebookEntry[] {

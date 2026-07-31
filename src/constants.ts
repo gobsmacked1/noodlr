@@ -33,6 +33,12 @@ export const SETTINGS = {
   chatMemoryWrites: "chatMemoryWrites",
   /** Persisted lorebook entries (JSON array; world-scoped). */
   lorebook: "lorebook",
+
+  // --- Tipster: live scene briefing (T1) ---
+  /** Inject the live scene briefing into the GM chatbot's prompts. */
+  tipsterGm: "tipster.gm",
+  /** Inject the live scene briefing into the players-only chatbot's prompts. */
+  tipsterPlayers: "tipster.players",
 } as const;
 
 /** Settings-menu keys (open dedicated ApplicationV2 config windows). */

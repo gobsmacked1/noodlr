@@ -302,6 +302,137 @@ tts=speech, image=image, transcription=transcription, embeddings=embeddings; mus
 rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
 is public (no key). No key ever sent for the OR catalog.
 
+## Tipster — live scene briefing (2026-07-31, feasibility DONE; not yet implemented)
+
+Feature name is the user's ("Tipster"). Goal: on-demand poll the active scene and hidden-inject a
+situational briefing from the perspective of the token whose player is asking. Full assessment lives
+in the canvas `canvases/tipster-feasibility.canvas.tsx` (workspace `c-Project-noodlr-memory`).
+
+**Decision 1 — NO RAG for live scene state (user agreed 2026-07-31).** The user drafted 8
+`{player,gm}_tipster_*` collections (`noodlr-memory/scripts/Tipster_RAG_Collection_Access.csv`);
+we are deliberately NOT building them. Reasons: live state is already authoritative in Foundry and
+readable synchronously in <1 ms; RAG retrieval is semantic/top-k (returns chunks that *resemble* the
+question — useless when you need the exact current distance); every write costs an embedding call;
+RAG writes are async while prompt assembly is synchronous. Instead: poll on demand at assembly time
+into the **existing `AssembleInput.foundryState` slot**, which is already wired through
+`conversation.ts` and is `null` outside combat. Durable scene facts still go to
+`player_history`/`gm_history` as normal. The CSV stays as a record of the rejected design.
+
+**Decision 2 — per-token perception IS computable (corrected 2026-07-31).** An earlier draft of the
+assessment wrongly claimed it wasn't; the user correctly pushed back ("their browser must have a
+function that decides what to display"). Verified against v13/v14 docs:
+`DetectionMode#testVisibility(visionSource, mode, config)` takes the vision source as an **explicit
+parameter** — it is not hardwired to the current client. `CanvasVisibility#restrictVisibility()` is
+the method that hides failing placeables. Only the `token.isVisible` *convenience getter* is
+client-relative ("visible to the calling user's perspective"; "all Tokens are visible to a GM user
+if no Token is controlled").
+- **Chosen approach:** compute on the **asking player's client**, where `isVisible` is already
+  authoritative, then send the pre-filtered list to the GM in the existing relay request. Inherits
+  every vision module the table runs (darkvision, Levels, Perceptive) for free; touches no canvas
+  internals; never mutates the GM's view.
+- **Trust boundary:** a player-computed snapshot is client-supplied input. Player client *narrows*
+  (perception), GM client *validates* (authority) — GM drops any claimed token that is `hidden` or
+  SECRET-disposition before it reaches the prompt, so forgery buys nothing.
+- GM-side fallback (`token.vision` + `initializeVisionSource()`) is only for GM previews and offline
+  players; `token.vision` is undefined when the token isn't a viable source for the current user,
+  and forcing one mutates shared canvas state.
+
+**API facts worth not re-deriving** (verified against live docs 2026-07-31):
+- z-axis is `token.elevation`. `token.sort` is draw order — NOT height (easy trap).
+- `token.inCombat` / `token.combatant` are direct getters on TokenDocument.
+- `token.disposition` includes a **SECRET** value; `token.isSecret` is permission-aware.
+- Doors: `wall.door` (0 none / 1 door / **2 secret**) and `wall.ds` (0 closed / 1 open / **2 locked**).
+- Scene: `width`/`height` + `grid.size`/`grid.distance`/`grid.units` → real distances;
+  `environment.darknessLevel`, `environment.globalLight`; `scene.regions`, `scene.notes`,
+  `scene.journal`, `scene.playlist`/`playlistSound`.
+- **Three real gaps, in Foundry itself (no module can fix):** terrain has no first-class field;
+  traps and chests/interactibles are module conventions, not core concepts. Planned escape hatch is
+  a GM-authored terrain field or a named region (phase T5).
+- System-specific → guard with optional chaining and omit when absent: HP, class levels, ability
+  scores, creature type. Reuse the 4-path HP probe + condition reader already in `combat/tracker.ts`.
+
+**Budget hazard:** the assembler trims ONLY history; fixed blocks are never truncated, so an
+unbounded Tipster block silently evicts conversation history. It must self-cap (the combat block's
+HP-tiering is the in-repo precedent). Target ~180 tokens.
+
+**Decision 3 — three callers, one builder, per-bot toggles (user 2026-07-31).** The block header line
+is **"Token/Object Speaking:"** (NOT "You are:") because the caller may be a player, the GM, or a
+future internal automation. Two world-scoped booleans let the admin enable Tipster independently for
+the GM bot and the players bot; a future NPC-movement/combat AI inherits the GM toggle but must be
+built from **the NPC's own perception** (an ogre must not path toward an invisible rogue) — that is
+the same T3 machinery with a different vision source, which is the main reason to build T3 properly.
+
+**Decision 4 — ephemeral by construction (user 2026-07-31).** The briefing is built, injected, and
+discarded within a single prompt; never written to `this.messages`, so it cannot leak into history or
+a later turn. Rationale: a cached block is a *wrong* block as soon as anything moves. Consequence to
+accept: the model only knows the situation as of the asking turn, so stamp the block with round/world
+time to make stale references self-evident. Also add a nearest-N cap (default 8, sorted by distance,
+with an explicit "+N more not listed" tail) — a 20-token siege map would otherwise blow the budget.
+
+**Second API pass — 18 additional fields the user hadn't requested** (full table in the canvas). The
+two I'd not ship without:
+- **`user.targets`** (Set<Token>) / `token.isTargeted` — who the speaker has actually targeted.
+  Resolves "can I hit him?" without guessing which "him", and signals intent.
+- **`game.time.worldTime` / `.components` / `.calendar`** — v13+ has a real in-world calendar
+  (year/month/day/hour/season). Drives night vs day, shop hours, travel, rest.
+Other core (system-agnostic) wins: `token.movementAction` (walk/fly/swim/burrow — airborne or
+submerged), `token.light`/`emitsLight` (who carries the torch → stealth + who sees whom),
+`token.sight.range`/`.visionMode`/`detectionModes` (darkvision vs blind), `token.rotation` (facing).
+**Two are leak guards, not features:** `token.displayName` (vs `CONST.TOKEN_DISPLAY_MODES`) — if the
+GM hid names, the player briefing must say "a robed figure", not the actor name; and
+`token.displayBars`/`bar1`/`bar2` — tells you whether exact HP is already public, giving a principled
+basis for numbers vs tiers.
+System-specific (guard + omit when absent): movement speeds, proficiency bonus, skill totals +
+passive Perception (better than raw ability scores for adjudication), spell slots, legendary/lair
+actions (GM-only; commonly forgotten mid-combat), death saves, concentration (usually arrives free
+via the existing status reader).
+Not available in core: **action/reaction economy** (Foundry doesn't track spent actions; only
+automation modules do, via their own flags). `token._movementHistory` exists but is underscore-
+prefixed/internal — treat as unstable.
+
+**Build order:** T1 scene ambience + `game.time` + toggles (no secrets, proves plumbing) → T2
+speaker/party incl. `user.targets`, speed, prof, passive Perception → T3 perceived others (the
+sensitive one; trust boundary + name/HP leak guards + nearest-N cap) → T4 GM omniscient view +
+"what can X see?" preview → T5 terrain escape hatch.
+
+### T1 SHIPPED (v0.4.8, 2026-07-31)
+
+`src/tipster/scene.ts` — the only new file. Exports:
+- `buildTipsterBlock({caller, userName, token})` → `string | null`. Emits
+  `# Current situation (live from Foundry — trust this over any earlier description)` followed by
+  `Token/Object Speaking:` / `Scene:` / `Time:` / `Light:` / `Ambience:` / `Regions:`. Every line is
+  independently optional; returns `null` if only the header would survive (not worth the tokens).
+  Wrapped in try/catch — a briefing is a nice-to-have, so an unexpected API shape must never break
+  the user's chat turn.
+- `resolvePerspectiveToken(user)` → controlled token (strongest intent signal, self only) → assigned
+  `user.character`'s token on this scene → any token whose `actor.ownership[userId] === 3`.
+- `TipsterCaller = "player" | "gm" | "automation"` — the automation arm is unused until the NPC AI.
+
+Wiring:
+- GM bot: `chat/conversation.ts` builds it per turn and **concatenates after** `buildCombatStateBlock()`
+  into the existing `foundryState` slot (combat block stays first — it's the authoritative one).
+  Renamed the local to `combatState`; `foundryState` is now `[combat, tipster].filter(Boolean).join()`.
+- Players bot: `players/answer.ts` pushes it as a system message after the RAG block. Runs on the GM's
+  client, so the perspective token is resolved from the **asking** user — `generatePlayerAnswer()`
+  gained a 4th param `askUserId`, passed through from `relay.ts` (`payload.userId`).
+- Settings: `SETTINGS.tipsterGm` / `tipsterPlayers` (world, config:true, default **true**),
+  `isTipsterEnabled("gm"|"players")` in `prompt/settings.ts`. i18n `NOODLR.Prompt.Tipster*`.
+- `canvas` added to `src/types/foundry.d.ts` ambient globals (first use in the module).
+
+Implementation notes worth keeping:
+- Dimensions are reported in **grid squares + distance/units** ("40x30 squares, 5 ft/square"), not
+  pixels — pixels are meaningless to a model. Gridless scenes (`grid.type === 0`) report px honestly
+  instead of inventing square counts.
+- Darkness → phrase ladder (pitch dark / dark / dim / well lit / bright daylight) with the raw value
+  kept alongside. Reads `environment.darknessLevel` (v13) **and** legacy top-level `scene.darkness`.
+- `game.time.components` + `.calendar` for real month/day/season names, with a `worldTime`-seconds
+  fallback that stays silent unless the GM actually advanced the clock (avoids printing a fake
+  "day 1, 00:00" for worlds that never touch time).
+- Regions capped at 8 names with a `+N more` tail (nearest-N discipline starts here).
+
+**T1 deliberately has no perception filtering** — everything it reports is non-secret ambience, which
+is why it was safe to ship first. Hidden tokens, secret doors, and the player/GM split land in T3/T4.
+
 ## Native chat-log sniffer -> unfiltered_chat (2026-07-27)
 
 `src/log/chat-sniffer.ts` (`initChatSniffer()`, called from `module.ts` ready on GM clients).

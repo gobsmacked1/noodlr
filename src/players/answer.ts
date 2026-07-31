@@ -16,6 +16,8 @@ import { isConfigured, type ChatMessage } from "../providers/types";
 import { retrieveContext } from "../rag/retrieval";
 import { PLAYER_QUERY_SILOS } from "../rag/silos";
 import { PLAYERS_SYSTEM_PROMPT } from "../prompts";
+import { isTipsterEnabled } from "../prompt/settings";
+import { buildTipsterBlock, resolvePerspectiveToken } from "../tipster/scene";
 import { sanitizeUserText } from "../util/sanitize";
 import { bumpStats } from "../util/stats";
 import { parseDirectives, type Directive } from "./directives";
@@ -41,6 +43,7 @@ export async function generatePlayerAnswer(
   question: string,
   askUserName: string,
   signal?: AbortSignal,
+  askUserId?: string,
 ): Promise<PlayerAnswer> {
   const cfg = getFeatureConfig("chat");
   if (!isConfigured(cfg)) {
@@ -58,6 +61,19 @@ export async function generatePlayerAnswer(
 
   const messages: ChatMessage[] = [{ role: "system", content: PLAYERS_SYSTEM_PROMPT }];
   if (rag.block) messages.push({ role: "system", content: rag.block });
+
+  // Tipster: live scene briefing from the ASKING player's perspective, not the GM's — even though
+  // this runs on the GM's client. T1 injects only non-secret ambience (scene, time, light, sounds);
+  // per-token perception filtering and the hidden-token split arrive in T3/T4.
+  if (isTipsterEnabled("players")) {
+    const askUser = askUserId ? (game as any).users?.get(askUserId) : undefined;
+    const block = buildTipsterBlock({
+      caller: "player",
+      userName: askUserName,
+      token: askUser ? resolvePerspectiveToken(askUser) : undefined,
+    });
+    if (block) messages.push({ role: "system", content: block });
+  }
   messages.push({ role: "user", content: clean, name: sanitizeName(askUserName) });
 
   const raw = (await chatCompletion(cfg, { messages, signal })).trim();

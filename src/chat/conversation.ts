@@ -7,7 +7,7 @@ import { getFeatureConfig } from "../providers/config";
 import { ChatClientError, streamChatCompletion } from "../providers/chat-client";
 import { type ChatMessage, type FeatureProviderConfig, isConfigured } from "../providers/types";
 import { fetchOpenRouterContextLength } from "../providers/models";
-import { getContextBudget, isChatMemoryWritesEnabled } from "../prompt/settings";
+import { getContextBudget, isChatMemoryWritesEnabled, isTipsterEnabled } from "../prompt/settings";
 import {
   type ResolvedRoll,
   formatRollResultsForModel,
@@ -19,6 +19,7 @@ import { assemblePrompt } from "../prompt/assembler";
 import { parseDirectives } from "../players/directives";
 import { applyMemoryDirectives } from "../rag/memory-writes";
 import { buildCombatStateBlock } from "../combat/tracker";
+import { buildTipsterBlock, resolvePerspectiveToken } from "../tipster/scene";
 import { bumpStats, noteContextEst } from "../util/stats";
 import { estimateMessagesTokens } from "../util/tokens";
 
@@ -94,7 +95,17 @@ export class Conversation {
     const webPlugins = buildWebFallbackPlugins(cfg, rag);
     if (webPlugins) bumpStats({ webFallbacks: 1 });
     // Ground-truth combat state (null outside combat).
-    const foundryState = buildCombatStateBlock();
+    const combatState = buildCombatStateBlock();
+    // Tipster: live scene briefing, rebuilt per turn and never stored (a cached briefing is a wrong
+    // briefing as soon as anything moves). Combat state stays first — it's the authoritative block.
+    const tipster = isTipsterEnabled("gm")
+      ? buildTipsterBlock({
+          caller: "gm",
+          userName: game.user?.name,
+          token: resolvePerspectiveToken(game.user),
+        })
+      : null;
+    const foundryState = [combatState, tipster].filter(Boolean).join("\n\n") || null;
 
     const allowContinuation =
       (game.settings.get(MODULE_ID, SETTINGS.chatContinueAfterRoll) as boolean) ?? true;

@@ -243,6 +243,11 @@
   "NOODLR.Prompt.ChatMemoryWrites.Name": "Polly Histor memory writes",
   "NOODLR.Prompt.ChatMemoryWrites.Hint": "Let Polly Histor autonomously record, revise, or remove long-term memory facts when it establishes durable world-state. Every write is enforced to the allowed silos and whispered to the GM as an audit line. Requires Memory (RAG) enabled. Disable to keep all memory edits manual (via the Memory browser).",
 
+  "NOODLR.Prompt.TipsterGm.Name": "Tipster: scene awareness (GM chat)",
+  "NOODLR.Prompt.TipsterGm.Hint": "Quietly tell Polly Histor what's happening in the active scene right now — scene name and size, in-world date/time, lighting and darkness, ambient sound and the playing track, and any named regions. Read fresh from Foundry on every message and never stored, so it can't go stale. Costs roughly 100-250 tokens per message.",
+  "NOODLR.Prompt.TipsterPlayers.Name": "Tipster: scene awareness (players' chat)",
+  "NOODLR.Prompt.TipsterPlayers.Hint": "Same live scene briefing for the players' chatbot, built from the perspective of whichever player is asking. Only non-secret surroundings are included — no hidden tokens, no secret doors, no GM notes.",
+
   "NOODLR.Lorebook.Menu.Name": "Noodlr Lorebook",
   "NOODLR.Lorebook.Menu.Label": "Edit Lorebook",
   "NOODLR.Lorebook.Menu.Hint": "Manage keyword/constant World Info entries injected into the prompt.",

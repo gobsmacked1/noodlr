@@ -85,7 +85,7 @@ export async function handlePlayerAsk(
 
   let answer: string;
   try {
-    const result = await generatePlayerAnswer(text, payload.userName);
+    const result = await generatePlayerAnswer(text, payload.userName, undefined, payload.userId);
     answer = result.text;
 
     // If the bot escalated a privileged check, register it so the player's real roll (captured from

@@ -13,6 +13,12 @@ declare global {
   /** UI layer singletons (notifications, sidebar, windows, ...). */
   const ui: any;
 
+  /**
+   * The active canvas (scene, placeable layers, vision). Undefined/uninitialized when the game runs
+   * with no canvas ("canvas disabled" setting or before first render), so always guard access.
+   */
+  const canvas: any;
+
   /** Runtime configuration registry. */
   const CONFIG: any;
 
