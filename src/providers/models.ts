@@ -20,10 +20,7 @@ const inFlight = new Map<string, Promise<string[]>>();
  * The catalog is public (no key), so this never touches a stored key. Returns [] on any
  * failure — never throws.
  */
-export async function fetchOpenRouterModels(
-  modality = "text",
-  sort = "newest",
-): Promise<string[]> {
+export async function fetchOpenRouterModels(modality = "text", sort = "newest"): Promise<string[]> {
   const key = `${modality}|${sort}`;
   const cached = cache.get(key);
   if (cached) return cached;
@@ -68,7 +65,9 @@ export async function fetchOpenRouterContextLength(modelId: string): Promise<num
   if (!id) return undefined;
   try {
     if (!contextLenCache) {
-      const res = await fetch(`${OPENROUTER_BASE}/models`, { headers: { Accept: "application/json" } });
+      const res = await fetch(`${OPENROUTER_BASE}/models`, {
+        headers: { Accept: "application/json" },
+      });
       if (!res.ok) return undefined;
       const json = await res.json();
       const list = Array.isArray(json?.data) ? json.data : [];
@@ -77,7 +76,8 @@ export async function fetchOpenRouterContextLength(modelId: string): Promise<num
         const len = Number(m?.context_length ?? m?.top_provider?.context_length);
         if (!Number.isFinite(len) || len <= 0) continue;
         for (const key of [m?.id, m?.canonical_slug]) {
-          if (typeof key === "string" && key && !contextLenCache.has(key)) contextLenCache.set(key, len);
+          if (typeof key === "string" && key && !contextLenCache.has(key))
+            contextLenCache.set(key, len);
         }
       }
     }
@@ -108,11 +108,11 @@ export async function fetchOpenRouterVoices(modelId: string): Promise<string[]> 
       const json = await res.json();
       speechModelsCache = Array.isArray(json?.data) ? json.data : [];
     }
-    const m = (speechModelsCache ?? []).find(
-      (x: any) => x?.id === id || x?.canonical_slug === id,
-    );
+    const m = (speechModelsCache ?? []).find((x: any) => x?.id === id || x?.canonical_slug === id);
     const voices = m?.supported_voices;
-    return Array.isArray(voices) ? voices.filter((v: unknown): v is string => typeof v === "string") : [];
+    return Array.isArray(voices)
+      ? voices.filter((v: unknown): v is string => typeof v === "string")
+      : [];
   } catch {
     return [];
   }

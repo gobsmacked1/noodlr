@@ -39,7 +39,8 @@ export async function applyMemoryDirective(
     return reject(`unknown silo "${siloRaw}"`, audience, directive.verb);
   }
   const silo = siloRaw;
-  const op = directive.verb === "REMEMBER" ? "insert" : directive.verb === "UPDATE" ? "update" : "delete";
+  const op =
+    directive.verb === "REMEMBER" ? "insert" : directive.verb === "UPDATE" ? "update" : "delete";
 
   if (!canWrite(audience, silo, op)) {
     return reject(`${audience} bot may not ${op} ${silo}`, audience, directive.verb);
@@ -72,7 +73,8 @@ export async function applyMemoryDirective(
       undefined,
     );
     const hit = found.hits?.[0];
-    if (!hit?.id) return audit(false, `${directive.verb} on ${silo}: no match for "${clip(match)}"`);
+    if (!hit?.id)
+      return audit(false, `${directive.verb} on ${silo}: no match for "${clip(match)}"`);
 
     if (directive.verb === "FORGET") {
       await client.delete(silo, { ids: [hit.id] });

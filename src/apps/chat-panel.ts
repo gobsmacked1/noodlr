@@ -491,8 +491,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Convenience toggle used by the keybinding and scene-control button. */
   static toggle(): void {
     const existing = foundry.applications.instances?.get("noodlr-chat-panel") as
-      | NoodlrChatPanel
-      | undefined;
+      NoodlrChatPanel | undefined;
     if (existing?.rendered) void existing.close();
     else new NoodlrChatPanel().render({ force: true });
   }

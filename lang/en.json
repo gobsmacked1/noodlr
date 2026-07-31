@@ -28,6 +28,7 @@
   "NOODLR.Players.InputPlaceholder": "Ask the table… (Enter to send, Shift+Enter for a new line)",
   "NOODLR.Players.Send": "Send",
   "NOODLR.Players.P1Placeholder": "Your question reached the GM's table. (Noodlr's player guide is being wired up — full answers arrive in the next update.)",
+  "NOODLR.Players.NoGM": "No Gamemaster is online, so nobody can answer right now. Your question needs a connected GM - Noodlr answers players through the GM's client.",
   "NOODLR.Players.GenFailed": "The table guide couldn't answer just now — the GM's AI may be unconfigured or unreachable. Try again in a moment.",
   "NOODLR.Players.RollPrompt": "Give me a {skill} check from your character sheet, and we'll see what you turn up.",
 
@@ -242,6 +243,9 @@
   "NOODLR.Prompt.ContextBudget.Hint": "Approximate max tokens for the WHOLE assembled prompt (system prompt + lorebook + retrieved memory + Foundry state + chat history); older history is trimmed to fit. 12000 is deliberately thrifty. With large-context models (200k-1M) you can safely raise this to 32000-64000+ to keep more of the recent conversation in play - but cost and latency scale with every token you send each turn, and RAG + Lorebook already backstop long-term recall, so there's rarely a reason to go near the model's true maximum. Watch Diagnostics 'Avg/Peak context sent' to tune it.",
   "NOODLR.Prompt.ChatMemoryWrites.Name": "Polly Histor memory writes",
   "NOODLR.Prompt.ChatMemoryWrites.Hint": "Let Polly Histor autonomously record, revise, or remove long-term memory facts when it establishes durable world-state. Every write is enforced to the allowed silos and whispered to the GM as an audit line. Requires Memory (RAG) enabled. Disable to keep all memory edits manual (via the Memory browser).",
+
+  "NOODLR.Prompt.DebugLogging.Name": "Verbose debug logging (this browser)",
+  "NOODLR.Prompt.DebugLogging.Hint": "Log detailed diagnostics to this browser's developer console (F12): the full prompt sent to each chatbot, whether the Tipster scene briefing and memory context were injected, the player question relay, and raw replies. Affects only your own browser. Leave off for normal play - prompts can be long.",
 
   "NOODLR.Prompt.TipsterGm.Name": "Tipster: scene awareness (GM chat)",
   "NOODLR.Prompt.TipsterGm.Hint": "Quietly tell Polly Histor what's happening in the active scene right now — scene name and size, in-world date/time, lighting and darkness, ambient sound and the playing track, and any named regions. Read fresh from Foundry on every message and never stored, so it can't go stale. Costs roughly 100-250 tokens per message.",

@@ -4,12 +4,39 @@
 // silo on a typical table), so recomputing IDF per query is cheap and keeps the store simple.
 
 const STOP = new Set([
-  "the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "is", "are", "was", "were",
-  "be", "as", "at", "by", "it", "this", "that", "with", "from", "into", "his", "her", "their",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "of",
+  "to",
+  "in",
+  "on",
+  "for",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "as",
+  "at",
+  "by",
+  "it",
+  "this",
+  "that",
+  "with",
+  "from",
+  "into",
+  "his",
+  "her",
+  "their",
 ]);
 
 export function tokenize(text: string): string[] {
-  return (text.toLowerCase().match(/[a-z0-9']+/g) ?? []).filter((t) => t.length > 1 && !STOP.has(t));
+  return (text.toLowerCase().match(/[a-z0-9']+/g) ?? []).filter(
+    (t) => t.length > 1 && !STOP.has(t),
+  );
 }
 
 /** BM25 relevance of `query` against each document (already tokenized). Returns score per doc. */

@@ -53,6 +53,17 @@ export function registerPromptSettings(): void {
     default: true,
   });
 
+  // Verbose diagnostics for both chatbots. Client-scoped: it's a troubleshooting aid for whoever is
+  // actually looking at a console, and each person can turn it on without affecting the table.
+  game.settings.register(MODULE_ID, SETTINGS.debugLogging, {
+    name: L("DebugLogging.Name"),
+    hint: L("DebugLogging.Hint"),
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false,
+  });
+
   // Tipster (live scene briefing) — enabled independently per chatbot, since the GM and the
   // players-only bot have different needs and the GM may want to trial it on one side first.
   game.settings.register(MODULE_ID, SETTINGS.tipsterGm, {

@@ -430,6 +430,46 @@ Implementation notes worth keeping:
   "day 1, 00:00" for worlds that never touch time).
 - Regions capped at 8 names with a `+N more` tail (nearest-N discipline starts here).
 
+### Debug logging + three fixes (v0.4.9, 2026-07-31)
+
+**Debug channel (new, in `constants.ts`).** `SETTINGS.debugLogging` — **client**-scoped (it's a
+troubleshooting aid for whoever has a console open; no reason to force it on the table), config:true,
+default false. Helpers:
+- `debug(label, ...args)` — gated verbose line. Reads the setting in a try/catch because it's called
+  from paths that can run before settings registration.
+- `debugPayload(label, messages)` — dumps a whole chat payload as a **collapsed console group**, one
+  sub-group per message with role + token estimate + full text. This is the tool for confirming
+  whether the Tipster / RAG / lorebook blocks actually made it into a request.
+- `warn(...)` — always-on channel for things the user must see even with debug off.
+- `isDebugEnabled()` — guard for expensive log-only work.
+Instrumented: `players/relay.ts` (send → socket → GM handle → post), `players/answer.ts` (payload +
+raw reply + Tipster present/absent/disabled), `chat/conversation.ts` (state-block summary + full
+payload per request incl. continuations), `module.ts` (socket receipt).
+
+**Fix 1 — players-bot silent no-response (user report).** Root cause: the whole path was
+`log`-free and failure-silent, and critically a player's question is only answerable by an **online
+GM** (by design — the GM's client holds the keys). With no GM connected the socket emit went nowhere
+and the player got a spinner forever with nothing in console. Now: `sendPlayerAsk()` checks
+`game.users.activeGM` and both warns to console and shows the player a notification
+(`NOODLR.Players.NoGM`); the empty-answer and generation-failure paths use `warn` instead of
+swallowing; non-primary-GM skips are logged. NOTE: this makes the failure *visible* — if the user
+still sees no answer with a GM online, the debug payload dump will show whether the provider was
+called and what it returned.
+
+**Fix 2 — rerank 404 noise.** `providers/rerank.ts` swallowed every failure (`if (!res.ok) return
+null; } catch { return null; }`), so a misconfigured account showed only a bare 404 in the network
+tab. Now it reads the provider's own error body and warns **once per session per distinct reason**
+(`reported` Set), with a 404-specific hint pointing at OpenRouter Settings → Privacy / data policy
+and noting retrieval continues without rerank. AbortError is debug-only (routine cancellation).
+The user's actual 404 was OpenRouter's *"No endpoints available matching your guardrail restrictions
+and data policy"* — an account-side privacy setting, not our bug.
+
+**Fix 3 — `renderChatMessage` deprecation warning was ours.** `output/artifacts.ts` registered BOTH
+`renderChatMessageHTML` and legacy `renderChatMessage` for compat — but merely *registering* the
+legacy name makes v13 emit the deprecation warning. Now branches on
+`game.release.generation >= 13` and binds only the modern name on v13+. (Deprecated in v13, removal
+in v15.)
+
 **T1 deliberately has no perception filtering** — everything it reports is non-secret ambience, which
 is why it was safe to ship first. Hidden tokens, secret doors, and the player/GM split land in T3/T4.
 

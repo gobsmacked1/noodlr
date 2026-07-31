@@ -160,7 +160,11 @@ async function requestRetire(message: any): Promise<void> {
     await retireLocal(message);
     return;
   }
-  const payload: RetireSocket = { type: "artifact-retire", messageId: message.id, by: game.user?.id ?? "" };
+  const payload: RetireSocket = {
+    type: "artifact-retire",
+    messageId: message.id,
+    by: game.user?.id ?? "",
+  };
   game.socket?.emit(SOCKET, payload);
   // Optimistically drop the controls locally so the player gets immediate feedback.
   removeActions(message.id);
@@ -296,10 +300,16 @@ function onRenderChatMessage(message: any, html: unknown): void {
 
 /** Register all artifact hooks. Call once on ready. */
 export function registerArtifactHooks(): void {
-  // Both hook names are registered for v13/v14 compatibility; the double-injection guard in
-  // onRenderChatMessage prevents duplicate controls if both fire.
-  Hooks.on("renderChatMessageHTML", onRenderChatMessage);
-  Hooks.on("renderChatMessage", onRenderChatMessage);
+  // Chat-message render hook. `renderChatMessageHTML` is the v13+ name; the older
+  // `renderChatMessage` is deprecated in v13 and slated for removal in v15 — and merely REGISTERING
+  // it makes Foundry emit a deprecation warning, which is noise we were causing ourselves. So bind
+  // the modern name on v13+ and only fall back to the legacy name on older cores.
+  const generation = Number((game as any)?.release?.generation ?? 13);
+  if (generation >= 13) {
+    Hooks.on("renderChatMessageHTML", onRenderChatMessage);
+  } else {
+    Hooks.on("renderChatMessage", onRenderChatMessage);
+  }
 
   Hooks.on("createChatMessage", (message: any) => {
     if (!game.user?.isGM) return;

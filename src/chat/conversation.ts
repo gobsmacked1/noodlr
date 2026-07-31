@@ -2,7 +2,7 @@
 // response, resolves {{roll:...}} macros against real Foundry dice, and (optionally)
 // runs one bounded continuation so the DM can react to the authoritative results.
 
-import { MODULE_ID, SETTINGS } from "../constants";
+import { MODULE_ID, SETTINGS, debug, debugPayload } from "../constants";
 import { getFeatureConfig } from "../providers/config";
 import { ChatClientError, streamChatCompletion } from "../providers/chat-client";
 import { type ChatMessage, type FeatureProviderConfig, isConfigured } from "../providers/types";
@@ -106,6 +106,13 @@ export class Conversation {
         })
       : null;
     const foundryState = [combatState, tipster].filter(Boolean).join("\n\n") || null;
+    debug("gm-bot state blocks", {
+      combat: Boolean(combatState),
+      tipster: Boolean(tipster),
+      tipsterEnabled: isTipsterEnabled("gm"),
+      ragQueried: rag.queried,
+      ragHits: rag.hitCount,
+    });
 
     const allowContinuation =
       (game.settings.get(MODULE_ID, SETTINGS.chatContinueAfterRoll) as boolean) ?? true;
@@ -121,6 +128,7 @@ export class Conversation {
       // Record how big the prompt we're about to send is (estimator tokens), so Diagnostics can
       // show avg/peak against the context budget and the DM knows whether to raise the ceiling.
       noteContextEst(estimateMessagesTokens(payload));
+      debugPayload(continuations === 0 ? "gm-bot prompt" : "gm-bot prompt (continuation)", payload);
 
       hooks.onAssistantStart?.();
       let raw = "";

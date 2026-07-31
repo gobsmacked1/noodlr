@@ -99,9 +99,7 @@ export async function retrieveContext(
   }
 
   // Confidence signal for the web-search fallback: the best raw hit score (pre-budget/pre-dedupe).
-  const topScore = hits.length
-    ? Math.max(...hits.map((h) => Number(h.score) || 0))
-    : null;
+  const topScore = hits.length ? Math.max(...hits.map((h) => Number(h.score) || 0)) : null;
 
   if (hits.length === 0) {
     return { block: null, topScore: null, hitCount: 0, queried: true };
@@ -116,11 +114,7 @@ export async function retrieveContext(
  * Refine hit ordering with a cross-encoder rerank model (if enabled), keeping the top N. A
  * failed/absent rerank leaves the original hybrid ranking untouched.
  */
-async function maybeRerank(
-  query: string,
-  hits: RagHit[],
-  signal?: AbortSignal,
-): Promise<RagHit[]> {
+async function maybeRerank(query: string, hits: RagHit[], signal?: AbortSignal): Promise<RagHit[]> {
   if (!isRerankEnabled() || hits.length <= 1) return hits;
   const docs = hits.map((h) => (h.text ?? "").trim());
   const ranked = await rerankDocuments(query, docs, getRerankTopN(), signal);

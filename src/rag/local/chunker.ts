@@ -24,7 +24,10 @@ export function chunkText(text: string): string[] {
   if (!clean) return [];
   if (looksAtomic(clean)) return [clean];
 
-  const paras = clean.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  const paras = clean
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
   const chunks: string[] = [];
   let buf = "";
 

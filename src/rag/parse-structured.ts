@@ -44,11 +44,7 @@ export async function parseStructuredFile(file: File): Promise<IngestDocument[]>
 
 function docsFromData(data: unknown, source: string, format: StructuredFormat): IngestDocument[] {
   const docs: IngestDocument[] = [];
-  const add = (
-    obj: unknown,
-    extra: Record<string, unknown>,
-    fallbackName?: string,
-  ): void => {
+  const add = (obj: unknown, extra: Record<string, unknown>, fallbackName?: string): void => {
     const { text, name } = recordToText(obj);
     if (!text.trim()) return;
     const label = name ?? fallbackName;
@@ -102,7 +98,12 @@ function recordToText(obj: unknown): { text: string; name?: string } {
 }
 
 /** Flatten an object to readable "path: value" lines (arrays of scalars joined; depth-capped). */
-function flatten(obj: Record<string, unknown>, prefix = "", out: string[] = [], depth = 0): string[] {
+function flatten(
+  obj: Record<string, unknown>,
+  prefix = "",
+  out: string[] = [],
+  depth = 0,
+): string[] {
   if (depth > 6) return out;
   for (const [k, v] of Object.entries(obj)) {
     const key = prefix ? `${prefix}.${k}` : k;

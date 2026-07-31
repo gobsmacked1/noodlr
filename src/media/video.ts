@@ -119,7 +119,9 @@ export async function generateVideo(
   const blob = await dl.blob();
   if (blob.size < 1024) {
     // A sub-1KB "video" is almost certainly an error payload, not a clip.
-    throw new VideoError(`Video download returned ${blob.size} bytes (likely an error, not a clip).`);
+    throw new VideoError(
+      `Video download returned ${blob.size} bytes (likely an error, not a clip).`,
+    );
   }
   return { blob, url: String(downloadUrl) };
 }

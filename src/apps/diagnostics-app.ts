@@ -141,11 +141,13 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       const client = getRagClient();
       const embed = getEmbedOverride();
       const chosen = siloSel?.value ?? "__all__";
-      const collections =
-        chosen !== "__all__" && isSiloId(chosen) ? [chosen] : getQuerySilos();
+      const collections = chosen !== "__all__" && isSiloId(chosen) ? [chosen] : getQuerySilos();
       const topK = Math.max(1, Math.min(50, Number(topkEl?.value) || 10));
       const { hybrid } = getRagTuning();
-      const res = await client.query({ collections, searchText: q, topK, hybrid, embed }, undefined);
+      const res = await client.query(
+        { collections, searchText: q, topK, hybrid, embed },
+        undefined,
+      );
       renderQueryHits(out, res.hits ?? [], res.mode ?? "hybrid");
     } catch (err) {
       const msg = err instanceof RagClientError ? err.message : String(err);

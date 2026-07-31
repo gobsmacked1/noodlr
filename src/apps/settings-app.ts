@@ -292,7 +292,10 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     await set(MEDIA_SETTINGS.videoChatTrigger, Boolean(o.video?.chatTrigger));
     await set(MEDIA_SETTINGS.videoAllowPlayers, Boolean(o.video?.allowPlayers));
     await set(MEDIA_SETTINGS.videoDuration, Math.max(1, Number(o.video?.duration) || 8));
-    await set(MEDIA_SETTINGS.videoResolution, String(o.video?.resolution ?? "720p").trim() || "720p");
+    await set(
+      MEDIA_SETTINGS.videoResolution,
+      String(o.video?.resolution ?? "720p").trim() || "720p",
+    );
     await set(MEDIA_SETTINGS.videoAspect, String(o.video?.aspect ?? "16:9").trim() || "16:9");
 
     // Image options — one full set per generator (scene / portrait / token / map).

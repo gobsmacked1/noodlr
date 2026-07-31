@@ -16,6 +16,7 @@ import { isConfigured, type ChatMessage } from "../providers/types";
 import { retrieveContext } from "../rag/retrieval";
 import { PLAYER_QUERY_SILOS } from "../rag/silos";
 import { PLAYERS_SYSTEM_PROMPT } from "../prompts";
+import { debug, debugPayload, warn } from "../constants";
 import { isTipsterEnabled } from "../prompt/settings";
 import { buildTipsterBlock, resolvePerspectiveToken } from "../tipster/scene";
 import { sanitizeUserText } from "../util/sanitize";
@@ -73,10 +74,16 @@ export async function generatePlayerAnswer(
       token: askUser ? resolvePerspectiveToken(askUser) : undefined,
     });
     if (block) messages.push({ role: "system", content: block });
+    else debug("players-bot: Tipster produced no block (no active scene?)");
+  } else {
+    debug("players-bot: Tipster disabled for the players' chat");
   }
   messages.push({ role: "user", content: clean, name: sanitizeName(askUserName) });
 
+  debugPayload("players-bot prompt", messages);
   const raw = (await chatCompletion(cfg, { messages, signal })).trim();
+  debug("players-bot raw reply", { chars: raw.length, text: raw });
+  if (!raw) warn("players-bot: provider returned an empty completion");
   bumpStats({ chatTurns: 1 });
   return parseDirectives(raw);
 }

@@ -64,7 +64,8 @@ export class NoodlrRagBrowserApp extends HandlebarsApplicationMixin(ApplicationV
 
   #readControls(): { silo: SiloId | null; query: string } {
     const root = this.#root();
-    const rawSilo = root?.querySelector<HTMLSelectElement>('select[name="collection"]')?.value ?? "";
+    const rawSilo =
+      root?.querySelector<HTMLSelectElement>('select[name="collection"]')?.value ?? "";
     const query = root?.querySelector<HTMLInputElement>('input[name="query"]')?.value?.trim() ?? "";
     return { silo: isSiloId(rawSilo) ? rawSilo : null, query };
   }
@@ -112,9 +113,7 @@ export class NoodlrRagBrowserApp extends HandlebarsApplicationMixin(ApplicationV
         [{ text: result.text, metadata: { source: "rag-browser", ts: Date.now() } }],
         getEmbedOverride(),
       );
-      ui.notifications?.info(
-        game.i18n.format("NOODLR.RagBrowser.Added", { silo: result.silo }),
-      );
+      ui.notifications?.info(game.i18n.format("NOODLR.RagBrowser.Added", { silo: result.silo }));
       // Re-run the current search so the new record shows up if it matches.
       if (this.#silo && this.#query) await NoodlrRagBrowserApp.#onSearch.call(this);
       else this.render();
@@ -141,9 +140,7 @@ export class NoodlrRagBrowserApp extends HandlebarsApplicationMixin(ApplicationV
         [{ text: result.text, metadata: { source: "rag-browser", ts: Date.now() } }],
         getEmbedOverride(),
       );
-      ui.notifications?.info(
-        game.i18n.format("NOODLR.RagBrowser.Updated", { silo: this.#silo }),
-      );
+      ui.notifications?.info(game.i18n.format("NOODLR.RagBrowser.Updated", { silo: this.#silo }));
       await NoodlrRagBrowserApp.#onSearch.call(this);
     } catch (err) {
       ui.notifications?.error(errMsg(err));
@@ -166,9 +163,7 @@ export class NoodlrRagBrowserApp extends HandlebarsApplicationMixin(ApplicationV
     try {
       await getRagClient().delete(this.#silo, { ids: [hit.id] });
       this.#hits = this.#hits.filter((h) => h.id !== hit.id);
-      ui.notifications?.info(
-        game.i18n.format("NOODLR.RagBrowser.Deleted", { silo: this.#silo }),
-      );
+      ui.notifications?.info(game.i18n.format("NOODLR.RagBrowser.Deleted", { silo: this.#silo }));
       this.render();
     } catch (err) {
       ui.notifications?.error(errMsg(err));

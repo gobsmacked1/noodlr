@@ -6,7 +6,13 @@
 
 import { log } from "../../constants";
 import { RagClientError } from "../client";
-import type { MemoryBackend, CollectionsInfo, IngestDocument, QueryOptions, RagHit } from "../backend";
+import type {
+  MemoryBackend,
+  CollectionsInfo,
+  IngestDocument,
+  QueryOptions,
+  RagHit,
+} from "../backend";
 import { SILOS, SILO_IDS, isSiloId, type SiloId } from "../silos";
 import { EMBED_MODEL, embedTexts } from "./embedder";
 import { chunkText } from "./chunker";
@@ -103,7 +109,12 @@ export class LocalMemory implements MemoryBackend {
           "noodlr-memory backend (which parses PDFs server-side).",
       );
     }
-    return this.ingest(collection, [{ text: payload.text, metadata: { sourceName: filename } }], embed, signal);
+    return this.ingest(
+      collection,
+      [{ text: payload.text, metadata: { sourceName: filename } }],
+      embed,
+      signal,
+    );
   }
 
   async query(opts: QueryOptions): Promise<{ hits: RagHit[]; mode: string }> {

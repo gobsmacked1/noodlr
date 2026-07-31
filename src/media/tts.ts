@@ -16,7 +16,9 @@ function parseVoiceList(json: unknown): string[] {
   if (Array.isArray(raw)) {
     const names = raw
       .map((v: unknown) =>
-        typeof v === "string" ? v : ((v as { id?: string; name?: string })?.id ?? (v as { name?: string })?.name),
+        typeof v === "string"
+          ? v
+          : ((v as { id?: string; name?: string })?.id ?? (v as { name?: string })?.name),
       )
       .filter((v: unknown): v is string => typeof v === "string");
     if (names.length > 0) return names;

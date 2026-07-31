@@ -37,9 +37,7 @@ const pending = new Map<string, PendingAdjudication>();
 let captureHooked = false;
 
 /** Register a pending check for a user (called when the players-bot emits an ADJUDICATE directive). */
-export function registerPendingAdjudication(
-  p: Omit<PendingAdjudication, "expiresAt">,
-): void {
+export function registerPendingAdjudication(p: Omit<PendingAdjudication, "expiresAt">): void {
   pending.set(p.userId, { ...p, expiresAt: Date.now() + PENDING_TTL_MS });
   log(`adjudication pending for ${p.askUserName}: ${p.skill} vs ${p.target}`);
 }

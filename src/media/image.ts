@@ -127,7 +127,13 @@ export async function generateSceneImage(
   // (don't overwrite it with later scene-specific text).
   const newAnchor = opts.entityKey ? anchor || baseSubject : undefined;
   if (first?.b64_json) {
-    return { src: `data:image/png;base64,${first.b64_json}`, prompt, seed, model: cfg.model, anchor: newAnchor };
+    return {
+      src: `data:image/png;base64,${first.b64_json}`,
+      prompt,
+      seed,
+      model: cfg.model,
+      anchor: newAnchor,
+    };
   }
   if (first?.url) {
     return { src: String(first.url), prompt, seed, model: cfg.model, anchor: newAnchor };

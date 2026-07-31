@@ -34,6 +34,9 @@ export const SETTINGS = {
   /** Persisted lorebook entries (JSON array; world-scoped). */
   lorebook: "lorebook",
 
+  /** Verbose console diagnostics for both chatbots (prompt payloads, relay round trip). */
+  debugLogging: "debugLogging",
+
   // --- Tipster: live scene briefing (T1) ---
   /** Inject the live scene briefing into the GM chatbot's prompts. */
   tipsterGm: "tipster.gm",
@@ -155,4 +158,57 @@ export const KEYBINDINGS = {
 /** Small helper for consistent, greppable console output. */
 export function log(...args: unknown[]): void {
   console.log(`${MODULE_TITLE} |`, ...args);
+}
+
+/**
+ * Always-on warning channel. Use for conditions the user needs to know about even with debug
+ * logging off (a swallowed request failure, an unconfigured provider, a dropped relay).
+ */
+export function warn(...args: unknown[]): void {
+  console.warn(`${MODULE_TITLE} |`, ...args);
+}
+
+/**
+ * Verbose diagnostics, gated on the `debugLogging` setting. Reads the setting defensively because
+ * this is called from paths that can run before settings are registered (early hooks, failures).
+ *
+ * Groups are used so a full prompt payload collapses to one console line instead of flooding.
+ */
+export function debug(label: string, ...args: unknown[]): void {
+  try {
+    if (!game?.settings?.get(MODULE_ID, SETTINGS.debugLogging)) return;
+  } catch {
+    return;
+  }
+  console.debug(`${MODULE_TITLE} debug | ${label}`, ...args);
+}
+
+/** True when verbose diagnostics are on. Guard expensive log-only work with this. */
+export function isDebugEnabled(): boolean {
+  try {
+    return Boolean(game?.settings?.get(MODULE_ID, SETTINGS.debugLogging));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Log a full chat payload as a collapsed console group: per-message role, token estimate, and the
+ * text. This is the main tool for verifying what each bot actually received — including whether the
+ * Tipster and RAG blocks were injected.
+ */
+export function debugPayload(label: string, messages: { role: string; content: string }[]): void {
+  if (!isDebugEnabled()) return;
+  const total = messages.reduce((n, m) => n + Math.ceil((m.content?.length ?? 0) / 4) + 4, 0);
+  console.groupCollapsed(
+    `${MODULE_TITLE} debug | ${label} — ${messages.length} messages, ~${total} tokens`,
+  );
+  for (const m of messages) {
+    const est = Math.ceil((m.content?.length ?? 0) / 4);
+    const head = (m.content ?? "").split("\n", 1)[0]?.slice(0, 80) ?? "";
+    console.groupCollapsed(`[${m.role}] ~${est} tok — ${head}`);
+    console.log(m.content);
+    console.groupEnd();
+  }
+  console.groupEnd();
 }

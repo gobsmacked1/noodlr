@@ -183,9 +183,7 @@ export function ledgerKey(name: string): string {
 // collide on one seed/appearance (they're different aspects of the same subject).
 function readLedger(kind: ImageKind): Record<string, LedgerEntry> {
   try {
-    return JSON.parse(
-      (game.settings.get(MODULE_ID, imageKey(kind, "ledger")) as string) || "{}",
-    );
+    return JSON.parse((game.settings.get(MODULE_ID, imageKey(kind, "ledger")) as string) || "{}");
   } catch {
     return {};
   }

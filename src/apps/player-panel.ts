@@ -106,8 +106,7 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
    */
   static receive(flag: PlayerBotFlag): void {
     const inst = foundry.applications.instances?.get("noodlr-player-panel") as
-      | NoodlrPlayerPanel
-      | undefined;
+      NoodlrPlayerPanel | undefined;
     if (inst?.rendered) {
       inst.#applyAnswer(flag);
     } else {
@@ -178,8 +177,7 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
   /** Convenience toggle used by the keybinding and scene-control button. */
   static toggle(): void {
     const existing = foundry.applications.instances?.get("noodlr-player-panel") as
-      | NoodlrPlayerPanel
-      | undefined;
+      NoodlrPlayerPanel | undefined;
     if (existing?.rendered) void existing.close();
     else new NoodlrPlayerPanel().render({ force: true });
   }

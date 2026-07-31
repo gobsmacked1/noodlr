@@ -6,7 +6,11 @@
 //  - add "Fetch models" / (TTS) "Fetch voices" buttons that read the values CURRENTLY TYPED in
 //    the form (no save needed) so non-technical users pick from a list instead of hand-typing.
 
-import { fetchOpenRouterModels, fetchCustomModels, fetchOpenRouterVoices } from "../providers/models";
+import {
+  fetchOpenRouterModels,
+  fetchCustomModels,
+  fetchOpenRouterVoices,
+} from "../providers/models";
 import { fetchVoiceList, FALLBACK_VOICES } from "../media/tts";
 
 /**
@@ -144,7 +148,11 @@ function fillDatalist(dl: HTMLDataListElement, values: string[]): void {
 }
 
 /** Read the provider/base-URL/api-key currently entered in a feature block. */
-function readBlockConfig(block: HTMLElement): { provider: string; baseUrl: string; apiKey: string } {
+function readBlockConfig(block: HTMLElement): {
+  provider: string;
+  baseUrl: string;
+  apiKey: string;
+} {
   const provider =
     block.querySelector<HTMLSelectElement>('select[data-role="provider"]')?.value ?? "openrouter";
   const baseUrl =

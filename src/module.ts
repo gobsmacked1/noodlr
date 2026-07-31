@@ -2,7 +2,7 @@
 // small module API, and provides launch points for the (stub) chat panel. Everything
 // here is our own clean-room code written against Foundry v14's public API.
 
-import { MODULE_ID, KEYBINDINGS, SOCKET, log } from "./constants";
+import { MODULE_ID, KEYBINDINGS, SOCKET, debug, log } from "./constants";
 import { registerSettings } from "./settings";
 import { registerStatsSettings } from "./util/stats";
 import { sanitizeUserText } from "./util/sanitize";
@@ -107,7 +107,9 @@ Hooks.once("ready", () => {
   // (delete + clean up) an AI-output artifact card, and players-only "Ask the Table" requests.
   game.socket?.on(SOCKET, (data: { type?: string } & Record<string, unknown>) => {
     if (!game.user?.isGM) return;
-    if (data?.type === "transcript") pushToLog.handleTranscript(data as unknown as TranscriptPayload);
+    debug("socket received", { type: data?.type });
+    if (data?.type === "transcript")
+      pushToLog.handleTranscript(data as unknown as TranscriptPayload);
     else if (data?.type === "artifact-retire") handleArtifactSocket(data);
     else if (data?.type === PLAYER_ASK) void handlePlayerAsk(data as unknown as PlayerAskPayload);
   });
@@ -341,7 +343,10 @@ async function promptImage(kind: ImageKind): Promise<void> {
   );
   if (!text) return;
   const entityKey = meta.keyed ? text : undefined;
-  await createAndShareImage({ description: text, entityKey, title: entityKey, hidden: hideOutput }, kind);
+  await createAndShareImage(
+    { description: text, entityKey, title: entityKey, hidden: hideOutput },
+    kind,
+  );
 }
 
 /**

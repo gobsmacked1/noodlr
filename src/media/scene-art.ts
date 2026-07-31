@@ -46,7 +46,8 @@ export async function shareMediaPopout(
   await pop.render(true);
   if (opts.message) {
     const root = pop.element as HTMLElement | undefined;
-    if (root) attachArtifactControls(root, opts.message, { overlay: true, afterRetire: () => pop.close() });
+    if (root)
+      attachArtifactControls(root, opts.message, { overlay: true, afterRetire: () => pop.close() });
   }
   if (!broadcast) return;
   try {
@@ -187,7 +188,10 @@ export async function createAndShareImage(
       path,
       title,
       "image",
-      { gen: { fn: "image", kind, description: input.description, entityKey: input.entityKey }, commit },
+      {
+        gen: { fn: "image", kind, description: input.description, entityKey: input.entityKey },
+        commit,
+      },
       { whisperGM: input.hidden },
     );
   }

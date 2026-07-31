@@ -44,7 +44,9 @@ export class NoodlrCreatureVoiceApp extends HandlebarsApplicationMixin(Applicati
   async _prepareContext(): Promise<Record<string, unknown>> {
     const table = getCreatureVoiceTable();
     const creatures = CREATURE_TYPES.map((type, i) => {
-      const match = Object.entries(table).find(([k]) => normalizeTypeKey(k) === normalizeTypeKey(type));
+      const match = Object.entries(table).find(
+        ([k]) => normalizeTypeKey(k) === normalizeTypeKey(type),
+      );
       return { i, type, voice: match?.[1]?.voice ?? "", pitch: match?.[1]?.pitch ?? 0 };
     });
     return { moduleTitle: MODULE_TITLE, creatures };

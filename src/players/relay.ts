@@ -10,7 +10,7 @@
 // see answer.ts) and posts it as a public ChatMessage that Foundry mirrors to every client.
 // Privileged adjudication (the bot-to-bot relay) is P3.
 
-import { MODULE_ID, SOCKET, log } from "../constants";
+import { MODULE_ID, SOCKET, debug, warn } from "../constants";
 import { generatePlayerAnswer } from "./answer";
 import { firstDirective } from "./directives";
 import { registerPendingAdjudication } from "./adjudication";
@@ -65,8 +65,26 @@ export function sendPlayerAsk(text: string): PlayerAskPayload {
     userName: game.user?.name ?? "Player",
     text,
   };
-  if (game.user?.isGM) void handlePlayerAsk(payload, { local: true });
-  else game.socket?.emit(SOCKET, payload);
+  if (game.user?.isGM) {
+    debug("players/relay: handling locally (GM)", { requestId: payload.requestId });
+    void handlePlayerAsk(payload, { local: true });
+  } else if (game.socket) {
+    debug("players/relay: emitting to GM over socket", {
+      requestId: payload.requestId,
+      socket: SOCKET,
+      activeGM: (game.users as any)?.activeGM?.name ?? null,
+    });
+    // A relayed question can only be answered by an online GM. Warn the player instead of leaving
+    // them staring at a spinner forever (the previous behaviour — the root cause of "no response,
+    // no console output": no GM was connected, so nothing ever picked the request up).
+    if (!(game.users as any)?.activeGM) {
+      warn("player-bot: no active GM online — question cannot be answered");
+      ui.notifications?.warn(game.i18n.localize("NOODLR.Players.NoGM"));
+    }
+    game.socket.emit(SOCKET, payload);
+  } else {
+    warn("player-bot: no socket available; question not sent");
+  }
   return payload;
 }
 
@@ -79,9 +97,20 @@ export async function handlePlayerAsk(
   opts: { local?: boolean } = {},
 ): Promise<void> {
   if (!game.user?.isGM) return;
-  if (!opts.local && !isPrimaryGM()) return;
+  if (!opts.local && !isPrimaryGM()) {
+    debug("players/relay: ignoring (not the primary GM)", { requestId: payload.requestId });
+    return;
+  }
   const text = (payload.text ?? "").trim();
-  if (!text) return;
+  if (!text) {
+    warn("player-bot: empty question received; nothing to answer");
+    return;
+  }
+  debug("players/relay: GM handling request", {
+    requestId: payload.requestId,
+    from: payload.userName,
+    text,
+  });
 
   let answer: string;
   try {
@@ -110,10 +139,14 @@ export async function handlePlayerAsk(
     // Execute any memory writes the players-bot emitted (enforced to player_* silos + audited).
     await applyMemoryDirectives("player", result.directives);
   } catch (err) {
-    log("player-bot generation failed:", err);
+    // Always warn (not debug-gated): a swallowed failure here is exactly what made this silent.
+    warn("player-bot generation failed:", err);
     answer = game.i18n.localize("NOODLR.Players.GenFailed");
   }
-  if (!answer.trim()) answer = game.i18n.localize("NOODLR.Players.GenFailed");
+  if (!answer.trim()) {
+    warn("player-bot produced an empty answer; posting the fallback notice");
+    answer = game.i18n.localize("NOODLR.Players.GenFailed");
+  }
 
   await postPlayerResult({
     requestId: payload.requestId,
@@ -140,7 +173,8 @@ export async function postPlayerResult(flag: PlayerBotFlag): Promise<void> {
       speaker: { alias: game.i18n.localize("NOODLR.Players.Speaker") },
       flags: { [MODULE_ID]: { playerBot: flag } },
     });
+    debug("players/relay: result posted", { requestId: flag.requestId });
   } catch (err) {
-    log("player-bot result post failed:", err);
+    warn("player-bot result post failed:", err);
   }
 }
