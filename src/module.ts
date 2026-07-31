@@ -33,8 +33,12 @@ import { initAdjudicationCapture } from "./players/adjudication";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 import {
   PLAYER_ASK,
+  PLAYER_ACK,
+  PLAYER_ACK_HOOK,
   handlePlayerAsk,
+  handlePlayerAckSocket,
   type PlayerAskPayload,
+  type PlayerAckPayload,
   type PlayerBotFlag,
 } from "./players/relay";
 
@@ -106,13 +110,26 @@ Hooks.once("ready", () => {
   // GM receives relayed messages from player clients: push-to-log transcripts, requests to retire
   // (delete + clean up) an AI-output artifact card, and players-only "Ask the Table" requests.
   game.socket?.on(SOCKET, (data: { type?: string } & Record<string, unknown>) => {
+    // The GM's receipt for a player question is handled on EVERY client (the asking player needs it
+    // to know the request crossed the socket), so it must be routed before the GM-only gate.
+    if (data?.type === PLAYER_ACK) {
+      handlePlayerAckSocket(data as unknown as PlayerAckPayload);
+      return;
+    }
     if (!game.user?.isGM) return;
     debug("socket received", { type: data?.type });
     if (data?.type === "transcript")
       pushToLog.handleTranscript(data as unknown as TranscriptPayload);
     else if (data?.type === "artifact-retire") handleArtifactSocket(data);
-    else if (data?.type === PLAYER_ASK) void handlePlayerAsk(data as unknown as PlayerAskPayload);
+    else if (data?.type === PLAYER_ASK) {
+      // Deliberately not debug-gated: whether a player's question reaches the GM at all is the one
+      // fact worth having in the log by default when this feature misbehaves.
+      log(`player question relayed from ${String(data.userName ?? "a player")}`);
+      void handlePlayerAsk(data as unknown as PlayerAskPayload);
+    }
   });
+
+  Hooks.on(PLAYER_ACK_HOOK, (requestId: string) => NoodlrPlayerPanel.acknowledged(requestId));
 
   // Adopt players-only "Ask the Table" results into any open player panel (all clients). The
   // result rides a public ChatMessage (Foundry mirrors it), so this fires everywhere.

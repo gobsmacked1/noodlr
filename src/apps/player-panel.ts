@@ -18,6 +18,9 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 /** Deliberately longer than the GM-side generation timeout (90s) so a real GM error wins the race. */
 const NO_REPLY_TIMEOUT_MS = 120_000;
 
+/** An ack is emitted before generation starts, so it should arrive in milliseconds, not seconds. */
+const ACK_TIMEOUT_MS = 8_000;
+
 /** One completed exchange, persisted statically so it survives closing/reopening the panel. */
 interface PanelEntry {
   author: string;
@@ -55,6 +58,13 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
    * timeout so a real error message from the GM wins the race.
    */
   #pendingTimers = new Map<string, number>();
+
+  /**
+   * Shorter timers waiting for the GM's receipt. An ack proves the question crossed the socket, so if
+   * one never arrives the fault is the relay itself, not generation — worth saying in seconds rather
+   * than making the player wait out the full no-reply timeout to learn nothing specific.
+   */
+  #ackTimers = new Map<string, number>();
 
   #root(): HTMLElement | null {
     return (this.element as HTMLElement | null) ?? null;
@@ -112,6 +122,27 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
       payload.requestId,
       window.setTimeout(() => this.#onNoReply(payload.requestId), NO_REPLY_TIMEOUT_MS),
     );
+    // A GM handling the panel itself never uses the socket, so there is no ack to wait for.
+    if (!game.user?.isGM) {
+      this.#ackTimers.set(
+        payload.requestId,
+        window.setTimeout(() => this.#onNoAck(payload.requestId), ACK_TIMEOUT_MS),
+      );
+    }
+  }
+
+  /** The GM's client never acknowledged the question: the relay hop is broken, so say so now. */
+  #onNoAck(requestId: string): void {
+    this.#ackTimers.delete(requestId);
+    const el = this.#pending.get(requestId);
+    if (!el) return;
+    // Nothing is generating, so waiting out the no-reply timeout would add nothing.
+    this.#cancelTimer(this.#pendingTimers, requestId);
+    this.#pending.delete(requestId);
+    warn("player-bot: no GM client acknowledged this question; the relay did not reach a GM", {
+      requestId,
+    });
+    this.#showError(el, "NOODLR.Players.NoAck");
   }
 
   /** A pending question went unanswered long enough that something is wrong; say so in the bubble. */
@@ -121,16 +152,35 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
     if (!el) return;
     this.#pending.delete(requestId);
     warn("player-bot: no answer came back for this question", { requestId });
+    this.#showError(el, "NOODLR.Players.NoReply");
+  }
+
+  /** Replace a pending bubble's spinner with a localized failure notice. */
+  #showError(el: HTMLElement, key: string): void {
     const ans = el.querySelector<HTMLElement>('[data-role="answer"]');
-    if (ans) {
-      ans.classList.add("noodlr-player__a--error");
-      ans.textContent = game.i18n.localize("NOODLR.Players.NoReply");
+    if (!ans) return;
+    ans.classList.add("noodlr-player__a--error");
+    ans.textContent = game.i18n.localize(key);
+  }
+
+  #cancelTimer(timers: Map<string, number>, requestId: string): void {
+    const timer = timers.get(requestId);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      timers.delete(requestId);
     }
+  }
+
+  /** The GM picked the question up; stop waiting for a receipt but keep the answer watchdog armed. */
+  #onAck(requestId: string): void {
+    this.#cancelTimer(this.#ackTimers, requestId);
   }
 
   #clearPending(): void {
     for (const timer of this.#pendingTimers.values()) window.clearTimeout(timer);
+    for (const timer of this.#ackTimers.values()) window.clearTimeout(timer);
     this.#pendingTimers.clear();
+    this.#ackTimers.clear();
     this.#pending.clear();
   }
 
@@ -153,13 +203,18 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
     }
   }
 
+  /** A GM acknowledged a relayed question (fired from the ack socket message). */
+  static acknowledged(requestId: string): void {
+    const inst = foundry.applications.instances?.get("noodlr-player-panel") as
+      | NoodlrPlayerPanel
+      | undefined;
+    if (inst) inst.#onAck(requestId);
+  }
+
   #applyAnswer(flag: PlayerBotFlag): void {
     const pendingEl = this.#pending.get(flag.requestId);
-    const timer = this.#pendingTimers.get(flag.requestId);
-    if (timer !== undefined) {
-      window.clearTimeout(timer);
-      this.#pendingTimers.delete(flag.requestId);
-    }
+    this.#cancelTimer(this.#pendingTimers, flag.requestId);
+    this.#cancelTimer(this.#ackTimers, flag.requestId);
     if (pendingEl) {
       this.#pending.delete(flag.requestId);
       const ans = pendingEl.querySelector<HTMLElement>('[data-role="answer"]');

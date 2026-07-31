@@ -15,9 +15,27 @@ import { generatePlayerAnswer } from "./answer";
 import { firstDirective } from "./directives";
 import { registerPendingAdjudication } from "./adjudication";
 import { applyMemoryDirectives } from "../rag/memory-writes";
+import { getTtsAutoRead } from "../media/config";
+import { speak } from "../media/tts";
 
 /** Socket message type for a player -> GM "Ask the Table" request. */
 export const PLAYER_ASK = "player-ask" as const;
+
+/**
+ * Socket message type for the GM's immediate "I have this" receipt, sent before generation starts.
+ * Two jobs: it tells the asking client the request survived the socket hop (so a failure can name
+ * WHICH hop broke instead of just timing out), and it tells other GMs to stand down.
+ */
+export const PLAYER_ACK = "player-ask-ack" as const;
+
+/** Local hook fired when an ack arrives, so the panel can cancel its "nobody picked this up" timer. */
+export const PLAYER_ACK_HOOK = "noodlr.playerAskAck" as const;
+
+export interface PlayerAckPayload {
+  type: typeof PLAYER_ACK;
+  requestId: string;
+  gmName: string;
+}
 
 /** Envelope emitted by a player client (or handled locally by a GM testing their own panel). */
 export interface PlayerAskPayload {
@@ -48,15 +66,44 @@ function randomId(): string {
  */
 const GENERATION_TIMEOUT_MS = 90_000;
 
+/** How long a non-primary GM waits for the primary's ack before answering the request itself. */
+const TAKEOVER_DELAY_MS = 4_000;
+
+/** requestIds some GM has acknowledged, so a standby GM knows not to take over. */
+const acked = new Set<string>();
+
 /**
  * True when this client is the GM responsible for handling relayed player requests. With several
  * GMs/assistant-GMs online, only the designated primary handles socket relays so a request is not
  * answered twice. Falls back to "any GM" if Foundry reports no active GM.
+ *
+ * Compares by id, not object identity: `activeGM` and `game.user` are normally the same User
+ * instance, but that is an implementation detail to lean on for something that silently disables the
+ * whole feature when it does not hold.
  */
 export function isPrimaryGM(): boolean {
   if (!game.user?.isGM) return false;
   const active = (game.users as any)?.activeGM ?? null;
-  return !active || active === game.user;
+  return !active || active.id === game.user.id;
+}
+
+/** Announce that this GM has taken responsibility for a relayed question. */
+function emitAck(requestId: string): void {
+  acked.add(requestId);
+  const ack: PlayerAckPayload = {
+    type: PLAYER_ACK,
+    requestId,
+    gmName: game.user?.name ?? "GM",
+  };
+  game.socket?.emit(SOCKET, ack);
+}
+
+/** Record an ack (from any GM) and let the asking panel know its question was picked up. */
+export function handlePlayerAckSocket(data: PlayerAckPayload): void {
+  if (!data?.requestId) return;
+  acked.add(data.requestId);
+  debug("players/relay: ask acknowledged", { requestId: data.requestId, by: data.gmName });
+  Hooks.callAll(PLAYER_ACK_HOOK, data.requestId);
 }
 
 /**
@@ -81,9 +128,8 @@ export function sendPlayerAsk(text: string): PlayerAskPayload {
       socket: SOCKET,
       activeGM: (game.users as any)?.activeGM?.name ?? null,
     });
-    // A relayed question can only be answered by an online GM. Warn the player instead of leaving
-    // them staring at a spinner forever (the previous behaviour — the root cause of "no response,
-    // no console output": no GM was connected, so nothing ever picked the request up).
+    // A relayed question can only be answered by an online GM, so say so up front rather than let the
+    // ack timeout explain it later.
     if (!(game.users as any)?.activeGM) {
       warn("player-bot: no active GM online — question cannot be answered");
       ui.notifications?.warn(game.i18n.localize("NOODLR.Players.NoGM"));
@@ -105,9 +151,26 @@ export async function handlePlayerAsk(
 ): Promise<void> {
   if (!game.user?.isGM) return;
   if (!opts.local && !isPrimaryGM()) {
-    debug("players/relay: ignoring (not the primary GM)", { requestId: payload.requestId });
+    // Stand by rather than drop it. If the GM Foundry named as primary is a stale session that will
+    // never answer, silently ignoring the request black-holes the entire feature with no output
+    // anywhere. Wait briefly for that GM's ack; if none comes, answer it ourselves.
+    const primary = (game.users as any)?.activeGM;
+    warn(
+      `player-bot: standing by — Foundry names ${primary?.name ?? "another GM"} as the primary GM. ` +
+        `Taking over in ${TAKEOVER_DELAY_MS / 1000}s if they don't acknowledge.`,
+    );
+    window.setTimeout(() => {
+      if (acked.has(payload.requestId)) return;
+      warn("player-bot: the primary GM never acknowledged; answering it here instead");
+      emitAck(payload.requestId);
+      void handlePlayerAsk(payload, { local: true });
+    }, TAKEOVER_DELAY_MS);
     return;
   }
+
+  // Tell the asker (and any standby GM) that this request is being worked on, before the slow part.
+  if (!opts.local) emitAck(payload.requestId);
+
   const text = (payload.text ?? "").trim();
   if (!text) {
     warn("player-bot: empty question received; nothing to answer");
@@ -180,6 +243,18 @@ export async function handlePlayerAsk(
     question: text,
     answer,
   });
+
+  // Read the answer aloud, honouring the same auto-read toggle as the GM co-pilot. Spoken HERE, on
+  // the GM's client, deliberately: this is the machine holding the TTS credentials, and it is the one
+  // pair of speakers the table shares. Remote players hearing it on their own client would need the
+  // GM to synthesize once and broadcast the audio (as image generation already does) — not this.
+  if (getTtsAutoRead()) {
+    try {
+      await speak(answer);
+    } catch (err) {
+      warn("player-bot: reading the answer aloud failed:", err);
+    }
+  }
 }
 
 /** Post the player-bot result as a public ChatMessage (Foundry mirrors it to all clients). */
