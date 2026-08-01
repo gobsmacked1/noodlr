@@ -8,6 +8,8 @@
 //    output is displayed and needs no broadcast.
 //  - Only the GM writes to RAG, so only the GM schedules the deferred commit (from the
 //    createChatMessage hook) and cancels it if the card is deleted (Reject / Retry-replace).
+//    "The GM" means the PRIMARY one: these hooks fire on every connected GM, so an assistant GM
+//    being online would otherwise double-ingest the artifact and double-delete the card.
 //  - Players can't delete chat messages or edit the GM's playlists, so a player's Retry/Reject
 //    asks the GM to "retire" the card over the module socket; the GM performs the delete + any
 //    cleanup (e.g. removing a generated music track).
@@ -22,6 +24,7 @@ import type { SiloId } from "../rag/silos";
 import { setLedgerEntry, type LedgerEntry } from "../media/storage";
 import type { ImageKind } from "../media/config";
 import { bumpStats } from "../util/stats";
+import { isPrimaryGM } from "../util/gm";
 
 /** Everything needed to reproduce an output when the user hits Retry. */
 export interface RegenSpec {
@@ -172,7 +175,9 @@ async function requestRetire(message: any): Promise<void> {
 
 /** GM handler for a player's socket retire request. Verifies the requester is the author. */
 export function handleArtifactSocket(data: unknown): void {
-  if (!game.user?.isGM) return;
+  // Primary GM only: the request reaches every connected GM, and a second client racing to delete
+  // the same message (and clean up the same playlist) just logs a failure for the loser.
+  if (!isPrimaryGM()) return;
   const d = data as Partial<RetireSocket> | undefined;
   if (d?.type !== "artifact-retire" || !d.messageId) return;
   const message = (game.messages as any)?.get(d.messageId);
@@ -312,12 +317,15 @@ export function registerArtifactHooks(): void {
   }
 
   Hooks.on("createChatMessage", (message: any) => {
-    if (!game.user?.isGM) return;
+    // Primary GM only, or each connected GM ingests the same artifact into RAG when the window closes.
+    if (!isPrimaryGM()) return;
     const art = getArtifact(message);
     if (!art?.commit) return;
     scheduleCommit(message.id, art.commit, Number(message.timestamp ?? Date.now()));
   });
 
+  // Cancelling stays open to any GM: if the designation changes while a commit is pending, the
+  // client holding the live timer may no longer be the primary, and it is the only one who can stop it.
   Hooks.on("deleteChatMessage", (message: any) => {
     if (!game.user?.isGM) return;
     cancelCommit(message.id);

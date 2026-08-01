@@ -17,7 +17,7 @@
 
 import { MODULE_ID, log } from "../constants";
 import { getChatLogConfig, getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
-import { isPrimaryGM } from "../players/relay";
+import { isPrimaryGM } from "../util/gm";
 import type { SiloId } from "../rag/silos";
 import { bumpStats } from "../util/stats";
 

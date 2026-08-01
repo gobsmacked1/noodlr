@@ -13,6 +13,7 @@ import { getPushToLogConfig, getTranscriptionEnabled } from "./config";
 import { transcribeAudio } from "./transcription";
 import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
 import { bumpStats } from "../util/stats";
+import { isPrimaryGM } from "../util/gm";
 
 export interface TranscriptPayload {
   type: "transcript";
@@ -62,6 +63,9 @@ class PushToLogController {
     this.#active = true;
     this.#beginSegment();
 
+    // Every GM runs the timer, not just the primary: the buffer only fills on the primary, so this is
+    // a no-op elsewhere, and it means a co-GM promoted mid-session (the primary logs out) starts
+    // ingesting without having to restart capture.
     if (game.user?.isGM) {
       const { ingestInterval } = getPushToLogConfig();
       this.#ingestTimer = window.setInterval(() => void this.#flushIngest(), ingestInterval * 1000);
@@ -111,13 +115,21 @@ class PushToLogController {
       text,
       ts: Date.now(),
     };
-    if (game.user?.isGM) this.handleTranscript(payload);
+    // A co-GM relays their own speech like a player would, so the whole table's transcript lands in
+    // one journal and one RAG buffer instead of being split across every GM who happened to record.
+    if (isPrimaryGM()) this.handleTranscript(payload);
     else game.socket?.emit(SOCKET, payload);
   }
 
-  /** GM-side handling of a transcript (local or relayed). */
+  /**
+   * GM-side handling of a transcript (local or relayed).
+   *
+   * Primary GM only. Relayed segments arrive on every connected GM, so gating this on `isGM` alone
+   * posted the line to chat, appended the journal, and ingested it into the `chat` silo once per GM
+   * logged in — silently duplicating the session record whenever an assistant GM was online.
+   */
   handleTranscript(p: TranscriptPayload): void {
-    if (!game.user?.isGM) return;
+    if (!isPrimaryGM()) return;
     const { postChat, ingest } = getPushToLogConfig();
     if (postChat) void this.#postChat(p);
     void this.#appendJournal(p);

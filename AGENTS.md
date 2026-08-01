@@ -1061,6 +1061,17 @@ lorebook/author's-note/post-history injection.
   release cycles chasing the players-only chatbot (fixed 2026-07-31, v0.4.14). The manifest is read at
   **server start**, so changing this flag needs a world restart, not a page reload. Anything relying on
   it — player asks, the GM ack, push-to-log transcript relay, artifact retire — fails invisibly if it goes.
+- **`isGM` is a role, and several clients can hold it.** Foundry defines `User#isGM` as "GAMEMASTER
+  **or** ASSISTANT role", so every `game.user?.isGM` gate admits assistant GMs, and anything driven by a
+  socket message or a document hook (`createChatMessage`, `deleteChatMessage`) runs once per connected
+  GM. Work that must happen once for the table — journal writes, RAG ingestion, deleting a message,
+  writing a shared file — must additionally pass `isPrimaryGM()` from `src/util/gm.ts`. Foundry elects
+  the designated GM itself (`Users#activeGM` = highest-role active GM, preferring a full GM over an
+  assistant) and every client agrees on it, so **do not build a second election** (an alphabetical-by-name
+  roster would be worse: names are mutable and we would own cross-client consistency). Caught in
+  v0.4.17 after transcripts, artifact commits and retires had been silently duplicating per GM.
+  Per-client counters have the same hazard: broadcast speech filenames are namespaced by user id
+  because two GMs both start their slot ring at zero and overwrite each other's audio.
 - **Secrecy travels with the turn, never with the UI.** "Hide from players" is one-shot: the checkbox clears
   once a prompt is accepted (a sticky box silently muted the mirrored text *and* the broadcast audio for the
   rest of the session). Consequently, anything that re-runs a turn must pass the original turn's `hidden`

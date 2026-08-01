@@ -15,7 +15,8 @@ import { GM_SECRET_SILOS, isSiloId, type MemoryAudience } from "../rag/silos";
 import { GM_ADJUDICATION_PROMPT } from "../prompts";
 import { parseDirectives } from "./directives";
 import { applyMemoryDirective } from "../rag/memory-writes";
-import { isPrimaryGM, postPlayerResult } from "./relay";
+import { postPlayerResult } from "./relay";
+import { isPrimaryGM } from "../util/gm";
 import { auditToGM } from "../util/audit";
 
 /** How long a pending check stays open awaiting the player's real roll. */

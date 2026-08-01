@@ -206,8 +206,7 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
   /** A GM acknowledged a relayed question (fired from the ack socket message). */
   static acknowledged(requestId: string): void {
     const inst = foundry.applications.instances?.get("noodlr-player-panel") as
-      | NoodlrPlayerPanel
-      | undefined;
+      NoodlrPlayerPanel | undefined;
     if (inst) inst.#onAck(requestId);
   }
 

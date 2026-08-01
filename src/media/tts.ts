@@ -180,6 +180,17 @@ const BROADCAST_SLOTS = 8;
 let broadcastSlot = 0;
 
 /**
+ * Per-GM prefix for the slot names above. The counter is per-client and starts at zero, so with two
+ * GMs connected the first line each of them speaks claims the same slot — the second write lands on
+ * the file clients are still fetching for the first. Foundry user ids are alphanumeric, but the id
+ * is filtered anyway rather than trusting that for a filename.
+ */
+function speakerTag(): string {
+  const id = (game.user?.id ?? "").replace(/[^A-Za-z0-9]/g, "");
+  return id ? `${id}-` : "";
+}
+
+/**
  * File extension for a synthesized clip. Deliberately NOT `extForType()`, whose fallthrough is
  * `png` because the image path is its common case — speech written as `.png` is served back as
  * `image/png` and refused by every client's audio decoder, which reads as "the TTS just didn't
@@ -228,7 +239,7 @@ export async function speakShared(
     const slot = broadcastSlot++ % BROADCAST_SLOTS;
     const path = await saveMedia(blob, "speech", {
       subfolder: "speech",
-      fileName: `noodlr-speech-${slot}.${speechExt(blob.type)}`,
+      fileName: `noodlr-speech-${speakerTag()}${slot}.${speechExt(blob.type)}`,
     });
     if (!path) {
       log("tts: could not store audio for broadcast; playing locally only");

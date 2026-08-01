@@ -17,6 +17,7 @@ import { registerPendingAdjudication } from "./adjudication";
 import { applyMemoryDirectives } from "../rag/memory-writes";
 import { getTtsAutoRead } from "../media/config";
 import { speakShared } from "../media/tts";
+import { isPrimaryGM } from "../util/gm";
 
 /** Socket message type for a player -> GM "Ask the Table" request. */
 export const PLAYER_ASK = "player-ask" as const;
@@ -71,21 +72,6 @@ const TAKEOVER_DELAY_MS = 4_000;
 
 /** requestIds some GM has acknowledged, so a standby GM knows not to take over. */
 const acked = new Set<string>();
-
-/**
- * True when this client is the GM responsible for handling relayed player requests. With several
- * GMs/assistant-GMs online, only the designated primary handles socket relays so a request is not
- * answered twice. Falls back to "any GM" if Foundry reports no active GM.
- *
- * Compares by id, not object identity: `activeGM` and `game.user` are normally the same User
- * instance, but that is an implementation detail to lean on for something that silently disables the
- * whole feature when it does not hold.
- */
-export function isPrimaryGM(): boolean {
-  if (!game.user?.isGM) return false;
-  const active = (game.users as any)?.activeGM ?? null;
-  return !active || active.id === game.user.id;
-}
 
 /** Announce that this GM has taken responsibility for a relayed question. */
 function emitAck(requestId: string): void {
@@ -190,12 +176,7 @@ export async function handlePlayerAsk(
     timedOut = true;
   });
   try {
-    const result = await generatePlayerAnswer(
-      text,
-      payload.userName,
-      abort.signal,
-      payload.userId,
-    );
+    const result = await generatePlayerAnswer(text, payload.userName, abort.signal, payload.userId);
     answer = result.text;
 
     // If the bot escalated a privileged check, register it so the player's real roll (captured from
