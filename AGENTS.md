@@ -1029,15 +1029,29 @@ JSON column for a stable Arrow schema, cosine distance, per-table write serializ
 `test/lance.test.js`; full suite 14/14 green on this Windows host). **Only one process may write a
 LanceDB dir** — the Python server must be stopped.
 
-## Cross-phase note: nothing has been run inside Foundry yet
+## Verified in a live Foundry world (2026-07-31, v0.4.14)
 
-All six phases are validated only via `tsc --noEmit`, `eslint`, `esbuild`, prettier, a
-verbatim-prompt diff, and UTF-8/LF checks — there is no Foundry world in this build env.
-First in-app session should smoke-test, in order: module loads + settings tabs render;
-chat streams against a real provider; `{{roll:}}` executes; RAG connects + ingests +
-retrieves; lorebook/author's-note/post-history inject; Chronicle capture+promote; TTS/
-image/push-to-log; combat block + NPC turn. Scene-control button shapes, FormDataExtended,
-DialogV2, MediaRecorder cycling, and the socket relay are the highest-risk unverified spots.
+The build env has no Foundry world, so everything here was validated in the user's own world
+(Foundry v14, dnd5e, GM and player in separate Firefox multi-account containers). The earlier
+prediction that "the socket relay is the highest-risk unverified spot" proved exactly right — see
+the `"socket": true` invariant below.
+
+**Milestone — the players-only chatbot held unprompted continuity across a real adjudication.**
+Unscripted, in one session: a player asked Polly Histor whether he could hide from the surrounding
+skeletons → the bot told him to break line of sight and roll Stealth → the player rolled badly in
+native Foundry → the bot read the real roll, told him he had been spotted, and called for
+initiative. That is the whole design thesis working end to end: retrieval-scoped player knowledge,
+escalation to a real Foundry roll instead of a model-invented one, the roll captured from the chat
+log, and consequence carried forward without the GM prompting any of it.
+
+Also confirmed working in-app: module load + settings tabs; streaming chat against a real provider;
+GM co-pilot and players-only bot side by side; Tipster scene briefing including the token roster
+(counts correct for duplicate tokens); TTS on both bots, broadcast to every client; "Hide from
+players" suppressing both text and audio; the GM-relayed player ask with acknowledgement.
+
+Still unverified in-app: push-to-log/MediaRecorder cycling, image/music/video generation from a
+player client (see the upload-permission note below — expected to fail), combat block + NPC turn,
+lorebook/author's-note/post-history injection.
 
 ## Hard-won invariants
 
