@@ -16,7 +16,7 @@ import { renderMarkdown } from "../util/markdown";
 import { sanitizeUserText } from "../util/sanitize";
 import type { ResolvedRoll } from "../dice/roll-macros";
 import { getTtsAutoRead } from "../media/config";
-import { speakShared } from "../media/tts";
+import { speak, speakShared } from "../media/tts";
 import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
 import { bumpStats } from "../util/stats";
 import { log } from "../constants";
@@ -236,7 +236,10 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
           }
           if (bodyEl) bodyEl.innerHTML = html;
           this.#scrollToBottom();
-          if (getTtsAutoRead()) void speakShared(finalText);
+          // A hidden turn must stay local. Broadcasting it would read the GM's secret aloud on every
+          // player's machine, and the stored file sits at a predictable, unauthenticated URL — the
+          // text was hidden while the voice gave it away. `speak()` never leaves this tab.
+          if (getTtsAutoRead()) void (turn.hidden ? speak(finalText) : speakShared(finalText));
           // Attach/refresh controls on the latest assistant bubble. The 60 s window (re)starts
           // here, so it always begins once the final rendered output is displayed.
           turn.finalText = finalText;

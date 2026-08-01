@@ -1,6 +1,6 @@
 {
   "name": "noodlr",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "private": true,
   "type": "module",
   "description": "Noodlr — an AI Gamemaster module for Foundry VTT (game-system-agnostic; D&D 5e as first-class test case).",

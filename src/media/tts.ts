@@ -88,7 +88,54 @@ export async function synthesizeSpeech(
 
 let currentAudio: HTMLAudioElement | null = null;
 
-/** Synthesize and play. Stops any currently-playing Noodlr speech first. */
+/**
+ * Speech is queued rather than fired immediately: two replies finishing close together used to talk
+ * over each other, which at a table is worse than a delay. Each line waits for the previous one to
+ * finish. Bumped by `stopSpeaking()` so anything still queued is abandoned instead of played after
+ * the GM has explicitly silenced it.
+ */
+let speechChain: Promise<void> = Promise.resolve();
+let speechEpoch = 0;
+
+/** Run `job` after all previously queued speech, unless Stop was pressed in the meantime. */
+function enqueueSpeech(job: () => Promise<void>): Promise<void> {
+  const epoch = speechEpoch;
+  const run = async (): Promise<void> => {
+    if (epoch !== speechEpoch) return;
+    await job();
+  };
+  // Chain through failures too, or one bad line would wedge the queue for the whole session.
+  const next = speechChain.then(run, run);
+  speechChain = next.catch(() => undefined);
+  return next;
+}
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => window.setTimeout(r, ms));
+
+/** Gap between queued lines, so the next does not clip the tail of the last on slower clients. */
+const SPEECH_GAP_MS = 250;
+
+/**
+ * Playable length of an audio Blob in seconds, or 0 if the browser cannot tell us. Needed because a
+ * broadcast plays on other machines: we cannot await their playback, so the queue paces itself by
+ * the clip's own duration.
+ */
+function blobDuration(blob: Blob): Promise<number> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio();
+    const done = (seconds: number): void => {
+      URL.revokeObjectURL(url);
+      resolve(Number.isFinite(seconds) && seconds > 0 ? seconds : 0);
+    };
+    audio.preload = "metadata";
+    audio.addEventListener("loadedmetadata", () => done(audio.duration));
+    audio.addEventListener("error", () => done(0));
+    audio.src = url;
+  });
+}
+
+/** Synthesize and play on THIS client only. Queued behind any speech already in flight. */
 export async function speak(
   text: string,
   voiceOrOpts?: string | { voice?: string; pitch?: number },
@@ -96,18 +143,31 @@ export async function speak(
   const trimmed = text.trim();
   if (!trimmed) return;
   const opts = typeof voiceOrOpts === "string" ? { voice: voiceOrOpts } : (voiceOrOpts ?? {});
-  const blob = await synthesizeSpeech(trimmed, opts);
-  await playLocal(blob);
+  return enqueueSpeech(async () => {
+    const blob = await synthesizeSpeech(trimmed, opts);
+    await playLocal(blob);
+  });
 }
 
-/** Play an audio Blob in this browser only. Blob URLs are tab-scoped and cannot be shared. */
+/**
+ * Play an audio Blob in this browser only, resolving when playback actually ends. Blob URLs are
+ * tab-scoped, so nothing written here is reachable by any other client — which is exactly why secret
+ * narration uses this path instead of the broadcast one.
+ */
 async function playLocal(blob: Blob): Promise<void> {
-  stopSpeaking();
+  stopCurrentAudio();
   const objectUrl = URL.createObjectURL(blob);
   const audio = new Audio(objectUrl);
   currentAudio = audio;
-  audio.addEventListener("ended", () => URL.revokeObjectURL(objectUrl));
-  await audio.play().catch(() => URL.revokeObjectURL(objectUrl));
+  await new Promise<void>((resolve) => {
+    const finish = (): void => {
+      URL.revokeObjectURL(objectUrl);
+      resolve();
+    };
+    audio.addEventListener("ended", finish, { once: true });
+    audio.addEventListener("error", finish, { once: true });
+    audio.play().catch(finish);
+  });
 }
 
 /**
@@ -139,36 +199,49 @@ export async function speakShared(
   if (!getTtsBroadcast()) return speak(trimmed, voiceOrOpts);
 
   const opts = typeof voiceOrOpts === "string" ? { voice: voiceOrOpts } : (voiceOrOpts ?? {});
-  const blob = await synthesizeSpeech(trimmed, opts);
+  return enqueueSpeech(async () => {
+    const blob = await synthesizeSpeech(trimmed, opts);
 
-  const slot = broadcastSlot++ % BROADCAST_SLOTS;
-  const path = await saveMedia(blob, "speech", {
-    subfolder: "speech",
-    fileName: `noodlr-speech-${slot}.${extForType(blob.type)}`,
+    const slot = broadcastSlot++ % BROADCAST_SLOTS;
+    const path = await saveMedia(blob, "speech", {
+      subfolder: "speech",
+      fileName: `noodlr-speech-${slot}.${extForType(blob.type)}`,
+    });
+    if (!path) {
+      log("tts: could not store audio for broadcast; playing locally only");
+      return playLocal(blob);
+    }
+
+    const helper = (foundry as any).audio?.AudioHelper ?? (globalThis as any).AudioHelper;
+    if (!helper?.play) {
+      log("tts: AudioHelper unavailable; playing locally only");
+      return playLocal(blob);
+    }
+
+    // Slot names are reused, so a bare path would let a client replay a cached earlier line.
+    const src = `${path}?t=${Date.now()}`;
+    stopCurrentAudio();
+    // `true` = also emit to every other connected client.
+    helper.play({ src, volume: 1.0, autoplay: true, loop: false }, true);
+
+    // Other clients' playback can't be awaited, so hold the queue for the clip's own length.
+    const seconds = await blobDuration(blob);
+    await sleep(seconds * 1000 + SPEECH_GAP_MS);
   });
-  if (!path) {
-    log("tts: could not store audio for broadcast; playing locally only");
-    return playLocal(blob);
-  }
-
-  const helper = (foundry as any).audio?.AudioHelper ?? (globalThis as any).AudioHelper;
-  if (!helper?.play) {
-    log("tts: AudioHelper unavailable; playing locally only");
-    return playLocal(blob);
-  }
-
-  // Slot names are reused, so a bare path would let a client replay a cached earlier line.
-  const src = `${path}?t=${Date.now()}`;
-  stopSpeaking();
-  // `true` = also emit to every other connected client.
-  helper.play({ src, volume: 1.0, autoplay: true, loop: false }, true);
 }
 
-export function stopSpeaking(): void {
+/** Halt local playback without touching the queue. */
+function stopCurrentAudio(): void {
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
   }
+}
+
+/** Silence current speech AND abandon anything still queued behind it. */
+export function stopSpeaking(): void {
+  speechEpoch += 1;
+  stopCurrentAudio();
 }
 
 /**
