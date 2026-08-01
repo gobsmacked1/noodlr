@@ -10,10 +10,16 @@
 //   - The header line is "Token/Object Speaking:" because the caller may be a player, the GM, or
 //     (later) an internal automation such as an NPC-movement AI.
 //
-// T1 scope: scene ambience + world time only — nothing here is secret, so there is no perception
-// filtering yet. Per-token perception (T3) and the GM/player split (T4) come later.
+// Scope so far:
+//   T1 — scene ambience + world time. Nothing there is secret.
+//   T2 — the roster of who is present, which IS privilege-bearing: the GM sees hidden tokens,
+//        secret-disposition tokens, and HP; a player sees none of the three (a hidden token is
+//        omitted entirely, not marked as concealed — its existence is the secret).
+// Still to come: per-token perception, so a player only learns about tokens their own token could
+// actually see (line of sight / senses) rather than everything unhidden on the map (T3).
 
 import { log } from "../constants";
+import { readHp, hpTier } from "../combat/tracker";
 
 /** Who requested the briefing. Drives the header line and (from T3) the visibility filter. */
 export type TipsterCaller = "player" | "gm" | "automation";
@@ -166,6 +172,75 @@ function describeTime(): string {
   return "";
 }
 
+const DISPOSITION_LABEL: Record<number, string> = {
+  [-2]: "Secret",
+  [-1]: "Hostile",
+  0: "Neutral",
+  1: "Friendly",
+};
+
+/** Print order for the roster buckets: the party first, threats last but for the GM's hidden set. */
+const BUCKET_ORDER = ["Party", "Friendly", "Neutral", "Hostile", "Secret", "Hidden from players"];
+
+/** Distinct entries per bucket before truncating; a crowd scene must not eat the context budget. */
+const MAX_PER_BUCKET = 20;
+
+/**
+ * Who is actually standing in the scene. Read from `scene.tokens` (the authoritative embedded
+ * collection) rather than `canvas.tokens.placeables`, so the roster does not depend on what the
+ * calling client happens to have drawn.
+ *
+ * Identical tokens are grouped and counted ("Skeleton x3") instead of repeated: three copies of one
+ * stat block is what the GM placed, and a bare repeated name reads to a model like a mistake.
+ * Grouping is by everything we would print, so a wounded Skeleton separates from its fresh kin.
+ *
+ * `forGm` is the privilege switch. A player briefing never mentions hidden tokens (not even that
+ * they exist), never reveals secret-disposition tokens, and carries no HP.
+ */
+function describeTokens(scene: any, forGm: boolean): string[] {
+  const tokens = scene?.tokens;
+  if (!tokens || typeof tokens.forEach !== "function") return [];
+
+  const buckets = new Map<string, Map<string, number>>();
+  for (const t of [...tokens] as any[]) {
+    const hidden = Boolean(t?.hidden);
+    if (hidden && !forGm) continue;
+    const disposition = Number(t?.disposition ?? 0);
+    if (disposition === -2 && !forGm) continue;
+
+    const actor = t?.actor;
+    const isPC = Boolean(actor?.hasPlayerOwner);
+    const name = String(t?.name || actor?.name || "").trim() || "unnamed token";
+
+    let entry = name;
+    if (forGm) {
+      const hp = readHp(actor);
+      if (hp) entry += isPC ? ` (HP ${hp.value}/${hp.max})` : ` (${hpTier(hp)})`;
+    }
+
+    const bucket = hidden
+      ? "Hidden from players"
+      : isPC
+        ? "Party"
+        : (DISPOSITION_LABEL[disposition] ?? "Neutral");
+
+    const seen = buckets.get(bucket) ?? new Map<string, number>();
+    seen.set(entry, (seen.get(entry) ?? 0) + 1);
+    buckets.set(bucket, seen);
+  }
+
+  const lines: string[] = [];
+  for (const bucket of BUCKET_ORDER) {
+    const seen = buckets.get(bucket);
+    if (!seen || seen.size === 0) continue;
+    const parts = [...seen.entries()].map(([entry, n]) => (n > 1 ? `${entry} x${n}` : entry));
+    const shown = parts.slice(0, MAX_PER_BUCKET);
+    const overflow = parts.length - shown.length;
+    lines.push(`${bucket}: ${shown.join(", ")}${overflow > 0 ? `, +${overflow} more` : ""}`);
+  }
+  return lines;
+}
+
 /** Currently playing track — a strong, cheap mood signal the GM already curated. */
 function describeAudio(scene: any): string {
   const parts: string[] = [];
@@ -263,6 +338,10 @@ export function buildTipsterBlock(input: TipsterInput): string | null {
 
     const regions = describeRegions(scene);
     if (regions) lines.push(`Regions: ${regions}`);
+
+    // Who is present. The GM sees hidden/secret tokens and HP; a player sees neither.
+    const roster = describeTokens(scene, input.caller !== "player");
+    if (roster.length > 0) lines.push("Present in scene:", ...roster.map((l) => `  ${l}`));
 
     // Only the header line means we learned nothing about the scene; not worth the tokens.
     if (lines.length < 2) return null;

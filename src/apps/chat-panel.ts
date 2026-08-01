@@ -16,7 +16,7 @@ import { renderMarkdown } from "../util/markdown";
 import { sanitizeUserText } from "../util/sanitize";
 import type { ResolvedRoll } from "../dice/roll-macros";
 import { getTtsAutoRead } from "../media/config";
-import { speak } from "../media/tts";
+import { speakShared } from "../media/tts";
 import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
 import { bumpStats } from "../util/stats";
 import { log } from "../constants";
@@ -236,7 +236,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
           }
           if (bodyEl) bodyEl.innerHTML = html;
           this.#scrollToBottom();
-          if (getTtsAutoRead()) void speak(finalText);
+          if (getTtsAutoRead()) void speakShared(finalText);
           // Attach/refresh controls on the latest assistant bubble. The 60 s window (re)starts
           // here, so it always begins once the final rendered output is displayed.
           turn.finalText = finalText;

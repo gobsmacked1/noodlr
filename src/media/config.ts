@@ -160,6 +160,9 @@ export function registerMediaSettings(): void {
     type: Boolean,
     default: false,
   });
+  // World scope, unlike autoRead: whether the table shares one set of speakers is a property of the
+  // table, not of each browser. Defaults on — a remote table hearing nothing is the worse failure.
+  game.settings.register(MODULE_ID, M.ttsBroadcast, { ...worldBool, default: true });
   game.settings.register(MODULE_ID, M.ttsPitchSupported, { ...worldBool, default: false });
   game.settings.register(MODULE_ID, M.ttsCreatureVoices, { ...worldStr, default: "{}" });
 
@@ -227,6 +230,8 @@ export const getTtsVoice = () =>
   (game.settings.get(MODULE_ID, MEDIA_SETTINGS.ttsVoice) as string) ?? "";
 export const getTtsAutoRead = () =>
   Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.ttsAutoRead));
+export const getTtsBroadcast = () =>
+  Boolean(game.settings.get(MODULE_ID, MEDIA_SETTINGS.ttsBroadcast));
 
 export function getImageParams(kind: ImageKind = "image"): {
   steps: number;

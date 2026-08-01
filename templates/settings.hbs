@@ -240,6 +240,12 @@
     </label>
     <p class="notes">{{localize "NOODLR.Media.TtsAutoRead.Hint"}}</p>
 
+    <label class="noodlr-inline">
+      <input type="checkbox" name="tts.broadcast" {{#if ttsBroadcast}}checked{{/if}} />
+      {{localize "NOODLR.Media.TtsBroadcast.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.TtsBroadcast.Hint"}}</p>
+
     {{! Inline self-test: synthesize a short phrase and report result/error right here. The
         input uses data-role (not name) so the test text is never persisted with the form. }}
     <div class="noodlr-field">

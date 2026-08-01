@@ -75,6 +75,8 @@ export const MEDIA_SETTINGS = {
   ttsEnabled: "tts.enabled",
   ttsVoice: "tts.voice",
   ttsAutoRead: "tts.autoRead",
+  // Play generated speech on every connected client, not just the one that synthesized it.
+  ttsBroadcast: "tts.broadcast",
   // Whether this TTS endpoint accepts a `pitch` body field (only sent when true).
   ttsPitchSupported: "tts.pitchSupported",
   // Per-creature-type voice+pitch overrides: JSON map creatureTypeKey -> { voice, pitch }.

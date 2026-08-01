@@ -51,7 +51,7 @@ export function slugify(s: string): string {
 }
 
 /** Pick a file extension from a MIME type, defaulting to png (image path is the common case). */
-function extForType(type: string): string {
+export function extForType(type: string): string {
   const t = type.toLowerCase();
   if (t.includes("jpeg")) return "jpg";
   if (t.includes("webp")) return "webp";
@@ -76,7 +76,7 @@ function extForType(type: string): string {
 export async function saveMedia(
   src: string | Blob,
   baseName: string,
-  opts: { subfolder?: string; ext?: string } = {},
+  opts: { subfolder?: string; ext?: string; fileName?: string } = {},
 ): Promise<string | null> {
   const fp = filePicker();
   if (!fp?.upload) return null;
@@ -96,7 +96,10 @@ export async function saveMedia(
       blob = src;
     }
     const ext = opts.ext ?? extForType(blob.type);
-    const name = `${slugify(baseName)}-${Date.now()}.${ext}`;
+    // An explicit fileName deliberately overwrites any previous file of that name. Foundry exposes
+    // no delete API, so a caller that writes repeatedly (speech) must reuse a bounded set of names
+    // or it grows the data folder forever.
+    const name = opts.fileName ?? `${slugify(baseName)}-${Date.now()}.${ext}`;
     const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
     const folder = opts.subfolder ? `${getMediaFolder()}/${opts.subfolder}` : getMediaFolder();
     await ensureMediaFolder(folder);

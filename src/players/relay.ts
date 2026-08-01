@@ -16,7 +16,7 @@ import { firstDirective } from "./directives";
 import { registerPendingAdjudication } from "./adjudication";
 import { applyMemoryDirectives } from "../rag/memory-writes";
 import { getTtsAutoRead } from "../media/config";
-import { speak } from "../media/tts";
+import { speakShared } from "../media/tts";
 
 /** Socket message type for a player -> GM "Ask the Table" request. */
 export const PLAYER_ASK = "player-ask" as const;
@@ -244,13 +244,12 @@ export async function handlePlayerAsk(
     answer,
   });
 
-  // Read the answer aloud, honouring the same auto-read toggle as the GM co-pilot. Spoken HERE, on
-  // the GM's client, deliberately: this is the machine holding the TTS credentials, and it is the one
-  // pair of speakers the table shares. Remote players hearing it on their own client would need the
-  // GM to synthesize once and broadcast the audio (as image generation already does) — not this.
+  // Read the answer aloud, honouring the same auto-read toggle as the GM co-pilot. Synthesized here
+  // (the GM's client holds the credentials) but played on every client, so the player who asked
+  // actually hears the reply.
   if (getTtsAutoRead()) {
     try {
-      await speak(answer);
+      await speakShared(answer);
     } catch (err) {
       warn("player-bot: reading the answer aloud failed:", err);
     }

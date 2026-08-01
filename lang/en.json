@@ -310,6 +310,8 @@
   "NOODLR.Media.TtsVoice.Hint": "Default voice id/name for speech (see your provider's voice list).",
   "NOODLR.Media.TtsAutoRead.Name": "Read GM replies aloud",
   "NOODLR.Media.TtsAutoRead.Hint": "Automatically speak each GM chat reply on this client.",
+  "NOODLR.Media.TtsBroadcast.Name": "Play speech for everyone at the table",
+  "NOODLR.Media.TtsBroadcast.Hint": "Play generated speech on every connected player's browser, not just the one that made it. Leave this on for remote tables. Turn it off for in-person play, where several browsers in one room will echo.",
   "NOODLR.Media.TtsTest.Name": "Test voice output",
   "NOODLR.Media.TtsTest.Hint": "Type up to 140 characters, then Test to synthesize and play a sample using your SAVED TTS settings (save first if you just changed them). The result or error appears below — handy because audio problems are often unrelated to the provider.",
   "NOODLR.Media.TtsTest.Placeholder": "Type a short phrase to hear it spoken…",

@@ -30,6 +30,7 @@ import {
   getTtsEnabled,
   getTtsVoice,
   getTtsAutoRead,
+  getTtsBroadcast,
   getTtsPitchSupported,
   getImageChatTrigger,
   getImageAllowPlayers,
@@ -205,6 +206,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       ttsEnabled: getTtsEnabled(),
       ttsVoice: getTtsVoice(),
       ttsAutoRead: getTtsAutoRead(),
+      ttsBroadcast: getTtsBroadcast(),
       ttsPitchSupported: getTtsPitchSupported(),
 
       // Music options
@@ -274,6 +276,7 @@ export class NoodlrSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     await set(MEDIA_SETTINGS.ttsEnabled, Boolean(o.tts?.enabled));
     await set(MEDIA_SETTINGS.ttsVoice, String(o.tts?.voice ?? "").trim());
     await set(MEDIA_SETTINGS.ttsAutoRead, Boolean(o.tts?.autoRead));
+    await set(MEDIA_SETTINGS.ttsBroadcast, Boolean(o.tts?.broadcast));
     await set(MEDIA_SETTINGS.ttsPitchSupported, Boolean(o.tts?.pitchSupported));
 
     // Music options
