@@ -11,6 +11,7 @@
 // Privileged adjudication (the bot-to-bot relay) is P3.
 
 import { MODULE_ID, SOCKET, debug, warn } from "../constants";
+import { getAssistantName } from "../chat/assistant";
 import { generatePlayerAnswer } from "./answer";
 import { firstDirective } from "./directives";
 import { registerPendingAdjudication } from "./adjudication";
@@ -250,7 +251,7 @@ export async function postPlayerResult(flag: PlayerBotFlag): Promise<void> {
   try {
     await (globalThis as any).ChatMessage.create({
       content,
-      speaker: { alias: game.i18n.localize("NOODLR.Players.Speaker") },
+      speaker: { alias: getAssistantName() },
       flags: { [MODULE_ID]: { playerBot: flag } },
     });
     debug("players/relay: result posted", { requestId: flag.requestId });

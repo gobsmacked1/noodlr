@@ -8,7 +8,13 @@ import { registerStatsSettings } from "./util/stats";
 import { sanitizeUserText } from "./util/sanitize";
 import { NoodlrChatPanel } from "./apps/chat-panel";
 import { NoodlrPlayerPanel } from "./apps/player-panel";
-import { NoodlrSettingsApp } from "./apps/settings-app";
+import { localizeWithAssistant } from "./chat/assistant";
+import { NoodlrTextGenApp } from "./apps/text-gen-app";
+import { NoodlrAudioGenApp } from "./apps/audio-gen-app";
+import { NoodlrImageGenApp } from "./apps/image-gen-app";
+import { NoodlrSecurityApp } from "./apps/security-app";
+import { registerNoodlrPartials } from "./apps/partials";
+import { seedPromptDefaults } from "./prompts/fields";
 import { NoodlrMemoryApp } from "./apps/memory-app";
 import { NoodlrLorebookApp } from "./apps/lorebook-app";
 import { NoodlrRagBrowserApp } from "./apps/rag-browser-app";
@@ -21,7 +27,6 @@ import {
   getImageAllowPlayers,
   getMusicConfig,
   getVideoConfig,
-  seedMapDefaults,
   IMAGE_KINDS,
   IMAGE_KIND_META,
   type ImageKind,
@@ -46,7 +51,12 @@ import {
 export interface NoodlrApi {
   openChat(): void;
   openPlayerChat(): void;
+  /** Alias for `openTextGen()` — kept so existing macros keep working. */
   openSettings(): void;
+  openTextGen(): void;
+  openAudioGen(): void;
+  openImageGen(): void;
+  openSecurity(): void;
   openMemory(): void;
   openLorebook(): void;
   openRagBrowser(): void;
@@ -72,7 +82,19 @@ const api: NoodlrApi = {
     else new NoodlrPlayerPanel().render({ force: true });
   },
   openSettings: () => {
-    new NoodlrSettingsApp().render({ force: true });
+    new NoodlrTextGenApp().render({ force: true });
+  },
+  openTextGen: () => {
+    new NoodlrTextGenApp().render({ force: true });
+  },
+  openAudioGen: () => {
+    new NoodlrAudioGenApp().render({ force: true });
+  },
+  openImageGen: () => {
+    new NoodlrImageGenApp().render({ force: true });
+  },
+  openSecurity: () => {
+    new NoodlrSecurityApp().render({ force: true });
   },
   openMemory: () => {
     new NoodlrMemoryApp().render({ force: true });
@@ -97,6 +119,9 @@ Hooks.once("init", () => {
   registerSettings();
   registerStatsSettings();
   registerKeybindings();
+  // Shared Handlebars partials for the config windows. Handlebars throws on a missing partial, so
+  // this has to finish before a window can render — `init` is early enough that it always does.
+  void registerNoodlrPartials();
 
   // Expose the API on the module entry so it's reachable as
   // game.modules.get("noodlr").api during development.
@@ -148,7 +173,8 @@ Hooks.once("ready", () => {
   // Ensure the media output folder exists (GM only — creating dirs needs upload permission).
   if (game.user?.isGM) {
     void ensureMediaFolder();
-    void seedMapDefaults();
+    // One-time: fill prompt fields left empty under the old "empty means use the default" rule.
+    void seedPromptDefaults();
     // Native Foundry chat-log capture -> unfiltered_chat silo (only the primary GM records; the
     // handler self-gates on the enable toggle + primary-GM check).
     initChatSniffer();
@@ -228,37 +254,37 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
   try {
     const isGM = Boolean(game.user?.isGM);
 
+    // Each role gets exactly one chat entry point: GMs the co-pilot, players the table bot. A GM
+    // who wants to inspect the players' panel can still call api.openPlayerChat() from the console.
     const tools: Record<string, any> = {
-      // Inert default tool: selecting the Noodlr group just opens the flyout and rests here, so no
-      // action auto-fires (and, since it's the activeTool, the real action buttons never become
-      // "active" — meaning e.g. the chat button re-fires on every click even after you close it).
+      // Not rendered (visible: false), but still the group's activeTool. Foundry requires activeTool
+      // to name a tool that exists, and it must not be one of the real buttons: whichever tool is
+      // active is skipped on click, so the chat button would stop re-opening a panel you had closed.
+      // Keeping it hidden removes the dead dragon icon from the flyout without giving that up.
       home: {
         name: "home",
         title: "NOODLR.Controls.GroupTitle",
         icon: "fa-solid fa-dragon",
         order: 0,
-        visible: true,
+        visible: false,
         onChange: () => {},
       },
-      // GM co-pilot: the trusted-ally chatbot, restricted to Assistant GM + Gamemaster.
       chat: {
         name: "chat",
-        title: "NOODLR.ChatPanel.Title",
+        title: localizeWithAssistant("NOODLR.ChatPanel.Title"),
         icon: "fa-solid fa-comments",
         order: 1,
         button: true,
         visible: isGM,
         onChange: () => api.openChat(),
       },
-      // Players-only "Ask the Table": the gatekeeper/unreliable-narrator chatbot. Visible to all
-      // (Players/Trusted Players use it; the GM sees it to test their players' experience).
       playerChat: {
         name: "playerChat",
-        title: "NOODLR.Players.Tool",
+        title: localizeWithAssistant("NOODLR.Players.Tool"),
         icon: "fa-solid fa-masks-theater",
         order: 2,
         button: true,
-        visible: true,
+        visible: !isGM,
         onChange: () => api.openPlayerChat(),
       },
     };
@@ -335,8 +361,6 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
       icon: "fa-solid fa-dragon",
       order: Object.keys(controls).length,
       visible: true,
-      // Rest on the inert `home` tool so opening the group fires no action and the real buttons
-      // stay momentary (re-clickable). Foundry requires activeTool to name a valid, visible tool.
       activeTool: "home",
       tools,
     };

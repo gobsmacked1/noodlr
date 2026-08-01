@@ -1,0 +1,94 @@
+{{! Text Generation: chat provider, the assistant's name, every text prompt, and context controls. }}
+<section class="noodlr-settings">
+  <header class="noodlr-settings__header">
+    <i class="fa-solid fa-comments"></i>
+    <h2>{{moduleTitle}} — {{localize "NOODLR.TextGen.Menu.Name"}}</h2>
+    <span class="noodlr-settings__version">v{{version}}</span>
+  </header>
+
+  <p class="noodlr-settings__intro">{{localize "NOODLR.TextGen.Intro"}}</p>
+
+  <datalist id="noodlr-or-models"></datalist>
+
+  {{! ---- The chat model itself ---- }}
+  <fieldset class="noodlr-settings__section" data-feature="chat">
+    <legend><i class="fa-solid fa-comments"></i> {{chat.title}}</legend>
+    {{> noodlrHelp chat}}
+    {{> noodlrProviderBlock chat}}
+
+    <div class="noodlr-settings__actions">
+      <button type="button" data-action="testConnection">
+        <i class="fa-solid fa-plug"></i> {{localize "NOODLR.Settings.TestConnection"}}
+      </button>
+    </div>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="chat.continueAfterRoll" {{#if continueAfterRoll}}checked{{/if}} />
+      {{localize "NOODLR.Settings.ChatContinueAfterRoll.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Settings.ChatContinueAfterRoll.Hint"}}</p>
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Settings.AssistantName.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Settings.AssistantName.Hint"}}</p>
+      <input type="text" name="assistantName" value="{{assistantName}}"
+        maxlength="{{assistantNameMax}}" autocomplete="off" />
+    </div>
+  </fieldset>
+
+  {{! ---- The three chat prompts ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-scroll"></i> {{localize "NOODLR.Settings.PromptsLegend"}}</legend>
+    <p class="notes">{{localize "NOODLR.Settings.PromptsNote"}}</p>
+
+    {{> noodlrPromptField chatPrompt}}
+    {{> noodlrPromptField playersPrompt}}
+    {{> noodlrPromptField adjudicationPrompt}}
+    {{> noodlrPromptField combatPrompt}}
+  </fieldset>
+
+  {{! ---- Context & injections ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-layer-group"></i> {{localize "NOODLR.Settings.ContextLegend"}}</legend>
+
+    {{> noodlrPromptField authorNote}}
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Prompt.AuthorNoteDepth.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Prompt.AuthorNoteDepth.Hint"}}</p>
+      <input type="number" name="authorNoteDepth" value="{{authorNoteDepth}}" min="0" max="50" step="1" />
+    </div>
+
+    {{> noodlrPromptField postHistory}}
+    {{> noodlrPromptField combatReminder}}
+
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Prompt.ContextBudget.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Prompt.ContextBudget.Hint"}}</p>
+      <input type="number" name="contextTokenBudget" value="{{contextTokenBudget}}" min="1000" max="1000000" step="1000" />
+    </div>
+  </fieldset>
+
+  {{! ---- Behavior toggles that change what the models are told ---- }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-sliders"></i> {{localize "NOODLR.Settings.BehaviorLegend"}}</legend>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="memoryWrites" {{#if memoryWrites}}checked{{/if}} />
+      {{localize "NOODLR.Prompt.ChatMemoryWrites.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Prompt.ChatMemoryWrites.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="tipsterGm" {{#if tipsterGm}}checked{{/if}} />
+      {{localize "NOODLR.Prompt.TipsterGm.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Prompt.TipsterGm.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="tipsterPlayers" {{#if tipsterPlayers}}checked{{/if}} />
+      {{localize "NOODLR.Prompt.TipsterPlayers.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Prompt.TipsterPlayers.Hint"}}</p>
+  </fieldset>
+</section>

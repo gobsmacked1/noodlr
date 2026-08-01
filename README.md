@@ -54,10 +54,10 @@ silently.
 
 ### Quick start
 
-1. Open **Game Settings → Configure Noodlr**.
-2. Paste your OpenRouter key at the top, then pick a chat model and hit **Test connection**.
-3. Click the dragon in the scene controls, or press **Ctrl+Shift+N**, to open the chat panel.
-4. Optionally open **Memory & Knowledge** and turn memory on — the default in-browser backend needs
+1. Open **Game Settings → Noodlr → Security** and paste your OpenRouter key.
+2. Open **Text Generation**, pick a chat model, and hit **Test connection**.
+3. Click Noodlr's scene control, or press **Ctrl+Shift+N**, to open the chat panel.
+4. Optionally open **Memory Configuration** and turn memory on — the default in-browser backend needs
    nothing else.
 5. Optionally ingest your rules compendia from **Manage Memory** so the GM can answer rules questions
    from your actual books.
@@ -66,7 +66,8 @@ silently.
 
 ### Two chatbots, with different privileges
 
-**Polly Histor (GM)** is the co-pilot: streaming markdown chat, real dice macros, full retrieval across
+**Polly Histor (GM)** is the co-pilot — rename her to anything you like in **Text Generation**, and every
+label, chat alias, and window title follows. She offers streaming markdown chat, real dice macros, full retrieval across
 every memory silo, and the built-in Gamemaster system prompt (overridable, 65k characters). Each turn
 carries Retry/Reject for 60 seconds, and a **Hide from players** option that keeps a turn on your screen
 only — not mirrored to chat, not spoken aloud anywhere else. Hiding applies to one prompt at a time and
@@ -107,8 +108,9 @@ and post-history instructions last.
 - **Author's note** — a session anchor injected at a configurable depth.
 - **Post-history instructions** — an always-last slot, with a combat reminder that swaps itself in when
   Foundry combat starts and clears when it ends.
-- **Tipster** — a live scene briefing built on demand from the canvas: environment, placeables, and a
-  token roster, filtered by privilege so the players' bot never sees hidden tokens or exact enemy HP.
+- **Scene awareness** — a live scene briefing built on demand from the canvas: environment, placeables,
+  and a token roster, filtered by privilege so the players' bot never sees hidden tokens or exact enemy
+  HP. Toggled separately for each chatbot.
 
 ### Media
 
@@ -150,15 +152,34 @@ independently in settings.
 
 ## Where things live
 
-The **dragon button** in the scene controls holds the chat panels, the four image generators, run-NPC-turn,
-music and video, the Lorebook, and the Memory browser. GM-only tools are hidden from players; **Ask the
-Table** is visible to everyone. **Ctrl+Shift+N** opens whichever chat panel suits your role. The
-push-to-log mic floats at bottom-center whenever transcription is enabled.
+Noodlr's **scene control** holds the chat panels, the four image generators, run-NPC-turn, music and
+video, the Lorebook, and the Memory browser. Each role sees exactly one chat button: the GM gets the
+co-pilot, players get **Ask the Table**, and the rest of the tools are GM-only. **Ctrl+Shift+N** opens
+whichever panel suits your role. The push-to-log mic floats at bottom-center whenever transcription is
+enabled.
 
-Settings are split in two: **Configure Noodlr** holds providers, prompts, and every media generator;
-**Memory & Knowledge** holds the memory backend, retrieval tuning, embeddings, rerank, and ingestion,
-with Manage Memory and Diagnostics behind buttons there. A handful of smaller knobs (author's-note depth,
-context budget, Tipster toggles, verbose logging) live in Foundry's own settings list.
+Settings live in five windows under **Game Settings**, each opening its own page:
+
+| Window | Holds |
+| --- | --- |
+| **Memory Configuration** | memory backend, retrieval tuning, embeddings, rerank, ingestion, plus Manage Memory and Diagnostics |
+| **Text Generation** | chat provider and model, the assistant's name, every text prompt, author's-note depth, context budget, memory writes, scene awareness |
+| **Audio Generation** | TTS, voices, music, push-to-log transcription |
+| **Image Generation** | the four image generators and video |
+| **Security** | provider API keys |
+
+Only the per-client **verbose logging** toggle stays in Foundry's plain settings list, since players need
+it to gather their own console diagnostics and the five windows are GM-only.
+
+### Prompts ship filled in, not blank
+
+Every prompt box — system prompts, positive and negative image prompts, the author's note, post-history
+instructions — arrives pre-populated with Noodlr's default text, so you can read what the module is
+actually telling the model instead of guessing at a blank field. Edit it freely; the stored text is
+exactly what gets sent. Clearing a box means "send nothing", not "silently fall back to the default", and
+each box has its own **Reset** button to put the shipped text back. Fields whose default text is still
+being written show `TBD_IGNORE_ME_FOR_NOW`; that placeholder is stripped before any request, so it is
+safe to leave alone.
 
 ## Console API
 
@@ -167,6 +188,7 @@ const noodlr = game.modules.get("noodlr").api;
 noodlr.openChat();            // GM co-pilot
 noodlr.openPlayerChat();      // players' panel
 noodlr.openMemory();          // Manage Memory
+noodlr.openTextGen();         // settings windows: also openAudioGen, openImageGen, openSecurity
 noodlr.openLorebook();
 noodlr.openRagBrowser();      // Memory browser
 noodlr.speak("The tavern door creaks open.");
@@ -198,7 +220,10 @@ npm run format     # prettier --write
 ```
 
 Copy or symlink the folder into `Data/modules/noodlr`. A distributable build needs `module.json`,
-`dist/`, `templates/`, `styles/`, `lang/`, `prompts/`, `models/`, and `LICENSE`.
+`dist/`, `templates/`, `styles/`, `lang/`, `prompts/`, `models/`, `LICENSE`, and `changelog.md`.
+
+Release notes live in [changelog.md](changelog.md), which
+[Big Bad Module Manager](https://github.com/thejoester/bbmm) surfaces to your GM after an update.
 
 ## License
 

@@ -1,0 +1,92 @@
+{{! One complete image generator (scene art / portrait / token / map): provider, prompts, SD-era
+    parameters, and delivery options. Registered as the `noodlrImageBlock` partial. }}
+<fieldset class="noodlr-settings__section" data-feature="{{id}}">
+  <legend><i class="{{icon}}"></i> {{title}}</legend>
+  {{> noodlrHelp this}}
+  {{> noodlrProviderBlock this}}
+
+  {{> noodlrPromptField positive}}
+  {{> noodlrPromptField negative}}
+
+  <label class="noodlr-inline">
+    <input type="checkbox" name="{{id}}.expand" {{#if expand}}checked{{/if}} />
+    {{localize "NOODLR.Media.ImageExpand.Name"}}
+  </label>
+  <p class="notes">{{localize "NOODLR.Media.ImageExpand.Hint"}}</p>
+
+  {{> noodlrPromptField expandPrompt}}
+
+  <div class="noodlr-grid">
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImageSize.Name"}}</label>
+      <select name="{{id}}.size" data-role="image-size">
+        <option value="" {{#if sizeNull}}selected{{/if}}>{{localize "NOODLR.Media.ImageSize.Null"}}</option>
+        {{#each sizeOptions}}
+        <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+        {{/each}}
+        <option value="custom" {{#if sizeCustom}}selected{{/if}}>{{localize "NOODLR.Media.ImageSize.Custom"}}</option>
+      </select>
+      <div class="noodlr-inline-controls noodlr-custom-size" data-role="custom-size" {{#unless sizeCustom}}style="display:none"{{/unless}}>
+        <input type="number" name="{{id}}.customW" value="{{customW}}" min="8" max="8192" step="1" placeholder="width" />
+        <span>x</span>
+        <input type="number" name="{{id}}.customH" value="{{customH}}" min="8" max="8192" step="1" placeholder="height" />
+      </div>
+    </div>
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImageSteps.Name"}}</label>
+      <input type="number" name="{{id}}.steps" value="{{steps}}" min="1" max="150" step="1" />
+    </div>
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImageCfg.Name"}}</label>
+      <input type="number" name="{{id}}.cfg" value="{{cfg}}" min="0" max="30" step="0.5" />
+    </div>
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImageSampler.Name"}}</label>
+      <input type="text" name="{{id}}.sampler" value="{{sampler}}" />
+    </div>
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImageSeed.Name"}}</label>
+      <input type="number" name="{{id}}.seed" value="{{seed}}" step="1" />
+    </div>
+  </div>
+  <p class="notes">{{localize "NOODLR.Media.ImageParamsNote"}}</p>
+  <p class="notes">{{localize "NOODLR.Media.ImageSize.Hint"}}</p>
+
+  <label class="noodlr-inline">
+    <input type="checkbox" name="{{id}}.persist" {{#if persist}}checked{{/if}} />
+    {{localize "NOODLR.Media.ImagePersist.Name"}}
+  </label>
+  <p class="notes">{{localize "NOODLR.Media.ImagePersist.Hint"}}</p>
+
+  <label class="noodlr-inline">
+    <input type="checkbox" name="{{id}}.chatTrigger" {{#if chatTrigger}}checked{{/if}} />
+    {{localize "NOODLR.Media.ImageChatTrigger.Name"}}
+  </label>
+  <p class="notes">{{localize "NOODLR.Media.ImageChatTrigger.Hint"}}</p>
+
+  <label class="noodlr-inline">
+    <input type="checkbox" name="{{id}}.allowPlayers" {{#if allowPlayers}}checked{{/if}} />
+    {{localize "NOODLR.Media.ImageAllowPlayers.Name"}}
+  </label>
+  <p class="notes">{{localize "NOODLR.Media.ImageAllowPlayers.Hint"}}</p>
+
+  {{#if isMap}}
+  <label class="noodlr-inline noodlr-disabled">
+    <input type="checkbox" disabled />
+    {{localize "NOODLR.Media.MapUpscale.Name"}}
+  </label>
+  <p class="notes">{{localize "NOODLR.Media.MapUpscale.Hint"}}</p>
+  {{/if}}
+
+  {{#if isScene}}
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Media.ImageFolder.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Media.ImageFolder.Hint"}}</p>
+      <div class="noodlr-inline-controls">
+        <input type="text" name="image.mediaFolder" value="{{mediaFolder}}" placeholder="assets/noodlr-out" autocomplete="off" />
+        <button type="button" data-action="browseMediaFolder"><i class="fa-solid fa-folder-open"></i> {{localize "NOODLR.Media.ImageFolder.Browse"}}</button>
+      </div>
+    </div>
+  {{/if}}
+  <p class="notes">{{localize "NOODLR.Media.ImageSubfolderNote"}} <code>{{subfolder}}/</code> (.{{ext}})</p>
+</fieldset>

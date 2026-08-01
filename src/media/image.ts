@@ -7,7 +7,6 @@
 import { getFeatureConfig } from "../providers/config";
 import { chatCompletion } from "../providers/chat-client";
 import { isConfigured, resolveBaseUrl, type FeatureProviderConfig } from "../providers/types";
-import { IMAGE_EXPAND_SYSTEM_PROMPT } from "../prompts";
 import { getImageParams, type ImageKind } from "./config";
 import { getLedgerEntry } from "./storage";
 
@@ -24,7 +23,10 @@ function authHeaders(cfg: FeatureProviderConfig): Record<string, string> {
 async function expandPrompt(scene: string, systemPrompt: string): Promise<string> {
   const chatCfg = getFeatureConfig("chat");
   if (!isConfigured(chatCfg)) return scene;
-  const sys = systemPrompt.trim() || IMAGE_EXPAND_SYSTEM_PROMPT;
+  // The field ships pre-filled and is read verbatim, so an emptied box means "don't rewrite my
+  // description" — expansion with no instructions would just paraphrase it at the cost of a call.
+  const sys = systemPrompt.trim();
+  if (!sys) return scene;
   try {
     const out = await chatCompletion(chatCfg, {
       messages: [

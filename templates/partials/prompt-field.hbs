@@ -1,0 +1,28 @@
+{{! One editable prompt field, pre-filled with its shipped default.
+    Registered as the `noodlrPromptField` partial (see apps/partials.ts); context comes from
+    promptFieldView() in prompts/fields.ts.
+
+    Deliberately has NO `name` attribute: the settings keys contain dots ("image.positive"), which a
+    form serializer would expand into nested objects and collide with the provider fields. The submit
+    handler collects these by data-prompt-field instead, which also means every window persists
+    prompts the same way.
+
+    Reset rewrites the textarea in place and leaves saving to the Save button, so it can't discard
+    edits pending in other fields. }}
+<div class="noodlr-field noodlr-prompt-field">
+  <label class="noodlr-settings__label">{{label}}</label>
+  <p class="notes">{{hint}}</p>
+  <textarea
+    data-prompt-field="{{key}}"
+    class="noodlr-settings__block"
+    rows="{{rows}}"
+    maxlength="{{maxLength}}"
+    spellcheck="true"
+  >{{value}}</textarea>
+  <div class="noodlr-settings__actions noodlr-settings__actions--field">
+    <button type="button" data-action="resetPromptField" data-field="{{key}}"
+      title="{{localize 'NOODLR.Settings.ResetField.Hint'}}">
+      <i class="fa-solid fa-rotate-left"></i> {{localize "NOODLR.Settings.ResetField.Label"}}
+    </button>
+  </div>
+</div>

@@ -1,0 +1,33 @@
+{{! Security: stored credentials. }}
+<section class="noodlr-settings">
+  <header class="noodlr-settings__header">
+    <i class="fa-solid fa-key"></i>
+    <h2>{{moduleTitle}} — {{localize "NOODLR.Security.Menu.Name"}}</h2>
+    <span class="noodlr-settings__version">v{{version}}</span>
+  </header>
+
+  <p class="noodlr-settings__intro">{{localize "NOODLR.Security.Intro"}}</p>
+
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-key"></i> {{localize "NOODLR.Provider.OpenRouterKey.Legend"}}</legend>
+    <ul class="noodlr-help">
+      <li><strong>{{localize "NOODLR.Help.What"}}</strong> {{localize "NOODLR.Provider.OpenRouterKey.What"}}</li>
+      <li><strong>{{localize "NOODLR.Help.Requires"}}</strong> {{localize "NOODLR.Provider.OpenRouterKey.Requires"}}</li>
+      <li><strong>{{localize "NOODLR.Help.Without"}}</strong> {{localize "NOODLR.Provider.OpenRouterKey.Without"}}</li>
+    </ul>
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Provider.OpenRouterKey.Name"}}</label>
+      <input type="password" name="openrouterApiKey" value="" autocomplete="off"
+        placeholder="{{#if hasOpenrouterKey}}{{localize 'NOODLR.Provider.ApiKey.Saved'}}{{else}}{{localize 'NOODLR.Provider.ApiKey.None'}}{{/if}}" />
+      {{#if hasOpenrouterKey}}
+        <label class="noodlr-inline"><input type="checkbox" name="openrouterApiKeyClear" /> {{localize "NOODLR.Provider.ApiKey.Clear"}}</label>
+      {{/if}}
+    </div>
+  </fieldset>
+
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-shield-halved"></i> {{localize "NOODLR.Security.NotesLegend"}}</legend>
+    <p class="notes">{{localize "NOODLR.Security.KeyExposureNote"}}</p>
+    <p class="notes">{{localize "NOODLR.Security.MediaUrlNote"}}</p>
+  </fieldset>
+</section>

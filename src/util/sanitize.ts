@@ -19,6 +19,15 @@ export interface SanitizeOptions {
   maxLength?: number;
   /** Keep newlines (multi-line prompts). When false they collapse to spaces. Default true. */
   allowNewlines?: boolean;
+  /**
+   * Keep the author's whitespace exactly as typed — indentation, aligned markdown tables, and
+   * paragraph spacing. Default false (runs of spaces collapse, blank lines are capped).
+   *
+   * Use this for long hand-authored text such as the system prompts, where the reflow is both
+   * visible and unwanted: someone who indents a nested list or pads a table should not find it
+   * rearranged after pressing Save. Control and invisible characters are still stripped.
+   */
+  preserveLayout?: boolean;
 }
 
 // C0 controls except TAB (\u0009) and LF (\u000A); plus DEL and the C1 range. CR is handled by the
@@ -34,13 +43,20 @@ const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/
  * Clean a piece of user-typed text. Safe to call on empty/undefined-ish values (returns "").
  */
 export function sanitizeUserText(input: unknown, opts: SanitizeOptions = {}): string {
-  const { maxLength = 8000, allowNewlines = true } = opts;
+  const { maxLength = 8000, allowNewlines = true, preserveLayout = false } = opts;
   if (typeof input !== "string" || input.length === 0) return "";
 
   let s = input.normalize("NFC");
   s = s.replace(/\r\n?/g, "\n"); // CRLF / CR -> LF
   s = s.replace(CONTROL, "");
   s = s.replace(INVISIBLE, "");
+
+  if (preserveLayout) {
+    s = s.trim();
+    if (s.length > maxLength) s = s.slice(0, maxLength);
+    return s;
+  }
+
   s = s.replace(/\t/g, " "); // tabs -> single space
 
   if (!allowNewlines) {

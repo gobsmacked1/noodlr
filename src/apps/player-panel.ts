@@ -9,6 +9,7 @@
 // later phases.
 
 import { MODULE_ID, warn } from "../constants";
+import { localizeWithAssistant } from "../chat/assistant";
 import { sanitizeUserText } from "../util/sanitize";
 import { renderMarkdown } from "../util/markdown";
 import { sendPlayerAsk, type PlayerBotFlag } from "../players/relay";
@@ -45,6 +46,10 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
     main: { template: `modules/${MODULE_ID}/templates/player-panel.hbs` },
   };
 
+  get title(): string {
+    return localizeWithAssistant("NOODLR.Players.Title");
+  }
+
   // Shared across instances so the table's Q&A survives reopening the window.
   static #entries: PanelEntry[] = [];
 
@@ -75,7 +80,10 @@ export class NoodlrPlayerPanel extends HandlebarsApplicationMixin(ApplicationV2)
   }
 
   async _prepareContext(): Promise<Record<string, unknown>> {
-    return { version: game.modules.get(MODULE_ID)?.version ?? "0.1.0" };
+    return {
+      version: game.modules.get(MODULE_ID)?.version ?? "0.1.0",
+      inputPlaceholder: localizeWithAssistant("NOODLR.Players.InputPlaceholder"),
+    };
   }
 
   _onRender(_context: unknown, _options: unknown): void {

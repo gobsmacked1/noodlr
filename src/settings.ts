@@ -1,7 +1,12 @@
 // Settings + settings-menu registration. Called once during the Foundry "init" hook.
 
 import { MODULE_ID, MENUS, SETTINGS, log } from "./constants";
-import { NoodlrSettingsApp } from "./apps/settings-app";
+import { promptDefault } from "./prompts/fields";
+import { DEFAULT_ASSISTANT_NAME } from "./chat/assistant";
+import { NoodlrTextGenApp } from "./apps/text-gen-app";
+import { NoodlrAudioGenApp } from "./apps/audio-gen-app";
+import { NoodlrImageGenApp } from "./apps/image-gen-app";
+import { NoodlrSecurityApp } from "./apps/security-app";
 import { NoodlrMemoryConfigApp } from "./apps/memory-config-app";
 import { registerFeatureProviderSettings } from "./providers/config";
 import { registerRagSettings } from "./rag/config";
@@ -31,16 +36,33 @@ export function registerSettings(): void {
     default: true,
   });
 
-  // Chat system-prompt override. Empty string means "use the built-in DM prompt".
-  // The 65k cap and spellcheck textarea UI land with the Prompts tab in a later phase;
-  // here we just persist the string.
-  game.settings.register(MODULE_ID, SETTINGS.chatSystemPrompt, {
-    name: "NOODLR.Settings.ChatSystemPrompt.Name",
-    hint: "NOODLR.Settings.ChatSystemPrompt.Hint",
+  // The three chat prompts. Each ships pre-filled with its default and is read verbatim
+  // afterwards — see prompts/fields.ts for why an empty field now means "send nothing".
+  for (const key of [
+    SETTINGS.chatSystemPrompt,
+    SETTINGS.playersSystemPrompt,
+    SETTINGS.adjudicationPrompt,
+  ]) {
+    game.settings.register(MODULE_ID, key, {
+      scope: "world",
+      config: false,
+      type: String,
+      default: promptDefault(key),
+    });
+  }
+
+  game.settings.register(MODULE_ID, SETTINGS.assistantName, {
     scope: "world",
     config: false,
     type: String,
-    default: "",
+    default: DEFAULT_ASSISTANT_NAME,
+  });
+
+  game.settings.register(MODULE_ID, SETTINGS.promptDefaultsSeeded, {
+    scope: "world",
+    config: false,
+    type: Boolean,
+    default: false,
   });
 
   // Memory (RAG) settings + the dedicated Memory window.
@@ -55,23 +77,51 @@ export function registerSettings(): void {
   // Combat co-pilot (AI-run NPC turn prompt).
   registerCombatSettings();
 
-  // Two sidebar menus only: the main config window, and the consolidated Memory & Knowledge
-  // window (which itself opens the Manage Memory + Diagnostics sub-windows).
-  game.settings.registerMenu(MODULE_ID, MENUS.config, {
-    name: "NOODLR.Settings.Menu.Name",
-    label: "NOODLR.Settings.Menu.Label",
-    hint: "NOODLR.Settings.Menu.Hint",
-    icon: "fa-solid fa-dragon",
-    type: NoodlrSettingsApp,
-    restricted: true,
-  });
-
+  // Five topic windows, registered in the order they should appear: memory, then the three
+  // generation domains, then credentials. Each opens its own page rather than adding another
+  // fieldset to one endless form.
   game.settings.registerMenu(MODULE_ID, MENUS.memory, {
     name: "NOODLR.Rag.Menu.Name",
     label: "NOODLR.Rag.Menu.Label",
     hint: "NOODLR.Rag.Menu.Hint",
     icon: "fa-solid fa-brain",
     type: NoodlrMemoryConfigApp,
+    restricted: true,
+  });
+
+  game.settings.registerMenu(MODULE_ID, MENUS.textGen, {
+    name: "NOODLR.TextGen.Menu.Name",
+    label: "NOODLR.TextGen.Menu.Label",
+    hint: "NOODLR.TextGen.Menu.Hint",
+    icon: "fa-solid fa-comments",
+    type: NoodlrTextGenApp,
+    restricted: true,
+  });
+
+  game.settings.registerMenu(MODULE_ID, MENUS.audioGen, {
+    name: "NOODLR.AudioGen.Menu.Name",
+    label: "NOODLR.AudioGen.Menu.Label",
+    hint: "NOODLR.AudioGen.Menu.Hint",
+    icon: "fa-solid fa-volume-high",
+    type: NoodlrAudioGenApp,
+    restricted: true,
+  });
+
+  game.settings.registerMenu(MODULE_ID, MENUS.imageGen, {
+    name: "NOODLR.ImageGen.Menu.Name",
+    label: "NOODLR.ImageGen.Menu.Label",
+    hint: "NOODLR.ImageGen.Menu.Hint",
+    icon: "fa-solid fa-image",
+    type: NoodlrImageGenApp,
+    restricted: true,
+  });
+
+  game.settings.registerMenu(MODULE_ID, MENUS.security, {
+    name: "NOODLR.Security.Menu.Name",
+    label: "NOODLR.Security.Menu.Label",
+    hint: "NOODLR.Security.Menu.Hint",
+    icon: "fa-solid fa-key",
+    type: NoodlrSecurityApp,
     restricted: true,
   });
 

@@ -1,0 +1,49 @@
+{{! One feature's provider wiring: Provider -> Model -> (custom base URL) -> (custom key).
+    Registered as the `noodlrProviderBlock` partial (see apps/partials.ts). The enclosing element
+    must carry data-feature="<id>" so provider-ui.ts can wire the model/voice fetch buttons.
+
+    The per-feature key stays here rather than moving to the Security window: it is the credential
+    for the base URL directly above it, and separating a URL from its key invites pairing the wrong
+    two. Only the shared OpenRouter key — used by every feature at once — lives in Security. }}
+<div class="noodlr-field">
+  <label>{{localize "NOODLR.Provider.Provider.Name"}}</label>
+  <p class="notes">{{localize "NOODLR.Provider.Provider.Hint"}}</p>
+  <select name="{{id}}.provider" data-role="provider">
+    <option value="openrouter" {{#if isOpenrouter}}selected{{/if}}>OpenRouter</option>
+    <option value="custom" {{#if isCustom}}selected{{/if}}>{{localize "NOODLR.Provider.Custom"}}</option>
+  </select>
+</div>
+
+<div class="noodlr-field">
+  <label>{{localize "NOODLR.Provider.Model.Name"}}</label>
+  <p class="notes">{{localize "NOODLR.Provider.Model.Hint"}}</p>
+  <input
+    type="text"
+    name="{{id}}.model"
+    data-role="model"
+    value="{{model}}"
+    {{#if isOpenrouter}}list="noodlr-or-models"{{/if}}
+    autocomplete="off"
+  />
+</div>
+
+<div class="noodlr-field noodlr-custom-only">
+  <label>{{localize "NOODLR.Provider.BaseUrl.Name"}}</label>
+  <p class="notes">{{localize "NOODLR.Provider.BaseUrl.Hint"}}</p>
+  <input type="text" name="{{id}}.baseUrl" value="{{baseUrl}}" placeholder="http://127.0.0.1:11434/v1" autocomplete="off" />
+</div>
+
+<div class="noodlr-field noodlr-custom-only">
+  <label>{{localize "NOODLR.Provider.CustomKey.Name"}}</label>
+  <p class="notes">{{localize "NOODLR.Provider.CustomKey.Hint"}}</p>
+  <input
+    type="password"
+    name="{{id}}.apiKey"
+    value=""
+    autocomplete="off"
+    placeholder="{{#if hasKey}}{{localize 'NOODLR.Provider.ApiKey.Saved'}}{{else}}{{localize 'NOODLR.Provider.ApiKey.None'}}{{/if}}"
+  />
+  {{#if hasKey}}
+    <label class="noodlr-inline"><input type="checkbox" name="{{id}}.apiKeyClear" /> {{localize "NOODLR.Provider.ApiKey.Clear"}}</label>
+  {{/if}}
+</div>

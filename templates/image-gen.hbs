@@ -1,0 +1,58 @@
+{{! Image Generation: the four still-image generators, then video. }}
+<section class="noodlr-settings">
+  <header class="noodlr-settings__header">
+    <i class="fa-solid fa-image"></i>
+    <h2>{{moduleTitle}} — {{localize "NOODLR.ImageGen.Menu.Name"}}</h2>
+    <span class="noodlr-settings__version">v{{version}}</span>
+  </header>
+
+  <p class="noodlr-settings__intro">{{localize "NOODLR.ImageGen.Intro"}}</p>
+
+  <datalist id="noodlr-or-models"></datalist>
+
+  {{#each imageKinds}}
+    {{> noodlrImageBlock this}}
+  {{/each}}
+
+  {{! ---- Video (text-to-video, experimental) ---- }}
+  <fieldset class="noodlr-settings__section" data-feature="video">
+    <legend><i class="fa-solid fa-film"></i> {{video.title}}</legend>
+    {{> noodlrHelp video}}
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="video.enabled" {{#if videoEnabled}}checked{{/if}} />
+      {{localize "NOODLR.Media.VideoEnabled.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.VideoEnabled.Hint"}}</p>
+
+    {{> noodlrProviderBlock video}}
+
+    <div class="noodlr-grid">
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.VideoDuration.Name"}}</label>
+        <input type="number" name="video.duration" value="{{videoDuration}}" min="6" max="30" step="1" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.VideoResolution.Name"}}</label>
+        <input type="text" name="video.resolution" value="{{videoResolution}}" placeholder="720p" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Media.VideoAspect.Name"}}</label>
+        <input type="text" name="video.aspect" value="{{videoAspect}}" placeholder="16:9" />
+      </div>
+    </div>
+    <p class="notes">{{localize "NOODLR.Media.VideoDurationNote"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="video.chatTrigger" {{#if videoChatTrigger}}checked{{/if}} />
+      {{localize "NOODLR.Media.VideoTrigger.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.VideoTrigger.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="video.allowPlayers" {{#if videoAllowPlayers}}checked{{/if}} />
+      {{localize "NOODLR.Media.MediaAllowPlayers.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Media.MediaAllowPlayers.Hint"}}</p>
+  </fieldset>
+</section>

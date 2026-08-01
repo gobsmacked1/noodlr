@@ -1,10 +1,11 @@
-// Resolve the effective Chat system prompt: the user override if set, else the built-in
-// Noodlr Dungeon Master prompt.
+// The Chat system prompt as stored.
+//
+// No fallback to DM_SYSTEM_PROMPT here any more: the setting ships pre-filled with it (see
+// prompts/fields.ts), so the stored string is the whole truth. A GM who clears the box means it.
 
 import { MODULE_ID, SETTINGS } from "../constants";
-import { DM_SYSTEM_PROMPT } from "../prompts";
+import { promptValue } from "../prompts/fields";
 
 export function getEffectiveChatSystemPrompt(): string {
-  const override = (game.settings.get(MODULE_ID, SETTINGS.chatSystemPrompt) as string) ?? "";
-  return override.trim().length > 0 ? override : DM_SYSTEM_PROMPT;
+  return promptValue(game.settings.get(MODULE_ID, SETTINGS.chatSystemPrompt));
 }

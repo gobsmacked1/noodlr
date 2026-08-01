@@ -122,8 +122,38 @@
    Re-enable text selection for every Noodlr window body so ANY displayed/generated text can be
    copied to the clipboard. Scoped to .window-content so the draggable title bar is unaffected. */
 .noodlr .window-content,
-.noodlr .window-content :where(p, span, div, li, ul, ol, dl, dt, dd, table, td, th, pre, code,
-  label, h1, h2, h3, h4, h5, h6, textarea, input, blockquote, strong, em, small, a) {
+.noodlr
+  .window-content
+  :where(
+    p,
+    span,
+    div,
+    li,
+    ul,
+    ol,
+    dl,
+    dt,
+    dd,
+    table,
+    td,
+    th,
+    pre,
+    code,
+    label,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    textarea,
+    input,
+    blockquote,
+    strong,
+    em,
+    small,
+    a
+  ) {
   user-select: text;
   -webkit-user-select: text;
 }
@@ -377,6 +407,24 @@
   font-family: var(--font-mono, monospace);
   font-size: 0.8rem;
   resize: vertical;
+}
+
+/* Prompt fields: keep each field's Reset visually tied to the textarea above it, and separate
+   consecutive prompt fields so it's obvious which Reset belongs to which box. */
+.noodlr-prompt-field {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--color-border-light-tertiary, rgba(255, 255, 255, 0.1));
+}
+
+.noodlr-settings__actions--field {
+  margin-top: 0.25rem;
+}
+
+.noodlr-settings__actions--field button {
+  font-size: 0.75rem;
+  padding: 0 0.5rem;
+  line-height: 1.6;
+  flex: 0 0 auto;
 }
 
 /* ---- Lorebook window ---- */

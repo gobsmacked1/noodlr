@@ -195,7 +195,7 @@ Key engineering doctrines from it that shape the *module's* architecture:
 
 - TypeScript, esbuild bundle to `dist/`; `module.json` id **`noodlr`** (do not install alongside the legacy reference module in the same world).
 - Format: prettier (printWidth 100). Validate: `npm run check` (tsc) + build before commit. Small commits at working checkpoints.
-- **Release cadence (2026-07-25):** the `-rcN` prerelease series is retired. Every shipped change is a normal incremented release (`v0.4.0`, `v0.4.1`, ...) cut with `gh release create` **without `--prerelease`** — Foundry's auto-update reads `releases/latest/download/module.json`, and GitHub excludes prereleases from "latest", so rc URLs were never picked up. Per release: bump `version` in `package.json` + `module.json`, point `module.json.download` at the new tag, `npm run check`/`lint`/build, package `module.zip` (module.json, LICENSE, README.md, dist, lang, styles, templates, prompts, models), commit, tag, `gh release create <tag> module.zip module.json`. Bump to 1.0.0 at feature parity.
+- **Release cadence (2026-07-25):** the `-rcN` prerelease series is retired. Every shipped change is a normal incremented release (`v0.4.0`, `v0.4.1`, ...) cut with `gh release create` **without `--prerelease`** — Foundry's auto-update reads `releases/latest/download/module.json`, and GitHub excludes prereleases from "latest", so rc URLs were never picked up. Per release: bump `version` in `package.json` + `module.json`, point `module.json.download` at the new tag, `npm run check`/`lint`/build, package `module.zip` (module.json, LICENSE, README.md, changelog.md, dist, lang, styles, templates — including `templates/partials/` —, prompts, models), commit, tag, `gh release create <tag> module.zip module.json`. Add the release's notes to `changelog.md` (lowercase; Big Bad Module Manager reads it). Bump to 1.0.0 at feature parity.
 - Windows host gotcha: the file-Write tool intermittently emits new files as UTF-16LE — after creating any file, verify the first bytes are UTF-8 and convert if needed. Watch CRLF/LF (.gitattributes) since Foundry servers are often Linux.
 - Never store secrets in this file or in module settings defaults.
 
@@ -548,20 +548,48 @@ role-gated UI (done) · **P2** relayed mundane generation with player-scoped RAG
 **P3** bot-to-bot adjudication relay · **P4** full CRUD memory tools · P5 polish (prompt override,
 config labels, docs, release).
 
-**P5 remaining (as of v0.4.17).** Docs done — README rewritten 2026-08-01 against a full audit of the
+**P5 remaining (as of v0.4.18).** Docs done — README rewritten 2026-08-01 against a full audit of the
 user-facing surface (it had been stuck at the Phase 6 / v0.1.0 text: no players bot, no memory browser,
-no Tipster, no music/video, no RAG-Lite, and it still advertised Chronicle). Still open:
+no Tipster, no music/video, no RAG-Lite, and it still advertised Chronicle). Prompt fields, the config
+reorganization, the assistant-name setting, and the toolbar cleanup landed in v0.4.18 (below). Still
+open:
 
-- **Prompt fields need shipped defaults + per-field "Reset to default".** Goal (user, 2026-08-01): a
-  non-technical adopter should never face a blank prompt box, and anyone who experiments should have a
-  one-click way back to a working state. Current state is inconsistent: only `chatSystemPrompt` has a
-  reset button; `combatReminder` and `combat.systemPrompt` reset by *saving blank*, which nothing tells
-  the user; the image `positive`/`negative` fields ship blank except Map's positive; `authorNote` and
-  `postHistory` ship blank; the per-kind image `*.systemPrompt` (prompt expansion) is registered but has
-  no UI at all, so `IMAGE_EXPAND_SYSTEM_PROMPT` is unreachable and uneditable.
-- **`PLAYERS_SYSTEM_PROMPT` and `GM_ADJUDICATION_PROMPT` have no override setting** — the only two
-  prompts a GM cannot edit, and the adjudicator is the one guarding gm_* from the players.
+- **The `TBD_IGNORE_ME_FOR_NOW` fields need real default text** (user is writing it): every image
+  `positive`/`negative` except Map's positive, plus `authorNote` and `postHistory`. Grep that string;
+  the only place to edit is `src/prompts/fields.ts` (or `prompts/index.ts` for shared text).
 - Bump to 1.0.0 once smoke-tested at parity.
+
+**v0.4.18 — configuration reorganization + the prompt-field convention.** The settings had grown into
+one unnavigable scrolling form, and prompts were invisible by design. Both fixed:
+
+- **Five settings windows** (`MENUS` in `constants.ts`, registered in that order): Memory
+  Configuration, Text Generation, Audio Generation, Image Generation, Security. Apps live in
+  `src/apps/{text,audio,image}-gen-app.ts` + `security-app.ts`, all extending `NoodlrConfigApp`
+  (`config-base.ts`) and spreading `CONFIG_WINDOW_DEFAULTS`. `settings-app.ts`/`settings.hbs` are gone.
+- Shared markup is now four real Handlebars partials in `templates/partials/`, registered as
+  `noodlrHelp` / `noodlrProviderBlock` / `noodlrPromptField` / `noodlrImageBlock` by
+  `registerNoodlrPartials()` during `init`. Foundry's `loadTemplates()` takes a `{name: path}` map;
+  the v13+ home is `foundry.applications.handlebars.loadTemplates`, resolved defensively.
+- Music went to Audio (it's sound), video went to Image (it's pictures that move) — per the user's
+  grouping. Per-feature *custom endpoint* keys stayed with their base URL rather than moving to
+  Security: a URL and its key are only meaningful as a pair, and splitting them invites mismatches.
+  Security holds the one shared OpenRouter key (used by every feature at once) and is where further
+  providers go.
+- The four flags that were `config: true` (author's-note depth, context budget, memory writes, both
+  Tipster toggles) are now `config: false` and render in Text Generation, beside the prompts they
+  modify. Foundry's own settings list holds only `debugLogging` (client-scoped troubleshooting).
+- **Assistant name** is a setting (`src/chat/assistant.ts`, default "Polly Histor", 64 ASCII).
+  `NOODLR.ChatPanel.Title`, `Players.Title`, `Players.Tool`, and both input placeholders take `{name}`;
+  panels override `get title()` because a static option can't read a setting. Hints were reworded to
+  say "the assistant" instead of naming it, so a renamed bot doesn't leave stale prose behind.
+- Toolbar: the players' chat tool is now `visible: !isGM` (each role gets one input surface; a GM can
+  still inspect the players' panel via `api.openPlayerChat()`), and the dragon `home` tool is
+  `visible: false` rather than deleted — see the activeTool invariant below.
+- `changelog.md` (lowercase, module root) exists for Big Bad Module Manager, which shows changelogs to
+  the GM after an update. Its default candidate list is `changelog.md`, `changelog.txt`, `CHANGELOG`,
+  `docs/changelog.*`, matched against real filenames from `FilePicker.browse` — so the lowercase name is
+  deliberate (a `CHANGELOG.md` may not match on a case-sensitive filesystem). Keep it user-facing:
+  GMs read it, not developers.
 
 Design forks resolved (user, 2026-07-27):
 - **Adjudication trigger** = LLM tool-call: the players-bot calls `adjudicate(...)` when a request
@@ -1070,6 +1098,30 @@ lorebook/author's-note/post-history injection.
 
 ## Hard-won invariants
 
+- **A prompt field's stored value is the whole truth.** Decided with the user 2026-08-01 and
+  implemented in v0.4.18: every prompt setting ships pre-filled with its default (`src/prompts/fields.ts`
+  is the single registry) and is read verbatim. Never reintroduce `stored.trim() || SOME_DEFAULT` in an
+  accessor — that pattern is why a GM could stare at an empty box while the module sent a 1,000-token
+  prompt they had no way to see or edit. An emptied field means "send nothing", and the way back is the
+  per-field Reset. Adding a prompt means: add it to `PROMPT_FIELDS`, register it with
+  `promptDefault(key)` as its default, and render it with the `noodlrPromptField` partial — the Reset
+  action and the upgrade seeding then work for free.
+  - Prompt textareas carry **no `name` attribute**; they are collected by `data-prompt-field` in
+    `savePromptFields()`. Their settings keys contain dots (`image.positive`), which a form serializer
+    expands into nested objects that collide with the provider fields.
+  - Reset rewrites the textarea only, and lets Save persist it. Writing the setting immediately would
+    force a re-render that discards every other unsaved edit in the window.
+  - They save through `sanitizeUserText(..., { preserveLayout: true })`. The default sanitizer collapses
+    runs of spaces and caps blank lines, which silently reflows a hand-formatted 65k prompt.
+  - `seedPromptDefaults()` fills empty prompt settings once per world (flag: `promptDefaultsSeeded`).
+    It exists because the old form saved every field on every Save, so upgrading worlds hold explicit
+    empty strings for prompts nobody ever edited; reading those verbatim would strip the DM prompt.
+    "Deliberately empty" was not expressible before v0.4.18, which is what makes this safe exactly once.
+- **The Noodlr control group's `activeTool` must name a tool that is not one of the real buttons.**
+  Foundry requires `activeTool` to name an existing tool, and the active tool is skipped when clicked —
+  so pointing it at the chat button stops that button from reopening a panel you closed. The inert
+  `home` tool exists solely to absorb that role; v0.4.18 set `visible: false` to get the dead dragon
+  icon out of the flyout, which is the only safe way to "remove" it.
 - **`"socket": true` must stay in `module.json`.** A package only gets a socket namespace by requesting
   it in the manifest; without it the server silently discards every `game.socket.emit("module.noodlr", …)`
   with no error on either side, and only the GM's own local code paths appear to work. This cost several

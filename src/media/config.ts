@@ -4,6 +4,7 @@
 
 import { MODULE_ID, MEDIA_SETTINGS } from "../constants";
 import { MAP_DEFAULT_POSITIVE } from "../prompts";
+import { promptDefault, promptValue } from "../prompts/fields";
 import { registerFeatureProviderSettings } from "../providers/config";
 
 export { MAP_DEFAULT_POSITIVE };
@@ -123,19 +124,8 @@ export function imageKey(kind: ImageKind, field: string): string {
   return `${kind}.${field}`;
 }
 
-/**
- * One-time seed: give existing worlds the Map generator's default style prompt if they don't
- * already have one. New worlds get it from the registration default; this covers upgrades.
- * Respects a deliberately-cleared prompt on subsequent loads (only runs once).
- */
-export async function seedMapDefaults(): Promise<void> {
-  if (game.settings.get(MODULE_ID, "map.positiveSeeded")) return;
-  const cur = String(game.settings.get(MODULE_ID, imageKey("map", "positive")) ?? "");
-  if (!cur.trim()) {
-    await game.settings.set(MODULE_ID, imageKey("map", "positive"), MAP_DEFAULT_POSITIVE);
-  }
-  await game.settings.set(MODULE_ID, "map.positiveSeeded", true);
-}
+// The Map generator's one-time prompt seed is gone: `seedPromptDefaults()` in prompts/fields.ts now
+// seeds EVERY prompt field for upgrading worlds, of which map.positive was only the first case.
 
 export function registerMediaSettings(): void {
   const M = MEDIA_SETTINGS;
@@ -173,7 +163,10 @@ export function registerMediaSettings(): void {
     registerFeatureProviderSettings(kind);
     const meta = IMAGE_KIND_META[kind];
     const k = (field: string) => imageKey(kind, field);
-    game.settings.register(MODULE_ID, k("systemPrompt"), { ...worldStr, default: "" });
+    game.settings.register(MODULE_ID, k("systemPrompt"), {
+      ...worldStr,
+      default: promptDefault(k("systemPrompt")),
+    });
     game.settings.register(MODULE_ID, k("expandPrompt"), { ...worldBool, default: true });
     game.settings.register(MODULE_ID, k("steps"), { ...worldNum, default: 20 });
     game.settings.register(MODULE_ID, k("cfg"), { ...worldNum, default: 7.0 });
@@ -181,9 +174,12 @@ export function registerMediaSettings(): void {
     game.settings.register(MODULE_ID, k("seed"), { ...worldNum, default: -1 });
     game.settings.register(MODULE_ID, k("positive"), {
       ...worldStr,
-      default: meta.defaultPositive ?? "",
+      default: promptDefault(k("positive")),
     });
-    game.settings.register(MODULE_ID, k("negative"), { ...worldStr, default: "" });
+    game.settings.register(MODULE_ID, k("negative"), {
+      ...worldStr,
+      default: promptDefault(k("negative")),
+    });
     game.settings.register(MODULE_ID, k("size"), { ...worldStr, default: meta.defaultSize });
     game.settings.register(MODULE_ID, k("persist"), { ...worldBool, default: true });
     game.settings.register(MODULE_ID, k("chatTrigger"), { ...worldBool, default: true });
@@ -195,9 +191,6 @@ export function registerMediaSettings(): void {
     ...worldStr,
     default: "assets/noodlr-out",
   });
-
-  // One-time seed marker for the Map generator's default style prompt (existing worlds).
-  game.settings.register(MODULE_ID, "map.positiveSeeded", { ...worldBool, default: false });
 
   // --- Push-to-log transcription ---
   game.settings.register(MODULE_ID, M.transcriptionEnabled, { ...worldBool, default: false });
@@ -253,11 +246,11 @@ export function getImageParams(kind: ImageKind = "image"): {
     cfg: Number(g("cfg")) || 7.0,
     sampler: (g("sampler") as string) || "Euler a",
     seed: Number(g("seed")),
-    positive: (g("positive") as string) || "",
-    negative: (g("negative") as string) || "",
+    positive: promptValue(g("positive")),
+    negative: promptValue(g("negative")),
     size: typeof stored === "string" ? stored : meta.defaultSize,
     expand: Boolean(g("expandPrompt")),
-    systemPrompt: (g("systemPrompt") as string) || "",
+    systemPrompt: promptValue(g("systemPrompt")),
   };
 }
 

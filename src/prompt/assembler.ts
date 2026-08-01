@@ -81,7 +81,10 @@ function injectAuthorNote(history: ChatMessage[], note: string, depth: number): 
 }
 
 export function assemblePrompt(input: AssembleInput): ChatMessage[] {
-  const leading: ChatMessage[] = [sys(getEffectiveChatSystemPrompt())];
+  // A GM who empties the system prompt gets no system prompt — but not an empty message, which some
+  // providers reject outright.
+  const systemPrompt = getEffectiveChatSystemPrompt();
+  const leading: ChatMessage[] = systemPrompt ? [sys(systemPrompt)] : [];
 
   // GM co-pilot memory tools: tell the model the write-directive syntax (kept out of the verbatim
   // DM prompt). Only when RAG + the toggle are on; the GM co-pilot writes with the "gm" audience.

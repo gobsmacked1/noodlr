@@ -15,7 +15,7 @@ import { ChatClientError, chatCompletion } from "../providers/chat-client";
 import { isConfigured, type ChatMessage } from "../providers/types";
 import { retrieveContext } from "../rag/retrieval";
 import { PLAYER_QUERY_SILOS } from "../rag/silos";
-import { PLAYERS_SYSTEM_PROMPT } from "../prompts";
+import { getPlayersSystemPrompt } from "./prompts";
 import { debug, debugPayload, warn } from "../constants";
 import { isTipsterEnabled } from "../prompt/settings";
 import { buildTipsterBlock, resolvePerspectiveToken } from "../tipster/scene";
@@ -60,7 +60,9 @@ export async function generatePlayerAnswer(
   // Player-visible memory only. gm_* silos are never queried on a player's behalf.
   const rag = await retrieveContext(clean, signal, { silos: [...PLAYER_QUERY_SILOS] });
 
-  const messages: ChatMessage[] = [{ role: "system", content: PLAYERS_SYSTEM_PROMPT }];
+  const messages: ChatMessage[] = [];
+  const sys = getPlayersSystemPrompt();
+  if (sys) messages.push({ role: "system", content: sys });
   if (rag.block) messages.push({ role: "system", content: rag.block });
 
   // Tipster: live scene briefing from the ASKING player's perspective, not the GM's — even though

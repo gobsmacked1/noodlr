@@ -12,7 +12,7 @@ import { chatCompletion } from "../providers/chat-client";
 import { isConfigured, type ChatMessage } from "../providers/types";
 import { retrieveContext } from "../rag/retrieval";
 import { GM_SECRET_SILOS, isSiloId, type MemoryAudience } from "../rag/silos";
-import { GM_ADJUDICATION_PROMPT } from "../prompts";
+import { getAdjudicationPrompt } from "./prompts";
 import { parseDirectives } from "./directives";
 import { applyMemoryDirective } from "../rag/memory-writes";
 import { postPlayerResult } from "./relay";
@@ -114,10 +114,10 @@ async function adjudicateAndPost(p: PendingAdjudication, playerTotal: number): P
       ? `GM-EYES-ONLY GROUND TRUTH (secret — decide the outcome from this, never reveal it):\n${rag.block}`
       : `GM-EYES-ONLY GROUND TRUTH: (nothing relevant retrieved — treat as nothing concealed unless the established fiction plainly says otherwise)`);
 
-  const messages: ChatMessage[] = [
-    { role: "system", content: GM_ADJUDICATION_PROMPT },
-    { role: "user", content: facts },
-  ];
+  const adjudicatorPrompt = getAdjudicationPrompt();
+  const messages: ChatMessage[] = [];
+  if (adjudicatorPrompt) messages.push({ role: "system", content: adjudicatorPrompt });
+  messages.push({ role: "user", content: facts });
 
   let raw: string;
   try {

@@ -13,10 +13,21 @@ export const SETTINGS = {
    * World-scoped + write-only in the UI. Custom (local) endpoints keep their own optional key.
    */
   openrouterApiKey: "openrouterApiKey",
-  /** Chat feature system-prompt override (the DM prompt is the default). */
+  /** GM-chat system prompt. Ships pre-filled with the DM prompt; stored value is authoritative. */
   chatSystemPrompt: "chatSystemPrompt",
+  /** Players-only bot's system prompt. */
+  playersSystemPrompt: "playersSystemPrompt",
+  /** The GM-side adjudicator's prompt (resolves a player's check against GM-secret memory). */
+  adjudicationPrompt: "adjudicationPrompt",
+  /** Display name for the AI assistant, shown in both chat panels and its chat messages. */
+  assistantName: "assistantName",
   /** After a turn with dice rolls, auto-continue once so the DM reacts to results. */
   chatContinueAfterRoll: "chatContinueAfterRoll",
+  /**
+   * Marks the one-time migration that filled empty prompt fields with their shipped defaults, for
+   * worlds created while an empty setting still meant "use the embedded default".
+   */
+  promptDefaultsSeeded: "promptDefaultsSeeded",
 
   // --- Prompt architecture (Phase 3) ---
   /** Author's-note text: a session anchor injected at a configurable depth. */
@@ -44,11 +55,19 @@ export const SETTINGS = {
   tipsterPlayers: "tipster.players",
 } as const;
 
-/** Settings-menu keys (open dedicated ApplicationV2 config windows). */
+/**
+ * Settings-menu keys (each opens a dedicated ApplicationV2 config window).
+ *
+ * Five topic-scoped windows rather than one long form: a single scrolling page had grown past the
+ * point where a non-technical GM could find anything in it. Registration order in `settings.ts` is
+ * the order the buttons appear.
+ */
 export const MENUS = {
-  config: "noodlrConfig",
   memory: "noodlrMemory",
-  lorebook: "noodlrLorebook",
+  textGen: "noodlrTextGen",
+  audioGen: "noodlrAudioGen",
+  imageGen: "noodlrImageGen",
+  security: "noodlrSecurity",
 } as const;
 
 // Default combat prompts (DEFAULT_COMBAT_PROMPT / DEFAULT_COMBAT_REMINDER) now live with all

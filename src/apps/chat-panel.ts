@@ -9,6 +9,7 @@
 
 import { MODULE_ID, RETRY_WINDOW_MS } from "../constants";
 import { Conversation } from "../chat/conversation";
+import { getAssistantName, localizeWithAssistant } from "../chat/assistant";
 import { ChatClientError } from "../providers/chat-client";
 import { getFeatureConfig } from "../providers/config";
 import { isConfigured } from "../providers/types";
@@ -87,6 +88,11 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     main: { template: `modules/${MODULE_ID}/templates/chat-panel.hbs` },
   };
 
+  /** The assistant's configured name goes in the title, so it can't be a static option. */
+  get title(): string {
+    return localizeWithAssistant("NOODLR.ChatPanel.Title");
+  }
+
   // Shared across panel instances so history survives closing/reopening the window (e.g. after
   // clicking another scene-control tool). The class is loaded once, so statics persist.
   static #conversation = new Conversation();
@@ -116,6 +122,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       moduleId: MODULE_ID,
       version,
       configured: isConfigured(getFeatureConfig("chat")),
+      inputPlaceholder: localizeWithAssistant("NOODLR.ChatPanel.InputPlaceholder"),
       isGM: Boolean(game.user?.isGM),
     };
   }
@@ -235,7 +242,12 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
         signal: this.#abort.signal,
         onAssistantStart: () => {
           raw = "";
-          this.#liveEntry = { role: "assistant", author: "Polly Histor", content: "", html: false };
+          this.#liveEntry = {
+            role: "assistant",
+            author: getAssistantName(),
+            content: "",
+            html: false,
+          };
           const rendered = this.#appendMessage(this.#liveEntry);
           bodyEl = rendered.bodyEl;
           turn.assistantMsgEl = rendered.msgEl;
@@ -457,7 +469,7 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         const msg = await ChatMessage.create({
           content,
-          speaker: { alias: "Polly Histor" },
+          speaker: { alias: getAssistantName() },
           flags: { [MODULE_ID]: { dmNarration: true } },
         });
         turn.mirrorMsgId = msg?.id ?? null;
