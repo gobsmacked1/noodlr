@@ -1061,6 +1061,12 @@ lorebook/author's-note/post-history injection.
   release cycles chasing the players-only chatbot (fixed 2026-07-31, v0.4.14). The manifest is read at
   **server start**, so changing this flag needs a world restart, not a page reload. Anything relying on
   it — player asks, the GM ack, push-to-log transcript relay, artifact retire — fails invisibly if it goes.
+- **Secrecy travels with the turn, never with the UI.** "Hide from players" is one-shot: the checkbox clears
+  once a prompt is accepted (a sticky box silently muted the mirrored text *and* the broadcast audio for the
+  rest of the session). Consequently, anything that re-runs a turn must pass the original turn's `hidden`
+  flag rather than re-reading the checkbox — Retry did the latter and would have regenerated a GM-only reply
+  in full view of the table (v0.4.16). Hidden turns are badged **GM ONLY** and use local `speak()`, never
+  `speakShared()`, because broadcast audio lands at a predictable unauthenticated URL.
 
 ## Open decisions / risks
 
