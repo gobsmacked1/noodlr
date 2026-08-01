@@ -6,8 +6,8 @@ import { getFeatureConfig } from "../providers/config";
 import { isConfigured, resolveBaseUrl, type FeatureProviderConfig } from "../providers/types";
 import { getTtsVoice, getTtsPitchSupported, getTtsBroadcast } from "./config";
 import { fetchOpenRouterVoices } from "../providers/models";
-import { saveMedia, extForType } from "./storage";
-import { log } from "../constants";
+import { saveMedia } from "./storage";
+import { log, debug, warn } from "../constants";
 
 export const FALLBACK_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
 
@@ -180,6 +180,23 @@ const BROADCAST_SLOTS = 8;
 let broadcastSlot = 0;
 
 /**
+ * File extension for a synthesized clip. Deliberately NOT `extForType()`, whose fallthrough is
+ * `png` because the image path is its common case — speech written as `.png` is served back as
+ * `image/png` and refused by every client's audio decoder, which reads as "the TTS just didn't
+ * play". Anything unrecognized (a missing Content-Type, `application/octet-stream`) is far more
+ * likely to be MP3 than an image here.
+ */
+function speechExt(mime: string): string {
+  const t = (mime || "").toLowerCase();
+  if (t.includes("wav")) return "wav";
+  if (t.includes("ogg") || t.includes("opus")) return "ogg";
+  if (t.includes("flac")) return "flac";
+  if (t.includes("webm")) return "webm";
+  if (t.includes("aac") || t.includes("m4a") || t.includes("mp4")) return "m4a";
+  return "mp3";
+}
+
+/**
  * Speak so the whole table hears it, not just this browser.
  *
  * Playing a Blob URL only works in the tab that created it, so remote players heard nothing from
@@ -202,10 +219,16 @@ export async function speakShared(
   return enqueueSpeech(async () => {
     const blob = await synthesizeSpeech(trimmed, opts);
 
+    // A provider that answers 200 with a JSON error, or with no Content-Type at all, yields a Blob
+    // that is not audio. Saying so beats a clip that silently refuses to play on every client.
+    if (blob.type && !blob.type.toLowerCase().startsWith("audio/")) {
+      warn(`tts: provider returned "${blob.type}" instead of audio; playback will likely fail`);
+    }
+
     const slot = broadcastSlot++ % BROADCAST_SLOTS;
     const path = await saveMedia(blob, "speech", {
       subfolder: "speech",
-      fileName: `noodlr-speech-${slot}.${extForType(blob.type)}`,
+      fileName: `noodlr-speech-${slot}.${speechExt(blob.type)}`,
     });
     if (!path) {
       log("tts: could not store audio for broadcast; playing locally only");
@@ -220,6 +243,7 @@ export async function speakShared(
 
     // Slot names are reused, so a bare path would let a client replay a cached earlier line.
     const src = `${path}?t=${Date.now()}`;
+    debug("tts: broadcasting speech", { src, type: blob.type || "(none)", bytes: blob.size });
     stopCurrentAudio();
     // `true` = also emit to every other connected client.
     helper.play({ src, volume: 1.0, autoplay: true, loop: false }, true);

@@ -164,6 +164,16 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     this.#log()?.replaceChildren();
   }
 
+  /** Badge a reply the players will never see or hear. */
+  #markHidden(msgEl: HTMLElement | null): void {
+    if (!msgEl) return;
+    msgEl.classList.add("noodlr-chat__msg--hidden");
+    const badge = document.createElement("span");
+    badge.className = "noodlr-chat__hidden-badge";
+    badge.textContent = game.i18n.localize("NOODLR.ChatPanel.HiddenBadge");
+    msgEl.querySelector(".noodlr-chat__author")?.append(badge);
+  }
+
   async #onSend(): Promise<void> {
     const input = this.#root()?.querySelector<HTMLTextAreaElement>('[data-role="input"]');
     if (!input) return;
@@ -221,6 +231,10 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
           const rendered = this.#appendMessage(this.#liveEntry);
           bodyEl = rendered.bodyEl;
           turn.assistantMsgEl = rendered.msgEl;
+          // "Hide output" is a sticky checkbox, so it silently keeps applying to every later turn.
+          // Mark each affected reply instead of relying on the GM noticing the box is still ticked
+          // (the symptom otherwise reads as "the table stopped seeing and hearing anything").
+          if (turn.hidden) this.#markHidden(rendered.msgEl);
         },
         onDelta: (delta: string) => {
           raw += delta;

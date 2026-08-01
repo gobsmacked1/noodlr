@@ -57,6 +57,21 @@
   max-width: 95%;
 }
 
+/* GM-only turn: not mirrored to the chat log and not spoken on any other client. */
+.noodlr-chat__msg--hidden {
+  border-left: 3px solid #b07d2b;
+}
+.noodlr-chat__hidden-badge {
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  border-radius: 3px;
+  background: rgba(176, 125, 43, 0.25);
+  color: #d9a441;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .noodlr-chat__msg--error {
   background: rgba(200, 40, 40, 0.12);
   border: 1px solid rgba(200, 40, 40, 0.5);
