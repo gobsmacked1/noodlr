@@ -548,6 +548,21 @@ role-gated UI (done) · **P2** relayed mundane generation with player-scoped RAG
 **P3** bot-to-bot adjudication relay · **P4** full CRUD memory tools · P5 polish (prompt override,
 config labels, docs, release).
 
+**P5 remaining (as of v0.4.17).** Docs done — README rewritten 2026-08-01 against a full audit of the
+user-facing surface (it had been stuck at the Phase 6 / v0.1.0 text: no players bot, no memory browser,
+no Tipster, no music/video, no RAG-Lite, and it still advertised Chronicle). Still open:
+
+- **Prompt fields need shipped defaults + per-field "Reset to default".** Goal (user, 2026-08-01): a
+  non-technical adopter should never face a blank prompt box, and anyone who experiments should have a
+  one-click way back to a working state. Current state is inconsistent: only `chatSystemPrompt` has a
+  reset button; `combatReminder` and `combat.systemPrompt` reset by *saving blank*, which nothing tells
+  the user; the image `positive`/`negative` fields ship blank except Map's positive; `authorNote` and
+  `postHistory` ship blank; the per-kind image `*.systemPrompt` (prompt expansion) is registered but has
+  no UI at all, so `IMAGE_EXPAND_SYSTEM_PROMPT` is unreachable and uneditable.
+- **`PLAYERS_SYSTEM_PROMPT` and `GM_ADJUDICATION_PROMPT` have no override setting** — the only two
+  prompts a GM cannot edit, and the adjudicator is the one guarding gm_* from the players.
+- Bump to 1.0.0 once smoke-tested at parity.
+
 Design forks resolved (user, 2026-07-27):
 - **Adjudication trigger** = LLM tool-call: the players-bot calls `adjudicate(...)` when a request
   needs privileged/hidden info; the STRUCTURED payload (PC, target, skill, rollTotal, question) — not
