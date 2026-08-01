@@ -183,17 +183,25 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     await this.#runSend(text);
   }
 
-  /** Run one turn: append the user prompt, stream the reply, and attach Retry/Reject at the end. */
-  async #runSend(text: string): Promise<void> {
+  /**
+   * Run one turn: append the user prompt, stream the reply, and attach Retry/Reject at the end.
+   *
+   * `forcedHidden` carries an existing turn's secrecy through a Retry. Re-reading the checkbox there
+   * would republish a hidden turn in front of the players, since submitting clears the box.
+   */
+  async #runSend(text: string, forcedHidden?: boolean): Promise<void> {
     if (this.#streaming) return;
 
     // Starting a new turn seals the previous one: strip its controls (you can only retry the
     // latest turn) but leave its commit timer to fire on schedule.
     this.#sealActiveTurn();
 
-    // "Hide output" (GM only): keep this turn in the panel; don't mirror it to players.
+    // "Hide output" (GM only): keep this turn in the panel; don't mirror or speak it to players.
     const hideBox = this.#root()?.querySelector<HTMLInputElement>('[data-role="hide-output"]');
-    const hidden = Boolean(game.user?.isGM && hideBox?.checked);
+    const hidden = forcedHidden ?? Boolean(game.user?.isGM && hideBox?.checked);
+    // One-shot by design. Left sticky, a box ticked once silently muted every later turn for the
+    // whole table, and the GM's only clue was a checkbox they had stopped looking at.
+    if (forcedHidden === undefined && hideBox?.checked) hideBox.checked = false;
 
     const logEl = this.#log();
     const turn: ActiveTurn = {
@@ -332,7 +340,9 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     retry.type = "button";
     retry.className = "noodlr-artifact-btn noodlr-artifact-btn--retry";
     retry.innerHTML = `<i class="fa-solid fa-rotate-right"></i> ${game.i18n.localize("NOODLR.Artifact.Retry")}`;
-    retry.title = game.i18n.localize("NOODLR.Artifact.RetryHint");
+    retry.title = turn.hidden
+      ? game.i18n.localize("NOODLR.ChatPanel.RetryHiddenHint")
+      : game.i18n.localize("NOODLR.Artifact.RetryHint");
     retry.addEventListener("click", () => void this.#retryTurn());
 
     const reject = document.createElement("button");
@@ -413,7 +423,8 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     void this.#deleteMirror(turn);
     this.#turn = null;
     const text = NoodlrChatPanel.#conversation.popLastUserTurn() ?? turn.promptText;
-    await this.#runSend(text);
+    // Inherit the original turn's secrecy: a retried GM-only turn must not become public.
+    await this.#runSend(text, turn.hidden);
   }
 
   async #rejectTurn(): Promise<void> {

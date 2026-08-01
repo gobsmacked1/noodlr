@@ -7,8 +7,9 @@
   "NOODLR.ChatPanel.Copy": "Copy to clipboard",
   "NOODLR.ChatPanel.Copied": "Copied to clipboard.",
   "NOODLR.ChatPanel.HideOutput": "Hide from players (GM prep)",
-  "NOODLR.ChatPanel.HideOutputHint": "When checked, the GM's reply stays in this panel: it is NOT mirrored to the players' chat log and is NOT spoken aloud on any other client. Stays on until you switch it off, and every affected reply is badged GM ONLY. Off by default. Your typed prompt is always private.",
+  "NOODLR.ChatPanel.HideOutputHint": "When checked, the GM's reply stays in this panel: it is NOT mirrored to the players' chat log and is NOT spoken aloud on any other client. Applies to one prompt only — the box clears itself once the prompt is accepted — and the hidden reply is badged GM ONLY. Retrying a hidden reply keeps it hidden. Off by default. Your typed prompt is always private.",
   "NOODLR.ChatPanel.HiddenBadge": "GM only",
+  "NOODLR.ChatPanel.RetryHiddenHint": "Regenerate this reply. It stays GM-only: retrying a hidden turn never exposes it to the players, whatever the checkbox says now.",
 
   "NOODLR.Chat.BudgetExceedsModel": "Context token budget ({budget}) exceeds {model}'s context window ({limit} tokens). Lower the Context token budget in settings, or the model may truncate or reject long prompts.",
 
