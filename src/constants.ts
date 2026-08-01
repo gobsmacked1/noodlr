@@ -59,7 +59,13 @@ export const COMBAT_SETTINGS = {
   systemPrompt: "combat.systemPrompt",
 } as const;
 
-/** Module socket name for client<->GM relay (push-to-log transcripts, artifact retire). */
+/**
+ * Module socket name for client<->GM relay (push-to-log transcripts, artifact retire, player asks).
+ *
+ * REQUIRES `"socket": true` in module.json. Without it the server never grants the package a socket
+ * namespace and silently discards every emission on this name — no error on either end. The manifest
+ * is read at server start, so that flag only takes effect after a world restart, not a page reload.
+ */
 export const SOCKET = "module.noodlr" as const;
 
 /**

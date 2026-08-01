@@ -1039,6 +1039,15 @@ retrieves; lorebook/author's-note/post-history inject; Chronicle capture+promote
 image/push-to-log; combat block + NPC turn. Scene-control button shapes, FormDataExtended,
 DialogV2, MediaRecorder cycling, and the socket relay are the highest-risk unverified spots.
 
+## Hard-won invariants
+
+- **`"socket": true` must stay in `module.json`.** A package only gets a socket namespace by requesting
+  it in the manifest; without it the server silently discards every `game.socket.emit("module.noodlr", …)`
+  with no error on either side, and only the GM's own local code paths appear to work. This cost several
+  release cycles chasing the players-only chatbot (fixed 2026-07-31, v0.4.14). The manifest is read at
+  **server start**, so changing this flag needs a world restart, not a page reload. Anything relying on
+  it — player asks, the GM ack, push-to-log transcript relay, artifact retire — fails invisibly if it goes.
+
 ## Open decisions / risks
 
 - Lorebook storage shape (world-scoped JournalEntry vs module setting vs flat file in world data) — decide in Phase 3.
