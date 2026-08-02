@@ -91,7 +91,7 @@ reference exists; drop the reference folder at retirement.
 
 ## noodlr-memory — what exists and how noodlr-main will use it
 
-Status: **complete, tested (9 passing node:test), MIT, v1.0.0, own GitHub repo.**
+Status: **complete, tested (14 passing node:test), MIT, v1.1.0, own GitHub repo.**
 Standalone Node >= 20 HTTP service; the module talks to it over HTTP only.
 
 What it provides:
@@ -102,7 +102,8 @@ What it provides:
 - **Prose/table-aware chunker:** roll tables and stat blocks stay atomic (RPG sources are not novels; naive chunking is immersion-breaking). `kind:"event"` docs are atomic.
 - **Hybrid retrieval:** dense + BM25 sparse fused by Reciprocal Rank Fusion; re-ranked by `importance` + `recency`; multi-query (Agent Mode) fusion with entity soft-boosting.
 - **HTTP API** under `/v1`: `health`, `collections`, `ingest`, `ingest-file`, `insert`, `query` (hybrid + weights + multi-query), `list`, `delete`, `purge`, `purge-all`.
-- **Security:** shared-secret header `x-noodlr-secret`, localhost bind by default (HOST 127.0.0.1, PORT 3010, env prefix `NOODLR_MEMORY_*`), filename sanitization, body-size caps. `DEPLOYMENT.md` has the Linux/systemd guide.
+- **Security:** shared-secret header `x-noodlr-secret`, localhost bind by default (HOST 127.0.0.1, PORT 3010, env prefix `NOODLR_MEMORY_*`), filename sanitization, body-size caps. CORS reflects the request Origin and pre-answers OPTIONS (the secret header always triggers a preflight cross-origin). `DEPLOYMENT.md` has the Linux/systemd guide.
+- **Listeners (v1.1.0, 2026-08-01):** TCP **and** the optional Unix socket run at the same time. Before 1.1 a socket path switched TCP off entirely, which presumed Foundry and the service shared one Linux host; Windows hosts have no socket and some admins run the service on a separate box. `NOODLR_MEMORY_PORT=0` opts out of TCP; a socket path on Windows warns and is ignored; each listener reports its own bind failure and the process exits only if neither starts.
 
 How noodlr-main interacts with it (the integration contract):
 
@@ -594,10 +595,10 @@ one unnavigable scrolling form, and prompts were invisible by design. Both fixed
 **v0.4.19 — memory reachability, window text selection, TTS test phrase.**
 
 - **Two RAG target modes** (`src/rag/target.ts`, settings `rag.targetMode` + `rag.servicePath`,
-  default `direct` so upgrading worlds keep the URL they already had). noodlr-memory listens on
-  EITHER `NOODLR_MEMORY_SOCKET` OR `HOST:PORT` — setting the socket makes it ignore host/port
-  entirely — and a browser cannot open a Unix socket, so the socket deployment is reachable only
-  through a reverse proxy. `proxy` mode stores a path (default `/memory`) and resolves it against
+  default `direct` so upgrading worlds keep the URL they already had). A browser cannot open a Unix
+  socket, so a socket-reached service is only usable through a reverse proxy. (noodlr-memory ≤1.0
+  also *disabled* TCP whenever `NOODLR_MEMORY_SOCKET` was set; 1.1 binds both — see the
+  noodlr-memory note below.) `proxy` mode stores a path (default `/memory`) and resolves it against
   `location.origin` at read time; `direct` stores a full URL. Both values persist independently so
   flipping the picker doesn't erase the other address. `getRagConnection()` returns the resolved
   URL, so every caller and every error message names something pasteable.

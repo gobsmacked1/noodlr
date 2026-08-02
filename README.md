@@ -98,14 +98,13 @@ line, and switchable off).
 
 If memory is unavailable, the module says so once and keeps playing without it.
 
-Pointing at a `noodlr-memory` service asks one question worth understanding: the service listens on
-**either** a Unix socket **or** a TCP port, never both, and a browser cannot open a Unix socket. So
-Memory Configuration offers two ways to reach it. **Behind the Foundry server** is the recommended one
-— give it the path your reverse proxy forwards, typically `/memory`, and requests ride Foundry's own
-origin, which means the socket deployment works, TLS comes free, and there's no CORS. **Direct URL**
-suits a service on a reachable TCP port, and needs `NOODLR_MEMORY_SOCKET` unset with
-`NOODLR_MEMORY_HOST` bound somewhere the GM's browser can actually address — `127.0.0.1` means the GM's
-own desktop, which the window will warn you about.
+Pointing at a `noodlr-memory` service asks one question worth understanding: a browser cannot open a
+Unix socket, so a service reached that way has to be proxied. Memory Configuration offers two targets.
+**Behind the Foundry server** is the recommended one — give it the path your reverse proxy forwards,
+typically `/memory`, and requests ride Foundry's own origin, which means TLS comes free and there's no
+CORS. **Direct URL** suits a service on a reachable TCP port, and needs `NOODLR_MEMORY_HOST` bound
+somewhere the GM's browser can actually address; `127.0.0.1` means the GM's own desktop, which the
+window will warn you about.
 
 ### Prompt architecture
 
