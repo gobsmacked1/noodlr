@@ -20,6 +20,7 @@ import {
   isTipsterEnabled,
 } from "../prompt/settings";
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
+import { getCombatAutomation, isNpcBanterEnabled } from "../combat/config";
 import {
   detectedSystemLabel,
   getRulesetName,
@@ -70,6 +71,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
   async _prepareContext(): Promise<Record<string, unknown>> {
     const p = "NOODLR.Feature.Chat";
     const choice = String(game.settings.get(MODULE_ID, SETTINGS.rulesetChoice) ?? RULESET_DEFAULT);
+    const automation = getCombatAutomation();
     return {
       moduleTitle: MODULE_TITLE,
       version: game.modules.get(MODULE_ID)?.version ?? "",
@@ -98,6 +100,13 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
         isAuto: choice === RULESET_AUTO,
         isCustom: choice === RULESET_CUSTOM,
       },
+
+      automation: {
+        isFull: automation === "full",
+        isPartial: automation === "partial",
+        isOff: automation === "off",
+      },
+      npcBanter: isNpcBanterEnabled(),
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
       playersPrompt: promptFieldView(SETTINGS.playersSystemPrompt),
@@ -144,6 +153,10 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
         allowNewlines: false,
       }).replace(/[^\x20-\x7e]/g, ""),
     );
+
+    const mode = String(o.combatAutomation ?? "full");
+    await set(COMBAT_SETTINGS.automation, mode === "partial" || mode === "off" ? mode : "full");
+    await set(COMBAT_SETTINGS.banter, Boolean(o.npcBanter));
 
     await this.savePromptFields(form);
 

@@ -68,6 +68,23 @@
       </p>
     </div>
 
+    {{! How much of a hostile creature's turn Noodlr runs, and whether it speaks while doing it. }}
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Combat.Automation.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Combat.Automation.Hint"}}</p>
+      <select name="combatAutomation">
+        <option value="full" {{#if automation.isFull}}selected{{/if}}>{{localize "NOODLR.Combat.Automation.Full"}}</option>
+        <option value="partial" {{#if automation.isPartial}}selected{{/if}}>{{localize "NOODLR.Combat.Automation.Partial"}}</option>
+        <option value="off" {{#if automation.isOff}}selected{{/if}}>{{localize "NOODLR.Combat.Automation.Off"}}</option>
+      </select>
+    </div>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="npcBanter" {{#if npcBanter}}checked{{/if}} />
+      {{localize "NOODLR.Combat.Banter.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Combat.Banter.Hint"}}</p>
+
     {{> noodlrPromptField playersPrompt}}
     {{> noodlrPromptField adjudicationPrompt}}
     {{> noodlrPromptField combatPrompt}}

@@ -83,6 +83,10 @@ export const MENUS = {
 /** Combat feature settings keys. */
 export const COMBAT_SETTINGS = {
   systemPrompt: "combat.systemPrompt",
+  /** How much of an NPC's turn Noodlr takes over: "full" | "partial" | "off". */
+  automation: "combat.automation",
+  /** Whether automated creatures get a spoken/typed line of flavor with their turn. */
+  banter: "combat.banter",
 } as const;
 
 /**

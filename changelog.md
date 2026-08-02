@@ -2,6 +2,33 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.22
+
+Monsters now think for themselves — locally, instantly, and without spending a cent on AI.
+
+- **Combat no longer calls the AI at all.** Yesterday's AI-run turn made a model request for every
+  beat of every creature's turn, which is slow at a table and ruinous in a fight with eight skeletons.
+  It has been replaced by a planner that runs on your own machine in about a millisecond.
+- **Creatures act according to how bright they are.** Each one is placed on a nine-rung ladder from
+  its (INT + WIS) / 2, from insect to god-like. A low rung cannot conceive of most options *and*
+  frequently fumbles the ones it has; a high rung sees the whole board and rarely errs. An owlbear
+  mauls whatever is nearest; a veteran picks off the wounded; something clever goes for the caster.
+- **It picks the appropriate move, not the best one.** Options are scored and then chosen with
+  weighted randomness, so the same monster in the same spot will not do the same thing every session
+  — while still behaving like itself. The roll is seeded, so a turn never changes if you re-run it.
+- **It reads the actual sheet, every turn.** An archer out of arrows will not fire; a creature with an
+  empty potion slot will not drink one; a badly hurt creature that is bright enough to value its own
+  life will try to leave.
+- **New setting — Combat automation** (Text Generation), Full by default: Noodlr plays every monster's
+  turn as it comes up. Partial gives you an Act-as-NPC tool instead: select a token, press it, and
+  Noodlr plays that creature for this fight only — press again to take it back mid-fight. Off hides
+  the tool entirely. Player characters are never played, in any mode.
+- **New setting — NPC banter** (on by default). Reserved for the next release, where automated
+  creatures get a line of dialogue. It does nothing yet, and combat stays entirely AI-free until then.
+- **This release announces, it does not act.** Each automated turn posts what the creature is doing
+  and to whom; you still roll it and apply it. Letting Noodlr move tokens and use items is the next
+  step, and it will ask before it does.
+
 ## 0.4.21
 
 NPC turns stop being one blind swing. First of several passes — expect rough edges.

@@ -36,6 +36,10 @@ import { registerArtifactHooks, handleArtifactSocket } from "./output/artifacts"
 import { initChatSniffer } from "./log/chat-sniffer";
 import { initAdjudicationCapture } from "./players/adjudication";
 import { registerDossierCleanup } from "./combat/dossier";
+import { getCombatAutomation } from "./combat/config";
+import { toggleSelectedCombatantAutomation } from "./combat/auto/control";
+import { registerAutomationCleanup } from "./combat/auto/registry";
+import { registerAutomationTurnHook } from "./combat/auto/hooks";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 import {
   PLAYER_ASK,
@@ -184,6 +188,9 @@ Hooks.once("ready", () => {
     // Combat dossiers live only for the skirmish: forget a creature's turn history when it dies
     // or the fight ends.
     registerDossierCleanup();
+    // Automation opt-ins are per-encounter too; released when combat ends.
+    registerAutomationCleanup();
+    registerAutomationTurnHook();
   }
 });
 
@@ -307,15 +314,19 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
           onChange: () => void promptImage(kind),
         };
       }
-      tools.npcTurn = {
-        name: "npcTurn",
-        title: "NOODLR.Combat.RunTurn",
-        icon: "fa-solid fa-hand-fist",
-        order: order++,
-        button: true,
-        visible: true,
-        onChange: () => void runCurrentNpcTurn(),
-      };
+      // Only offered in "partial" automation: in "full" every creature is played anyway, and in
+      // "off" the GM has said they want the fight in their own hands.
+      if (getCombatAutomation() === "partial") {
+        tools.npcTurn = {
+          name: "npcTurn",
+          title: "NOODLR.Combat.ToggleAutomation",
+          icon: "fa-solid fa-hand-fist",
+          order: order++,
+          button: true,
+          visible: true,
+          onChange: () => void toggleSelectedCombatantAutomation(),
+        };
+      }
       if (getMusicConfig().enabled) {
         tools.music = {
           name: "music",

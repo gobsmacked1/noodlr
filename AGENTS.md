@@ -39,6 +39,15 @@ reference exists; drop the reference folder at retirement.
 
 ## Design principles
 
+0. **Rules versus tactics (amended 2026-08-02).** Principle 1 below forbids hardcoded system rules,
+   and it still does — but it was being read as forbidding system-specific *tactics*, which stalled
+   the NPC combatant work. The line is now explicit: Noodlr may know **where a system keeps its
+   numbers** and **which of a creature's options are worth considering**; it may never compute an
+   attack roll, damage, a save, a DC, or a condition. Deciding "close with the wizard and swing the
+   rusty scimitar" is tactics and is ours. Working out whether the swing lands is rules, and belongs
+   to the system and to Midi QoL, exactly as before. System-specific tactics live behind an adapter
+   (`combat/system-profiles.ts` and the `combat/auto/` planner) with a generic fallback, never
+   sprinkled through the codebase.
 1. **No hardcoded game-system rules.** Thousands of lines of hardcoded 5e logic are unmaintainable and unfixable when a table interprets a rule differently. Rules live in the **RAG** (`rules` silo — ingest any system's books/compendia) and in the model's own competence. The module ships zero rules logic.
 2. **Mechanics belong to mechanics modules.** Midi QoL, DAE, Chris's Premades, Gambit's, etc. already resolve tedious mechanics instantly and for free. Noodlr narrates, decides, and adjudicates; it does not re-implement automation. (This was the loudest user complaint about the prior generation of this idea.)
 3. **Two provider shapes, period:** OpenRouter (API key) or any hand-entered OpenAI-compatible base URL + optional key. Applied uniformly to Chat, Embeddings, TTS, Image, Transcription. We will not maintain dozens of proprietary provider clients, and we will not ask users to divulge half a dozen consumer API keys for basic gameplay.
@@ -186,9 +195,48 @@ Key engineering doctrines from it that shape the *module's* architecture:
 - Rules questions during combat hit the `rules` silo automatically.
 - Deliverable: run a full combat where Noodlr narrates and Midi QoL resolves.
 
-### Phase 7 — Autonomous NPC combatants (the "combat dossier" subsystem)
+### Phase 7 — Autonomous NPC combatants
 
-Spec agreed with the user 2026-08-02. The largest feature in the module, built in layers, each one
+> **PIVOT, 2026-08-02 (supersedes the AI-driven design below).** After vetting the v0.4.21 turn loop
+> with others, the user cut the per-turn model call: one request per beat per creature makes every
+> encounter slow and a horde fight unaffordable. Combat decisions are now made **locally, by a
+> deterministic planner, with zero AI calls**. The LLM turn loop is removed outright (user's choice of
+> three offered options), not kept as a mode. What survives from N1/N2: `system-profiles.ts`, the
+> dossier's live sheet reading, and the per-encounter lifecycle. Everything below about beats, `END
+> TURN`, and `MAX_TURN_STEPS` is history — kept for the reasoning, not as a description of the code.
+>
+> **The engine (user chose utility scoring over a literal branching tree):** generate every legal
+> option, score each by the considerations the creature's tier unlocks, then choose by *weighted
+> random* rather than by maximum. That last step is the design, not an implementation detail. Argmax
+> produces tournament-grinder monsters; pure randomness produces noise; score-proportional choice with
+> tier-set sharpness produces an owlbear that usually mauls what is closest and a lich that almost
+> always does the clever thing. "Most appropriate, not best" is literally the temperature dial.
+>
+> **Competence is two dials, not one.** Gating alone yields a creature with two options that plays
+> both flawlessly, which reads as eerily precise rather than stupid. So each tier carries `unlocks`
+> (what it can conceive of), `noise` (0.85 at insect → 0.08 at god-like: how reliably it acts on the
+> best option), and `breadth` (how many options it weighs — its attention span and the CPU ceiling).
+>
+> **Tier ladder** (`src/combat/auto/tiers.ts`), thresholds from the user's table on (INT+WIS)/2:
+> 1 basic attacks + call for help · 2 + target the apparent weakest · 3 + avoid strong opponents,
+> use inventory, flee when hurt · 4 + stealth, deception, control maneuvers, self-healing · 5 + heal
+> and protect allies · 6 + target the real threats, focus fire · 7 + reposition for advantage, hold
+> resources · 8 + manipulate enemies, resource denial · 9 + the long game.
+>
+> **`TIER_CAVEAT = 7` — where the ladder stops being honest.** Tiers 1-6 are fully mechanical. Tier 7
+> is stretching: "bait them into the trap room" needs authored terrain the planner cannot invent.
+> Tiers 8-9 (manipulation, generational scheming) are campaign-scale fiction; no per-turn automaton
+> runs a decades-long con. Those tiers get the best of what *is* mechanical plus GM hints and voice.
+> This is written into the code, not just here, so nobody later mistakes the gap for a bug.
+>
+> **Seeded, not merely random.** The choice is seeded from fight + round + combatant, so a turn
+> replays identically: no reroll-shopping by clicking twice, and tests can assert real decisions.
+>
+> **Principle 0** (top of this file) was amended in the same breath to permit system-specific
+> *tactics* behind an adapter while still forbidding system *rules*. The planner picks a verb, an
+> implement, and a target; it never computes an attack roll, damage, a save, a DC, or a condition.
+
+Original AI-driven spec, agreed with the user 2026-08-02 and superseded the same day. The largest feature in the module, built in layers, each one
 shippable alone. Goal: hostile combatants that behave plausibly *for what they actually are* —
 partially aware of the rules (via the `system_rules` silo) and fully aware of their own sheet
 (movement, abilities, feats, spells, inventory, consumables). Worked examples the user set as the
@@ -240,6 +288,42 @@ Layers:
 
 Still refused, per principle #2: damage application, condition management, concentration, attack
 resolution. Those are Midi QoL's job and always will be.
+
+#### Deterministic planner — what landed in v0.4.22, and what to distrust
+
+Shipped:
+
+- `src/combat/config.ts` — `combat.automation` (`full` | `partial` | `off`, default full) and
+  `combat.banter` (default on), both in Text Generation under the ruleset field.
+- `src/combat/auto/registry.ts` — per-encounter opt-in set keyed by **combatant id**, cleared on
+  `deleteCombat`. Deliberately in memory: a flag on the actor would silently change every future copy
+  of that goblin. PCs are refused in every mode.
+- `src/combat/auto/control.ts` — Act-as-NPC toggles the selected token(s); multi-select honored;
+  pressing again takes the creature back mid-fight with no dialog. Tool is rendered **only** in
+  `partial` mode.
+- `src/combat/auto/tiers.ts`, `board.ts` (measurement only, tolerant of grid-API drift and gridless
+  scenes), `planner.ts` (options → scoring → seeded weighted choice), `hooks.ts` (`updateCombat`,
+  primary GM only, so an assistant GM does not double-plan).
+- `src/combat/npc-turn.ts` rewritten: **decides and announces only.** Intent posts publicly; the tier
+  and scoring rationale go to the console, never to chat — players must not be shown how the monster
+  thinks.
+
+Reservations and known gaps:
+
+- **Nothing is executed yet.** No movement, no `item.use()`, no turn advance. The GM resolves what the
+  card announces. Execution is the next layer and lands with GM approval on by default.
+- **NPC Banter is registered but inert.** With the LLM loop gone, combat currently makes zero AI
+  calls, which is what "remove it entirely" meant. Banter returns as one optional short line.
+- **Threat detection is a proxy.** "Carries many spells" stands in for "is artillery"; a martial
+  damage dealer reads as harmless to tier 6. Needs no rules knowledge, which is why it was chosen.
+- **Tier 4's stealth/deception/disarm are unimplemented.** Only `save`-type items are identifiable
+  generically as control options; the rest need identifiers the adapter cannot read yet.
+- **Reach defaults to one grid step** when an item states no range. Deliberate: exact reach is a rules
+  detail we refuse to model, so a 10-ft polearm may be planned as if adjacent.
+- **Unreadable INT/WIS lands at tier 4, not tier 1** — a missing number turning a dragon into a beetle
+  is the worse failure.
+- Revert map: the pivot is self-contained in `src/combat/auto/` plus the rewritten `npc-turn.ts`.
+  Restoring the AI loop means restoring that one file from v0.4.21.
 
 ### Phase 6 — Packaging & cutover
 
