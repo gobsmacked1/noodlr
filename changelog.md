@@ -2,6 +2,27 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.20
+
+Your rules system is now stated, not guessed.
+
+- **Pick your game system in Text Generation**, right under the main system prompt: choose from the
+  systems Foundry supports, let Noodlr read it from your world, or type your own. It arrives set to
+  D&D 5e (2024), so check it first if you play something else. Every chatbot —
+  the GM co-pilot, the players' bot, the adjudicator behind skill checks, and AI-run NPC turns — is
+  told which system is in play on every single request, and told not to deduce one from adventure
+  titles or place names. Adventures get converted between systems all the time, so a model left to
+  infer will sooner or later confidently apply the wrong game's rules. Foundry can name the active
+  system but not the revision (its id is identical for D&D 5e 2014 and 2024), which is why the list
+  spells the editions out.
+- **Retract a bad memory** instead of deleting it. New button in the Memory browser: the record
+  stays where you can read it, marked as a known error, and is never handed to a chatbot again.
+  Useful when a mistaken ruling gets stored and starts reinforcing itself on every retrieval.
+- **Deliberate material now outranks table chatter.** Everything Noodlr stores carries a weight:
+  what you ingested or typed by hand ranks above what a bot chose to remember, which ranks above
+  transcripts and swept-up chat log. Previously all of it competed on equal terms, so an offhand
+  wrong line could beat the rulebook that contradicted it.
+
 ## 0.4.19
 
 - **Memory service: pick how the browser reaches it.** A browser cannot open a Unix socket, so a

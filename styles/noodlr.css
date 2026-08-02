@@ -488,6 +488,16 @@
   word-break: break-word;
 }
 
+/* A retracted record is still readable (it's the audit trail) but visibly out of play. */
+.noodlr-rag-browser__item--retracted {
+  opacity: 0.6;
+  border-style: dashed;
+}
+.noodlr-rag-browser__item--retracted .noodlr-rag-browser__text {
+  text-decoration: line-through;
+  text-decoration-color: rgba(180, 60, 60, 0.5);
+}
+
 .noodlr-rag-browser__meta {
   display: flex;
   gap: 0.4rem;
@@ -834,6 +844,10 @@
 .noodlr-tag--service {
   background: rgba(120, 80, 200, 0.18);
   color: #5b3ea6;
+}
+.noodlr-tag--retracted {
+  background: rgba(180, 60, 60, 0.18);
+  color: #a33;
 }
 .noodlr-tag--lite {
   background: rgba(40, 160, 100, 0.18);

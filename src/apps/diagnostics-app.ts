@@ -13,6 +13,7 @@ import {
   getRagTuning,
 } from "../rag/config";
 import { RagClientError, type RagHit } from "../rag/client";
+import { IMPORTANCE, withImportance } from "../rag/importance";
 import { SILOS, isSiloId } from "../rag/silos";
 import { snapshotStats, resetStats } from "../util/stats";
 import { getContextBudget } from "../prompt/settings";
@@ -240,7 +241,7 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       // 1) Write the tagged document into the `docs` silo.
       const ing = await client.ingest(
         "docs",
-        [{ text: markerText, metadata: { selftest: true } }],
+        [{ text: markerText, metadata: withImportance({ selftest: true }, IMPORTANCE.diagnostic) }],
         embed,
       );
       // 2) Read it back. CRITICAL: pass the SAME embedding override used for ingest — otherwise

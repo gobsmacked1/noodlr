@@ -42,6 +42,32 @@
     <p class="notes">{{localize "NOODLR.Settings.PromptsNote"}}</p>
 
     {{> noodlrPromptField chatPrompt}}
+
+    {{! Stated, never inferred: a model with no authoritative system will deduce one from an
+        adventure's title. Sits under the main prompt because it qualifies everything above it. }}
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Settings.Ruleset.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Settings.Ruleset.Hint"}}</p>
+      <select name="rulesetChoice" data-role="ruleset-choice">
+        <option value="auto" {{#if ruleset.isAuto}}selected{{/if}}>
+          {{localize "NOODLR.Settings.Ruleset.Auto"}}{{#if ruleset.detected}} — {{ruleset.detected}}{{/if}}
+        </option>
+        {{#each ruleset.options}}
+          <option value="{{this.name}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
+        {{/each}}
+        <option value="custom" {{#if ruleset.isCustom}}selected{{/if}}>{{localize "NOODLR.Settings.Ruleset.Custom"}}</option>
+      </select>
+      <div data-role="ruleset-custom">
+        <input type="text" name="rulesetCustom" value="{{ruleset.custom}}"
+          maxlength="{{ruleset.customMax}}" autocomplete="off"
+          placeholder="{{localize 'NOODLR.Settings.Ruleset.CustomPlaceholder'}}" />
+      </div>
+      <p class="notes">
+        <i class="fa-solid fa-circle-info"></i>
+        {{localize "NOODLR.Settings.Ruleset.Injected"}} <code>{{ruleset.resolved}}</code>
+      </p>
+    </div>
+
     {{> noodlrPromptField playersPrompt}}
     {{> noodlrPromptField adjudicationPrompt}}
     {{> noodlrPromptField combatPrompt}}

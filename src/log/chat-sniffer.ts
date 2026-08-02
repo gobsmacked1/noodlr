@@ -17,6 +17,7 @@
 
 import { MODULE_ID, log } from "../constants";
 import { getChatLogConfig, getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
+import { IMPORTANCE, withImportance } from "../rag/importance";
 import { isPrimaryGM } from "../util/gm";
 import type { SiloId } from "../rag/silos";
 import { bumpStats } from "../util/stats";
@@ -171,7 +172,15 @@ async function flush(): Promise<void> {
   try {
     const res = await getRagClient().ingest(
       SILO,
-      [{ text, metadata: { source: "foundry-chat-log", ts: Date.now() } }],
+      [
+        {
+          text,
+          metadata: withImportance(
+            { source: "foundry-chat-log", ts: Date.now() },
+            IMPORTANCE.incidental,
+          ),
+        },
+      ],
       getEmbedOverride(),
     );
     bumpStats({ ingestDocs: res?.inserted ?? 1, ingestChunks: res?.chunks ?? 0 });

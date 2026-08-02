@@ -13,6 +13,7 @@ import { registerRagSettings } from "./rag/config";
 import { registerPromptSettings } from "./prompt/settings";
 import { registerMediaSettings } from "./media/config";
 import { registerCombatSettings } from "./combat/config";
+import { registerRulesetSettings } from "./system/ruleset";
 
 export function registerSettings(): void {
   // The single shared OpenRouter API key (every openrouter feature uses it). World-scoped,
@@ -57,6 +58,9 @@ export function registerSettings(): void {
     type: String,
     default: DEFAULT_ASSISTANT_NAME,
   });
+
+  // Which rules system every bot plays by (never inferred from campaign content).
+  registerRulesetSettings();
 
   game.settings.register(MODULE_ID, SETTINGS.promptDefaultsSeeded, {
     scope: "world",

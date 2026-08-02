@@ -20,6 +20,15 @@ import {
   isTipsterEnabled,
 } from "../prompt/settings";
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
+import {
+  detectedSystemLabel,
+  getRulesetName,
+  RULESET_AUTO,
+  RULESET_CHOICES,
+  RULESET_CUSTOM,
+  RULESET_DEFAULT,
+  RULESET_NAME_MAX_LENGTH,
+} from "../system/ruleset";
 
 export class NoodlrTextGenApp extends NoodlrConfigApp {
   static DEFAULT_OPTIONS = {
@@ -45,8 +54,22 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
     main: { template: `modules/${MODULE_ID}/templates/text-gen.hbs` },
   };
 
+  override _onRender(context: unknown, options: unknown): void {
+    super._onRender(context, options);
+    const root = this.rootEl();
+    const select = root?.querySelector<HTMLSelectElement>('[data-role="ruleset-choice"]');
+    const custom = root?.querySelector<HTMLElement>('[data-role="ruleset-custom"]');
+    if (!select || !custom) return;
+    const apply = () => {
+      custom.style.display = select.value === "custom" ? "" : "none";
+    };
+    apply();
+    select.addEventListener("change", apply);
+  }
+
   async _prepareContext(): Promise<Record<string, unknown>> {
     const p = "NOODLR.Feature.Chat";
+    const choice = String(game.settings.get(MODULE_ID, SETTINGS.rulesetChoice) ?? RULESET_DEFAULT);
     return {
       moduleTitle: MODULE_TITLE,
       version: game.modules.get(MODULE_ID)?.version ?? "",
@@ -63,6 +86,18 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
 
       assistantName: getAssistantName(),
       assistantNameMax: ASSISTANT_NAME_MAX_LENGTH,
+
+      ruleset: {
+        choice,
+        custom: game.settings.get(MODULE_ID, SETTINGS.rulesetCustom) as string,
+        customMax: RULESET_NAME_MAX_LENGTH,
+        detected: detectedSystemLabel(),
+        resolved: getRulesetName(),
+        // Marked so the picker can pre-select without a Handlebars equality helper.
+        options: RULESET_CHOICES.map((name) => ({ name, selected: name === choice })),
+        isAuto: choice === RULESET_AUTO,
+        isCustom: choice === RULESET_CUSTOM,
+      },
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
       playersPrompt: promptFieldView(SETTINGS.playersSystemPrompt),
@@ -98,6 +133,17 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       allowNewlines: false,
     }).replace(/[^\x20-\x7e]/g, "");
     await set(SETTINGS.assistantName, name);
+
+    const choice = String(o.rulesetChoice ?? RULESET_DEFAULT);
+    const known: string[] = [RULESET_AUTO, RULESET_CUSTOM, ...RULESET_CHOICES];
+    await set(SETTINGS.rulesetChoice, known.includes(choice) ? choice : RULESET_DEFAULT);
+    await set(
+      SETTINGS.rulesetCustom,
+      sanitizeUserText(o.rulesetCustom, {
+        maxLength: RULESET_NAME_MAX_LENGTH,
+        allowNewlines: false,
+      }).replace(/[^\x20-\x7e]/g, ""),
+    );
 
     await this.savePromptFields(form);
 

@@ -21,6 +21,13 @@ export const SETTINGS = {
   adjudicationPrompt: "adjudicationPrompt",
   /** Display name for the AI assistant, shown in both chat panels and its chat messages. */
   assistantName: "assistantName",
+  /**
+   * The rules system every bot must play by: a name from the curated list, "auto" (whatever Foundry
+   * reports), or "custom" (see rulesetCustom). Never inferred from campaign content.
+   */
+  rulesetChoice: "rulesetChoice",
+  /** Free-text system name, used when rulesetChoice is "custom". */
+  rulesetCustom: "rulesetCustom",
   /** After a turn with dice rolls, auto-continue once so the DM reacts to results. */
   chatContinueAfterRoll: "chatContinueAfterRoll",
   /**

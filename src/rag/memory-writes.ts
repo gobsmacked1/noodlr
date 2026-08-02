@@ -7,6 +7,7 @@
 // than guess — destructive actions never fall back to "delete something arbitrary".
 
 import { getEmbedOverride, getRagClient, isRagEnabled } from "./config";
+import { IMPORTANCE, withImportance } from "./importance";
 import { canWrite, isSiloId, writableSilos, type MemoryAudience } from "./silos";
 import { RagClientError } from "./client";
 import type { Directive } from "../players/directives";
@@ -22,6 +23,14 @@ export interface WriteResult {
 }
 
 const MAX_WRITE_CHARS = 2000;
+
+/** Provenance for a bot-authored row: a deliberate write, but below anything a human curated. */
+function writeMetadata(audience: MemoryAudience): Record<string, unknown> {
+  return withImportance(
+    { source: "bot-write", audience, ts: Date.now() },
+    IMPORTANCE.assistantWrite,
+  );
+}
 
 /**
  * Execute one memory directive with matrix enforcement + audit. `audience` is the bot acting
@@ -57,11 +66,7 @@ export async function applyMemoryDirective(
   try {
     if (directive.verb === "REMEMBER") {
       if (!text) return reject("empty REMEMBER text", audience, directive.verb);
-      const res = await client.ingest(
-        silo,
-        [{ text, metadata: { source: "bot-write", audience, ts: Date.now() } }],
-        embed,
-      );
+      const res = await client.ingest(silo, [{ text, metadata: writeMetadata(audience) }], embed);
       bumpStats({ ingestDocs: res?.inserted ?? 1, ingestChunks: res?.chunks ?? 0 });
       return audit(true, `${audience} remembered → ${silo}: ${clip(text)}`);
     }
@@ -84,11 +89,7 @@ export async function applyMemoryDirective(
     // UPDATE = replace: delete the matched row, insert the new text.
     if (!text) return reject("empty UPDATE text", audience, directive.verb);
     await client.delete(silo, { ids: [hit.id] });
-    const res = await client.ingest(
-      silo,
-      [{ text, metadata: { source: "bot-write", audience, ts: Date.now() } }],
-      embed,
-    );
+    const res = await client.ingest(silo, [{ text, metadata: writeMetadata(audience) }], embed);
     bumpStats({ ingestDocs: res?.inserted ?? 1, ingestChunks: res?.chunks ?? 0 });
     return audit(true, `${audience} updated ${silo}: ${clip(text)}`);
   } catch (err) {

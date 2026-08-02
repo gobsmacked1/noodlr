@@ -19,6 +19,7 @@ import type { ResolvedRoll } from "../dice/roll-macros";
 import { getTtsAutoRead } from "../media/config";
 import { speak, speakShared } from "../media/tts";
 import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
+import { IMPORTANCE, withImportance } from "../rag/importance";
 import { bumpStats } from "../util/stats";
 import { log } from "../constants";
 
@@ -505,7 +506,12 @@ export class NoodlrChatPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       const text = `${turn.promptAuthor}: ${turn.promptText}\nGamemaster: ${turn.finalText}`;
       const res = await getRagClient().ingest(
         "gm_chat",
-        [{ text, metadata: { source: "chat", ts: Date.now() } }],
+        [
+          {
+            text,
+            metadata: withImportance({ source: "chat", ts: Date.now() }, IMPORTANCE.conversation),
+          },
+        ],
         getEmbedOverride(),
       );
       bumpStats({ ingestDocs: res?.inserted ?? 1, ingestChunks: res?.chunks ?? 0 });

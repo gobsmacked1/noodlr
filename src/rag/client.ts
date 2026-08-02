@@ -146,11 +146,13 @@ export class RagClient {
     payload: { fileType: "text"; text: string } | { fileType: "pdf"; data: string },
     embed?: EmbedOverride,
     signal?: AbortSignal,
+    /** Re-ranker weight for the resulting chunks; the service builds their metadata. */
+    importance?: number,
   ): Promise<{ inserted: number; chunks: number }> {
     return this.request(
       "POST",
       "/ingest-file",
-      { collection, filename, ...payload, embed },
+      { collection, filename, ...payload, embed, importance },
       signal,
     );
   }

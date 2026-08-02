@@ -21,6 +21,7 @@ import {
   loadLorebook,
 } from "./settings";
 import { buildMemoryToolsPrompt } from "../rag/memory-writes";
+import { buildRulesetBlock, rulesetEcho } from "../system/ruleset";
 import { isRagEnabled } from "../rag/config";
 import { estimateMessagesTokens, estimateMessageTokens } from "../util/tokens";
 
@@ -55,6 +56,10 @@ function buildPostHistory(input: AssembleInput): string {
   }
   const post = getPostHistory().trim();
   if (post) parts.push(post);
+  // Last line of the payload, where instruction-following is strongest. Six tokens to keep the
+  // system in view even after a long history has pushed the block at the top out of mind.
+  const echo = rulesetEcho();
+  if (echo) parts.push(echo);
   return parts.join("\n\n");
 }
 
@@ -85,6 +90,11 @@ export function assemblePrompt(input: AssembleInput): ChatMessage[] {
   // providers reject outright.
   const systemPrompt = getEffectiveChatSystemPrompt();
   const leading: ChatMessage[] = systemPrompt ? [sys(systemPrompt)] : [];
+
+  // Immediately after the persona and before anything retrieved: everything downstream (lorebook
+  // entries, memory hits, an adventure's own prose) should be read in the light of which system
+  // this table actually plays.
+  leading.push(sys(buildRulesetBlock()));
 
   // GM co-pilot memory tools: tell the model the write-directive syntax (kept out of the verbatim
   // DM prompt). Only when RAG + the toggle are on; the GM co-pilot writes with the "gm" audience.

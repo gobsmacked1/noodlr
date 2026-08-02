@@ -12,6 +12,7 @@ import { MODULE_ID, SOCKET, log } from "../constants";
 import { getPushToLogConfig, getTranscriptionEnabled } from "./config";
 import { transcribeAudio } from "./transcription";
 import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
+import { IMPORTANCE, withImportance } from "../rag/importance";
 import { bumpStats } from "../util/stats";
 import { isPrimaryGM } from "../util/gm";
 
@@ -171,7 +172,15 @@ class PushToLogController {
       // routing is a later refinement; the common case is a player is present.)
       const res = await getRagClient().ingest(
         "player_chat",
-        [{ text, metadata: { source: "push-to-log", ts: Date.now() } }],
+        [
+          {
+            text,
+            metadata: withImportance(
+              { source: "push-to-log", ts: Date.now() },
+              IMPORTANCE.transcript,
+            ),
+          },
+        ],
         getEmbedOverride(),
       );
       bumpStats({ ingestDocs: res.inserted ?? 0, ingestChunks: res.chunks ?? 0 });

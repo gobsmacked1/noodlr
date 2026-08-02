@@ -102,6 +102,7 @@ export class LocalMemory implements MemoryBackend {
     payload: { fileType: "text"; text: string } | { fileType: "pdf"; data: string },
     embed?: unknown,
     signal?: AbortSignal,
+    importance?: number,
   ): Promise<{ inserted: number; chunks: number }> {
     if (payload.fileType === "pdf") {
       throw new RagClientError(
@@ -109,12 +110,9 @@ export class LocalMemory implements MemoryBackend {
           "noodlr-memory backend (which parses PDFs server-side).",
       );
     }
-    return this.ingest(
-      collection,
-      [{ text: payload.text, metadata: { sourceName: filename } }],
-      embed,
-      signal,
-    );
+    const metadata: Record<string, unknown> = { sourceName: filename };
+    if (Number.isFinite(importance)) metadata.importance = importance;
+    return this.ingest(collection, [{ text: payload.text, metadata }], embed, signal);
   }
 
   async query(opts: QueryOptions): Promise<{ hits: RagHit[]; mode: string }> {

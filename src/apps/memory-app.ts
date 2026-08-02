@@ -5,6 +5,7 @@
 
 import { MODULE_ID } from "../constants";
 import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
+import { IMPORTANCE, withImportance } from "../rag/importance";
 import { RagClientError } from "../rag/client";
 import { SILOS, SILO_IDS, isSiloId, type SiloId } from "../rag/silos";
 import { ingestCompendium } from "../rag/ingest";
@@ -184,13 +185,31 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
           ui.notifications?.warn(game.i18n.localize("NOODLR.Rag.StructuredEmpty"));
           return;
         }
-        res = await client.ingest(silo, docs, embed);
+        res = await client.ingest(
+          silo,
+          docs.map((d) => ({ ...d, metadata: withImportance(d.metadata, IMPORTANCE.ingested) })),
+          embed,
+        );
       } else if (isPdf) {
         const data = await fileToBase64(file);
-        res = await client.ingestFile(silo, file.name, { fileType: "pdf", data }, embed);
+        res = await client.ingestFile(
+          silo,
+          file.name,
+          { fileType: "pdf", data },
+          embed,
+          undefined,
+          IMPORTANCE.ingested,
+        );
       } else {
         const text = await file.text();
-        res = await client.ingestFile(silo, file.name, { fileType: "text", text }, embed);
+        res = await client.ingestFile(
+          silo,
+          file.name,
+          { fileType: "text", text },
+          embed,
+          undefined,
+          IMPORTANCE.ingested,
+        );
       }
       bumpStats({ ingestDocs: res.inserted ?? 0, ingestChunks: res.chunks ?? 0 });
       ui.notifications?.info(

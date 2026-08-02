@@ -29,6 +29,7 @@ export interface MemoryBackend {
     payload: { fileType: "text"; text: string } | { fileType: "pdf"; data: string },
     embed?: EmbedOverride,
     signal?: AbortSignal,
+    importance?: number,
   ): Promise<{ inserted: number; chunks: number }>;
   purge(collection: SiloId, signal?: AbortSignal): Promise<{ ok: boolean; purged: string }>;
   /** Delete specific rows by id and/or content hash (bot-driven UPDATE/FORGET). */

@@ -18,6 +18,7 @@ import { bumpStats } from "../util/stats";
 import type { RagHit } from "./client";
 import { isCombatActive } from "../combat/tracker";
 import { isSiloId, type SiloId } from "./silos";
+import { isRetracted } from "./retraction";
 
 /** Rough token estimate (~4 chars/token) — good enough for budgeting. */
 function estimateTokens(text: string): number {
@@ -86,7 +87,8 @@ export async function retrieveContext(
       { collections: silos, searchTexts, entities, topK, hybrid, embed },
       signal,
     );
-    hits = result.hits ?? [];
+    // Known errors a GM retracted are kept in the store for audit, never fed back to a bot.
+    hits = (result.hits ?? []).filter((h) => !isRetracted(h));
     bumpStats({ ragQueries: 1, ragHits: hits.length });
     offlineNotified = false;
   } catch (err) {

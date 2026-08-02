@@ -592,6 +592,61 @@ one unnavigable scrolling form, and prompts were invisible by design. Both fixed
   deliberate (a `CHANGELOG.md` may not match on a case-sensitive filesystem). Keep it user-facing:
   GMs read it, not developers.
 
+**v0.4.20 — the rules system is stated, and memory has a truth hierarchy.**
+
+Reported from play: with D&D 5e 2024 rules fully ingested, the GM bot adjudicated a search in
+Pathfinder 2e terms because the active scene's name came from an adventure originally published for
+PF2e (and later reissued for 5e). Root cause was not prompt wording — **the module had never told
+any model which system Foundry was running.** There was not one reference to `game.system` in the
+source. HP, initiative, conditions, scene geometry, and world time were all injected as ground
+truth; the single fact every ruling depends on was left to inference, and inference from proper
+nouns is a coin flip that arrives sounding certain.
+
+- **`src/system/ruleset.ts`** — settings `rulesetChoice` (a curated list of Foundry-supported
+  systems, plus `auto` and `custom`) and `rulesetCustom` (64 ASCII). `auto` reads `game.system.title`.
+  Ships defaulting to "Dungeons & Dragons Fifth Edition (2024)" rather than to `auto` (user, 2026-08-02):
+  a GM who never opens the setting gets a real answer instead of an inferred one, and detection could
+  not have supplied the revision anyway.
+  Detection alone can't finish the job: `game.system.id` is `dnd5e` for both the 2014 and 2024 rules,
+  so the list spells editions out and the GM's choice is authoritative over what Foundry reports.
+  The stored value IS the display name — no id mapping to maintain, and a world that later drops the
+  system keeps a readable label.
+- **Not a prompt field, deliberately.** The editable prompts are the GM's voice; a guard that
+  disappears when someone rewrites an unrelated paragraph is not a guard. Same reasoning as the
+  combat state block. What's configurable is the system *name*, in Text Generation directly under the
+  main system prompt, because it qualifies everything that prompt says.
+- **Injected in all four generation paths** — `prompt/assembler.ts` (GM co-pilot), `players/answer.ts`,
+  `players/adjudication.ts`, `combat/npc-turn.ts`. The players' bot and the adjudicator matter as much
+  as the co-pilot: both talk in checks and DCs, and the players' bot doesn't use the assembler at all.
+- **Two injections, ~50 tokens total.** `buildRulesetBlock()` (~45) goes immediately after the system
+  prompt and before anything retrieved, so lorebook entries, memory hits, and an adventure's own prose
+  are all read in its light; `rulesetEcho()` (~6) rides in the post-history slot beside the combat
+  reminder, where instruction-following is strongest and where a long history can no longer bury it.
+  The wording buys precedence (live data and character sheets outrank setting associations and
+  pretraining) and a failure mode (say something out of character rather than switch systems) — rules
+  *content* stays in the `system_rules` silo.
+- Unset/undetectable resolves to an explicit "not configured — ask the GM out of character", which is
+  the honest failure. Silence is what produced the bug.
+
+The same incident's second half: the wrong ruling had been stored, so retrieval would keep feeding it
+back with the authority of the `# Retrieved campaign memory` header.
+
+- **`src/rag/importance.ts`** — noodlr-memory's re-ranker has always weighted `importance` (0-10) and
+  the module **wrote it nowhere**, which is not neutral: a missing value scores identically to zero, so
+  a rulebook chapter someone deliberately ingested competed on equal terms with whatever the chat
+  sniffer swept up. Now every write path carries a level — curated 8 (hand-typed in the browser),
+  ingested 7 (compendia, uploads), assistantWrite 6, artifact 5, conversation 3, transcript 3,
+  incidental 2, diagnostic 1. The ordering is the point; the absolute numbers are not.
+  `/ingest-file` builds its own metadata server-side, so noodlr-memory gained an optional `importance`
+  body field (clamped 0-10) — otherwise uploaded books would have been the one curated path scoring
+  zero.
+- **`src/rag/retraction.ts` + Retract in the Memory browser** — deleting a bad memory destroys the
+  evidence; leaving it lets it reinforce itself. A retracted row keeps `metadata.retracted` and stays
+  visible in the browser (struck through, tagged) while `retrieveContext()` filters it out for every
+  bot. Plain metadata, so it works identically on noodlr-memory and RAG Lite. There is no
+  update-metadata endpoint and adding one would mean touching four store backends, so retract is
+  delete + re-insert: one embedding call for a rare, deliberate GM action.
+
 **v0.4.19 — memory reachability, window text selection, TTS test phrase.**
 
 - **Two RAG target modes** (`src/rag/target.ts`, settings `rag.targetMode` + `rag.servicePath`,

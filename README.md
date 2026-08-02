@@ -55,7 +55,8 @@ silently.
 ### Quick start
 
 1. Open **Game Settings → Noodlr → Security** and paste your OpenRouter key.
-2. Open **Text Generation**, pick a chat model, and hit **Test connection**.
+2. Open **Text Generation**, pick a chat model, hit **Test connection**, and set your **game rules
+   system** — every bot is told which system is in play so none of them has to guess.
 3. Click Noodlr's scene control, or press **Ctrl+Shift+N**, to open the chat panel.
 4. Optionally open **Memory Configuration** and turn memory on — the default in-browser backend needs
    nothing else.
@@ -95,6 +96,11 @@ choice, or upload `.txt`, `.md`, `.csv`, `.json`, `.yaml`, and `.pdf` files. The
 the toolbar gives you search-driven CRUD over any collection, and Polly Histor can maintain memory
 herself with autonomous remember/update/forget directives (every write whispered to you as an audit
 line, and switchable off).
+
+Not everything remembered deserves equal weight, so it doesn't get equal weight: material you ingested
+or typed by hand outranks what a bot chose to remember, which outranks transcripts and swept-up chat
+log. When something wrong does get stored, **Retract** it in the Memory browser — the record stays
+readable there, marked as a known error, and is never handed to a chatbot again.
 
 If memory is unavailable, the module says so once and keeps playing without it.
 
@@ -171,7 +177,7 @@ Settings live in five windows under **Game Settings**, each opening its own page
 | Window | Holds |
 | --- | --- |
 | **Memory Configuration** | memory backend, retrieval tuning, embeddings, rerank, ingestion, plus Manage Memory and Diagnostics |
-| **Text Generation** | chat provider and model, the assistant's name, every text prompt, author's-note depth, context budget, memory writes, scene awareness |
+| **Text Generation** | chat provider and model, the assistant's name, the game rules system, every text prompt, author's-note depth, context budget, memory writes, scene awareness |
 | **Audio Generation** | TTS, voices, music, push-to-log transcription |
 | **Image Generation** | the four image generators and video |
 | **Security** | provider API keys |

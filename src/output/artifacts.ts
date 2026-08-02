@@ -20,6 +20,7 @@
 
 import { MODULE_ID, SOCKET, RETRY_WINDOW_MS, log } from "../constants";
 import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
+import { IMPORTANCE, withImportance } from "../rag/importance";
 import type { SiloId } from "../rag/silos";
 import { setLedgerEntry, type LedgerEntry } from "../media/storage";
 import type { ImageKind } from "../media/config";
@@ -122,7 +123,12 @@ async function doCommit(commit: ArtifactCommit): Promise<void> {
     if (commit.rag && isRagEnabled()) {
       const res = await getRagClient().ingest(
         commit.rag.silo,
-        [{ text: commit.rag.text, metadata: commit.rag.metadata }],
+        [
+          {
+            text: commit.rag.text,
+            metadata: withImportance(commit.rag.metadata, IMPORTANCE.artifact),
+          },
+        ],
         getEmbedOverride(),
       );
       bumpStats({ ingestDocs: res?.inserted ?? 1, ingestChunks: res?.chunks ?? 0 });

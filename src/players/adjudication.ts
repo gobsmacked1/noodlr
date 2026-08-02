@@ -18,6 +18,7 @@ import { applyMemoryDirective } from "../rag/memory-writes";
 import { postPlayerResult } from "./relay";
 import { isPrimaryGM } from "../util/gm";
 import { auditToGM } from "../util/audit";
+import { buildRulesetBlock } from "../system/ruleset";
 
 /** How long a pending check stays open awaiting the player's real roll. */
 const PENDING_TTL_MS = 180_000;
@@ -117,6 +118,8 @@ async function adjudicateAndPost(p: PendingAdjudication, playerTotal: number): P
   const adjudicatorPrompt = getAdjudicationPrompt();
   const messages: ChatMessage[] = [];
   if (adjudicatorPrompt) messages.push({ role: "system", content: adjudicatorPrompt });
+  // This call decides success against a DC, so the system it thinks it's in changes the answer.
+  messages.push({ role: "system", content: buildRulesetBlock() });
   messages.push({ role: "user", content: facts });
 
   let raw: string;

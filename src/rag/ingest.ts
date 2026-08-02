@@ -4,6 +4,7 @@
 
 import { getEmbedOverride, getRagClient } from "./config";
 import type { IngestDocument } from "./client";
+import { IMPORTANCE, withImportance } from "./importance";
 import type { SiloId } from "./silos";
 import { bumpStats } from "../util/stats";
 
@@ -81,7 +82,10 @@ export async function ingestCompendium(
       if (!text) continue;
       documents.push({
         text,
-        metadata: { sourceName: doc.name ?? "document", compendium: packLabel, docId: doc.id },
+        metadata: withImportance(
+          { sourceName: doc.name ?? "document", compendium: packLabel, docId: doc.id },
+          IMPORTANCE.ingested,
+        ),
       });
     }
     if (documents.length > 0) {

@@ -19,6 +19,7 @@ import { getPlayersSystemPrompt } from "./prompts";
 import { debug, debugPayload, warn } from "../constants";
 import { isTipsterEnabled } from "../prompt/settings";
 import { buildTipsterBlock, resolvePerspectiveToken } from "../tipster/scene";
+import { buildRulesetBlock } from "../system/ruleset";
 import { sanitizeUserText } from "../util/sanitize";
 import { bumpStats } from "../util/stats";
 import { parseDirectives, type Directive } from "./directives";
@@ -63,6 +64,9 @@ export async function generatePlayerAnswer(
   const messages: ChatMessage[] = [];
   const sys = getPlayersSystemPrompt();
   if (sys) messages.push({ role: "system", content: sys });
+  // Same authoritative system statement the GM bot gets: this bot talks about checks and DCs, so
+  // guessing the system from an adventure's name misleads players directly.
+  messages.push({ role: "system", content: buildRulesetBlock() });
   if (rag.block) messages.push({ role: "system", content: rag.block });
 
   // Tipster: live scene briefing from the ASKING player's perspective, not the GM's — even though

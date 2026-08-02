@@ -8,6 +8,8 @@ import { MODULE_ID } from "../constants";
 import { getRagClient, isRagEnabled, getEmbedOverride } from "../rag/config";
 import { RagClientError, type RagHit } from "../rag/client";
 import { groupedSilos, isSiloId, type SiloId } from "../rag/silos";
+import { IMPORTANCE, withImportance } from "../rag/importance";
+import { isRetracted } from "../rag/retraction";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -26,6 +28,7 @@ export class NoodlrRagBrowserApp extends HandlebarsApplicationMixin(ApplicationV
       search: NoodlrRagBrowserApp.#onSearch,
       addRecord: NoodlrRagBrowserApp.#onAdd,
       editRecord: NoodlrRagBrowserApp.#onEdit,
+      retractRecord: NoodlrRagBrowserApp.#onRetract,
       deleteRecord: NoodlrRagBrowserApp.#onDelete,
     },
   };
@@ -46,6 +49,8 @@ export class NoodlrRagBrowserApp extends HandlebarsApplicationMixin(ApplicationV
       id: h.id,
       text: h.text,
       score: typeof h.score === "number" ? h.score.toFixed(3) : "",
+      // Retracted rows stay visible HERE — this window is the audit trail — but retrieval skips them.
+      retracted: isRetracted(h),
     }));
     return {
       enabled: isRagEnabled(),
@@ -110,7 +115,12 @@ export class NoodlrRagBrowserApp extends HandlebarsApplicationMixin(ApplicationV
     try {
       await getRagClient().ingest(
         result.silo,
-        [{ text: result.text, metadata: { source: "rag-browser", ts: Date.now() } }],
+        [
+          {
+            text: result.text,
+            metadata: withImportance({ source: "rag-browser", ts: Date.now() }, IMPORTANCE.curated),
+          },
+        ],
         getEmbedOverride(),
       );
       ui.notifications?.info(game.i18n.format("NOODLR.RagBrowser.Added", { silo: result.silo }));
@@ -137,10 +147,56 @@ export class NoodlrRagBrowserApp extends HandlebarsApplicationMixin(ApplicationV
       await getRagClient().delete(this.#silo, { ids: [hit.id] });
       await getRagClient().ingest(
         this.#silo,
-        [{ text: result.text, metadata: { source: "rag-browser", ts: Date.now() } }],
+        [
+          {
+            text: result.text,
+            metadata: withImportance({ source: "rag-browser", ts: Date.now() }, IMPORTANCE.curated),
+          },
+        ],
         getEmbedOverride(),
       );
       ui.notifications?.info(game.i18n.format("NOODLR.RagBrowser.Updated", { silo: this.#silo }));
+      await NoodlrRagBrowserApp.#onSearch.call(this);
+    } catch (err) {
+      ui.notifications?.error(errMsg(err));
+    }
+  }
+
+  /**
+   * Mark a record as a known error instead of destroying it.
+   *
+   * A wrong ruling that got stored is worse than a missing one: it comes back at retrieval wearing
+   * the same authority as the rulebook, and reinforces itself every time it's cited. Deleting works,
+   * but it also erases the evidence of what went wrong. Retracting keeps the row searchable in this
+   * window and drops it everywhere else.
+   *
+   * There is no update-metadata endpoint (and adding one would mean touching four store backends),
+   * so this is delete + re-insert — one embedding call for a rare, deliberate GM action.
+   */
+  static async #onRetract(
+    this: NoodlrRagBrowserApp,
+    _event: Event,
+    target: HTMLElement,
+  ): Promise<void> {
+    const id = target.dataset.id;
+    const hit = this.#hits.find((h) => h.id === id);
+    if (!hit || !this.#silo || isRetracted(hit)) return;
+    const confirmed = await confirmDialog(
+      game.i18n.localize("NOODLR.RagBrowser.RetractTitle"),
+      game.i18n.localize("NOODLR.RagBrowser.RetractConfirm"),
+    );
+    if (!confirmed) return;
+    try {
+      const metadata = {
+        ...(hit.metadata ?? {}),
+        retracted: true,
+        retractedAt: Date.now(),
+        retractedBy: game.user?.name ?? "",
+        importance: 0,
+      };
+      await getRagClient().delete(this.#silo, { ids: [hit.id] });
+      await getRagClient().ingest(this.#silo, [{ text: hit.text, metadata }], getEmbedOverride());
+      ui.notifications?.info(game.i18n.format("NOODLR.RagBrowser.Retracted", { silo: this.#silo }));
       await NoodlrRagBrowserApp.#onSearch.call(this);
     } catch (err) {
       ui.notifications?.error(errMsg(err));
