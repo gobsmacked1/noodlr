@@ -219,7 +219,8 @@ Key engineering doctrines from it that shape the *module's* architecture:
 >
 > **Tier ladder** (`src/combat/auto/tiers.ts`), thresholds from the user's table on (INT+WIS)/2:
 > 1 basic attacks + call for help · 2 + target the apparent weakest · 3 + avoid strong opponents,
-> use inventory, flee when hurt · 4 + stealth, deception, control maneuvers, self-healing · 5 + heal
+> use inventory, flee when hurt · 4 + stealth, deception, control maneuvers, self-healing, keep
+> distance from melee, seek cover at end of turn (revised by the user later the same day) · 5 + heal
 > and protect allies · 6 + target the real threats, focus fire · 7 + reposition for advantage, hold
 > resources · 8 + manipulate enemies, resource denial · 9 + the long game.
 >
@@ -318,6 +319,13 @@ Reservations and known gaps:
   damage dealer reads as harmless to tier 6. Needs no rules knowledge, which is why it was chosen.
 - **Tier 4's stealth/deception/disarm are unimplemented.** Only `save`-type items are identifiable
   generically as control options; the rest need identifiers the adapter cannot read yet.
+- **Cover is an announced intent, not a chosen square.** Picking a real cover tile means sampling
+  line of sight against every shooter and the scene's walls — the positioning layer's job, and far
+  too expensive to bolt onto scoring. The turn says the creature ends behind cover; the GM places it.
+- **Keeping distance reads the opponent's sheet too.** An enemy whose items are unreadable is assumed
+  to threaten one grid step, deliberately: guessing "harmless" would walk archers into a grapple on
+  every unfamiliar system. The reverse error (an archer that over-respects a spellcaster's reach) is
+  cheap by comparison.
 - **Reach defaults to one grid step** when an item states no range. Deliberate: exact reach is a rules
   detail we refuse to model, so a 10-ft polearm may be planned as if adjacent.
 - **Unreadable INT/WIS lands at tier 4, not tier 1** — a missing number turning a dragon into a beetle

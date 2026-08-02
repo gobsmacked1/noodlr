@@ -16,6 +16,10 @@ Monsters now think for themselves — locally, instantly, and without spending a
 - **It picks the appropriate move, not the best one.** Options are scored and then chosen with
   weighted randomness, so the same monster in the same spot will not do the same thing every session
   — while still behaving like itself. The roll is seeded, so a turn never changes if you re-run it.
+- **Creatures with a ranged weapon try to use it as one.** From the fourth rung up, a creature shoots
+  from outside your reach rather than strolling into it, backs out of melee when someone closes on
+  it, and ends its turn behind cover when there is anything shooting back. Where "behind cover" is
+  gets announced rather than chosen — you still place the token.
 - **It reads the actual sheet, every turn.** An archer out of arrows will not fire; a creature with an
   empty potion slot will not drink one; a badly hurt creature that is bright enough to value its own
   life will try to leave.
