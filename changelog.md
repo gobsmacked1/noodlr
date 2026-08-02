@@ -17,9 +17,12 @@ Monsters now think for themselves — locally, instantly, and without spending a
   weighted randomness, so the same monster in the same spot will not do the same thing every session
   — while still behaving like itself. The roll is seeded, so a turn never changes if you re-run it.
 - **Creatures with a ranged weapon try to use it as one.** From the fourth rung up, a creature shoots
-  from outside your reach rather than strolling into it, backs out of melee when someone closes on
-  it, and ends its turn behind cover when there is anything shooting back. Where "behind cover" is
-  gets announced rather than chosen — you still place the token.
+  from outside your reach rather than strolling into it, and backs out of melee when someone closes.
+- **They take cover and they hide, for real.** Noodlr checks your map's walls and works out an actual
+  square the creature can reach where it cannot be seen — reporting how far and in which direction,
+  so you can place the token. Cover is measured against the furthest player on the field, hiding
+  against the nearest, which keeps it fast enough to run every turn without a pause. If there is
+  genuinely nowhere to hide, it says nothing rather than promising cover that isn't there.
 - **It reads the actual sheet, every turn.** An archer out of arrows will not fire; a creature with an
   empty potion slot will not drink one; a badly hurt creature that is bright enough to value its own
   life will try to leave.

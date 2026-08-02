@@ -317,11 +317,22 @@ Reservations and known gaps:
   calls, which is what "remove it entirely" meant. Banter returns as one optional short line.
 - **Threat detection is a proxy.** "Carries many spells" stands in for "is artillery"; a martial
   damage dealer reads as harmless to tier 6. Needs no rules knowledge, which is why it was chosen.
-- **Tier 4's stealth/deception/disarm are unimplemented.** Only `save`-type items are identifiable
-  generically as control options; the rest need identifiers the adapter cannot read yet.
-- **Cover is an announced intent, not a chosen square.** Picking a real cover tile means sampling
-  line of sight against every shooter and the scene's walls — the positioning layer's job, and far
-  too expensive to bolt onto scoring. The turn says the creature ends behind cover; the GM places it.
+- **Tier 4's deception and disarm are unimplemented.** Stealth is real (see positioning below); only
+  `save`-type items are identifiable generically as control options, and the rest need identifiers
+  the adapter cannot read yet.
+- **Cover and hiding are computed for real, against ONE observer each** (user's call, 2026-08-02,
+  after the announce-only version was rejected as too valuable to skip). `auto/positioning.ts` scans
+  12 bearings × 3 radii nearest-first and returns the first square that is reachable (straight-line
+  move ray, not pathfinding) and out of sight of the reference observer. Cover tests the **furthest**
+  player, hiding the **nearest**. Known hole, accepted: cover from the far archer is not cover from
+  the near one. Upgrading is one parameter — the search takes an observer, so passing two costs one
+  extra ray per candidate. The angular start is seeded, so identical creatures don't all break left.
+- **The cover budget is half the creature's speed**, because movement already spent acting is not
+  tracked. Deliberately under-promises rather than proposing a shuffle it could not afford.
+- **Collision API is v13-verified** (`ClockwiseSweepPolygon.testCollision(origin, dest, {type, mode:
+  "any"})`) with two older shapes tried in turn. An unreadable API returns null and is treated as "no
+  cover found", never as "cover found" — the failure mode must be a creature standing in the open,
+  not one claiming cover that isn't there.
 - **Keeping distance reads the opponent's sheet too.** An enemy whose items are unreadable is assumed
   to threaten one grid step, deliberately: guessing "harmless" would walk archers into a grapple on
   every unfamiliar system. The reverse error (an archer that over-respects a spellcaster's reach) is
