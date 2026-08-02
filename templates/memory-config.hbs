@@ -75,11 +75,33 @@
 
     <p class="notes noodlr-backend-note" data-backend="lite"><i class="fa-solid fa-circle-info"></i> {{localize "NOODLR.Rag.Backend.LiteNote"}}</p>
 
+    {{! How the browser reaches the service. A Unix-socket deployment is only reachable through a
+        reverse proxy, which from here is just a path on Foundry's own origin. }}
     <div class="noodlr-field" data-backend="service">
-      <label>{{localize "NOODLR.Rag.ServiceUrl.Name"}} <span class="noodlr-tag noodlr-tag--service">{{localize "NOODLR.Rag.Tag.ServiceOnly"}}</span></label>
-      <p class="notes">{{localize "NOODLR.Rag.ServiceUrl.Hint"}}</p>
-      <input type="text" name="serviceUrl" value="{{serviceUrl}}" placeholder="http://127.0.0.1:3010" autocomplete="off" />
+      <label>{{localize "NOODLR.Rag.Target.Name"}} <span class="noodlr-tag noodlr-tag--service">{{localize "NOODLR.Rag.Tag.ServiceOnly"}}</span></label>
+      <p class="notes">{{localize "NOODLR.Rag.Target.Hint"}}</p>
+      <select name="targetMode" data-role="target-mode">
+        <option value="proxy" {{#if target.isProxy}}selected{{/if}}>{{localize "NOODLR.Rag.Target.Proxy"}}</option>
+        <option value="direct" {{#if target.isDirect}}selected{{/if}}>{{localize "NOODLR.Rag.Target.Direct"}}</option>
+      </select>
     </div>
+
+    <div class="noodlr-field" data-backend="service" data-target-mode="proxy">
+      <label>{{localize "NOODLR.Rag.ServicePath.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Rag.ServicePath.Hint"}}</p>
+      <input type="text" name="servicePath" value="{{target.path}}" placeholder="/memory" autocomplete="off" />
+      <p class="notes"><code data-role="target-preview">{{target.origin}}{{target.path}}/v1/health</code></p>
+    </div>
+
+    <div class="noodlr-field" data-backend="service" data-target-mode="direct">
+      <label>{{localize "NOODLR.Rag.ServiceUrl.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Rag.ServiceUrl.Hint"}}</p>
+      <input type="text" name="serviceUrl" value="{{target.url}}" placeholder="http://192.168.1.10:3010" autocomplete="off" />
+    </div>
+
+    {{#if target.warning}}
+      <p class="noodlr-test-status noodlr-test-status--warn"><i class="fa-solid fa-triangle-exclamation"></i> {{target.warning}}</p>
+    {{/if}}
 
     <div class="noodlr-field" data-backend="service">
       <label>{{localize "NOODLR.Rag.Secret.Name"}} <span class="noodlr-tag noodlr-tag--service">{{localize "NOODLR.Rag.Tag.ServiceOnly"}}</span></label>
@@ -94,6 +116,7 @@
     <div class="noodlr-settings__actions" data-backend="service">
       <button type="button" data-action="testConnection"><i class="fa-solid fa-plug"></i> {{localize "NOODLR.Rag.TestConnection"}}</button>
     </div>
+    <p class="noodlr-test-status" data-role="rag-test-status" aria-live="polite"></p>
   </fieldset>
 
   {{! ---- Retrieval ---- }}

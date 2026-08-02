@@ -153,6 +153,10 @@ export const MEDIA_SETTINGS = {
 export const RAG_SETTINGS = {
   // Which memory backend is active: "lite" (in-browser, zero-config) or "service" (noodlr-memory).
   backend: "rag.backend",
+  // How the browser reaches noodlr-memory: "proxy" (a path on Foundry's own origin, which is how a
+  // Unix-socket deployment is reachable at all) or "direct" (a full URL to a TCP listener).
+  targetMode: "rag.targetMode",
+  servicePath: "rag.servicePath",
   serviceUrl: "rag.serviceUrl",
   secret: "rag.secret",
   enabled: "rag.enabled",

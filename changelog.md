@@ -2,6 +2,21 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.19
+
+- **Memory service: pick how the browser reaches it.** noodlr-memory listens on either a Unix
+  socket or a TCP port, never both, and a browser cannot open a Unix socket — so a socket
+  deployment is only reachable through the web server that already serves Foundry. Memory
+  Configuration now offers "Behind the Foundry server" (give it the proxied path, e.g. `/memory`)
+  alongside the old direct URL, shows the exact address it will call, and warns when the URL points
+  at `127.0.0.1` — which means your own desktop, not the Foundry host.
+- Test connection now reports into the window instead of a toast that vanishes, and explains
+  unreachable results (socket vs TCP, wrong bind address, missing proxy location, mixed content).
+- Text in Noodlr windows can be selected and copied again; a Foundry style change had started
+  winning over ours.
+- The "Test voice output" box arrives with a sample phrase in it, and refills itself if you empty
+  it, instead of failing the test with nothing to say.
+
 ## 0.4.18
 
 Settings reorganized, and prompts are no longer hidden from you.

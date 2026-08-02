@@ -7,6 +7,7 @@ import { RagClient, type EmbedOverride, type RagConnection } from "./client";
 import type { MemoryBackend } from "./backend";
 import { getLocalMemory } from "./local/local-memory";
 import { DEFAULT_QUERY_SILOS, isSiloId, type SiloId } from "./silos";
+import { getRagTarget } from "./target";
 
 export type RagBackendKind = "lite" | "service";
 
@@ -22,6 +23,11 @@ export function registerRagSettings(): void {
   // Default to "lite": zero-config in-browser memory works out of the box for non-technical
   // tables. Power users switch to "service" (noodlr-memory) for shared, PDF-capable memory.
   game.settings.register(MODULE_ID, S.backend, { ...worldStr, default: "lite" });
+  // How the browser reaches the service. "direct" is the historical behavior and stays the default
+  // so upgrading worlds keep the URL they already entered; "proxy" is the recommendation for anyone
+  // running the service on a Unix socket or on a host the GM's browser can't address directly.
+  game.settings.register(MODULE_ID, S.targetMode, { ...worldStr, default: "direct" });
+  game.settings.register(MODULE_ID, S.servicePath, { ...worldStr, default: "/memory" });
   game.settings.register(MODULE_ID, S.serviceUrl, {
     ...worldStr,
     default: "http://127.0.0.1:3010",
@@ -112,7 +118,9 @@ export async function saveRagSecret(newValue: string, clear: boolean): Promise<v
 
 export function getRagConnection(): RagConnection {
   return {
-    serviceUrl: (game.settings.get(MODULE_ID, RAG_SETTINGS.serviceUrl) as string) ?? "",
+    // Resolved from the target mode: a proxy path becomes an absolute URL on Foundry's own origin,
+    // so error messages name something the GM can paste into a browser.
+    serviceUrl: getRagTarget().effectiveUrl,
     secret: (game.settings.get(MODULE_ID, RAG_SETTINGS.secret) as string) ?? "",
   };
 }

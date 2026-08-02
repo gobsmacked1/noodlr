@@ -120,42 +120,14 @@
 
 /* Foundry sets user-select:none on application windows (they feel app-like and don't drag-select).
    Re-enable text selection for every Noodlr window body so ANY displayed/generated text can be
-   copied to the clipboard. Scoped to .window-content so the draggable title bar is unaffected. */
+   copied to the clipboard — error text especially, which is the thing people most need to paste
+   somewhere. Scoped to .window-content so the draggable title bar is unaffected, and marked
+   !important because core's rule is a moving target across Foundry patch releases: an element-tag
+   selector there once out-specified the enumerated list this replaced. */
 .noodlr .window-content,
-.noodlr
-  .window-content
-  :where(
-    p,
-    span,
-    div,
-    li,
-    ul,
-    ol,
-    dl,
-    dt,
-    dd,
-    table,
-    td,
-    th,
-    pre,
-    code,
-    label,
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6,
-    textarea,
-    input,
-    blockquote,
-    strong,
-    em,
-    small,
-    a
-  ) {
-  user-select: text;
-  -webkit-user-select: text;
+.noodlr .window-content * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 .noodlr-chat__body p {

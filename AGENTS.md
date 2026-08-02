@@ -591,6 +591,31 @@ one unnavigable scrolling form, and prompts were invisible by design. Both fixed
   deliberate (a `CHANGELOG.md` may not match on a case-sensitive filesystem). Keep it user-facing:
   GMs read it, not developers.
 
+**v0.4.19 — memory reachability, window text selection, TTS test phrase.**
+
+- **Two RAG target modes** (`src/rag/target.ts`, settings `rag.targetMode` + `rag.servicePath`,
+  default `direct` so upgrading worlds keep the URL they already had). noodlr-memory listens on
+  EITHER `NOODLR_MEMORY_SOCKET` OR `HOST:PORT` — setting the socket makes it ignore host/port
+  entirely — and a browser cannot open a Unix socket, so the socket deployment is reachable only
+  through a reverse proxy. `proxy` mode stores a path (default `/memory`) and resolves it against
+  `location.origin` at read time; `direct` stores a full URL. Both values persist independently so
+  flipping the picker doesn't erase the other address. `getRagConnection()` returns the resolved
+  URL, so every caller and every error message names something pasteable.
+- **The 127.0.0.1 trap:** the module's default URL is `http://127.0.0.1:3010`, which in a browser is
+  the *GM's own desktop*, not the Foundry host. `inspectRagTarget()` detects loopback-URL-with-remote-
+  Foundry and HTTP-URL-on-an-HTTPS-page before any request, and renders the warning in the window;
+  `ragFailureAdvice()` adds the socket/bind/proxy hints after a failed test. Failures now also land in
+  a persistent status line (`[data-role="rag-test-status"]`), because a toast disappears before a CORS
+  explanation can be read, let alone copied.
+- Both normalizers strip a trailing `/v1` — pasting the full endpoint is the common slip, and
+  `RagClient` appends `/v1` itself.
+- **Window text selection** (`styles/noodlr.css`): the enumerated tag list was replaced by
+  `.noodlr .window-content, .noodlr .window-content *` with `!important`. Core's `user-select: none`
+  rule shifts between Foundry patch releases and had started out-specifying ours; scope stays on
+  `.window-content` so the drag handle in the title bar still drags.
+- TTS "Test voice output" ships with its sample phrase in the box and refills it when emptied
+  (`NOODLR.Media.TtsTest.Sample`) — an empty test submits nothing and reads like a provider fault.
+
 Design forks resolved (user, 2026-07-27):
 - **Adjudication trigger** = LLM tool-call: the players-bot calls `adjudicate(...)` when a request
   needs privileged/hidden info; the STRUCTURED payload (PC, target, skill, rollTotal, question) — not

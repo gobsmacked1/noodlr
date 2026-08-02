@@ -162,9 +162,11 @@ export class NoodlrAudioGenApp extends NoodlrConfigApp {
       return;
     }
 
-    const text =
-      sanitizeUserText(input?.value, { maxLength: 140, allowNewlines: false }) ||
-      game.i18n.localize("NOODLR.Media.TtsTest.Sample");
+    // An empty box would send nothing to synthesize and come back as a provider error, which reads
+    // like a broken endpoint. Put the sample phrase back and show it, so the test stays meaningful.
+    const sample = game.i18n.localize("NOODLR.Media.TtsTest.Sample");
+    const text = sanitizeUserText(input?.value, { maxLength: 140, allowNewlines: false }) || sample;
+    if (input && input.value.trim() !== text) input.value = text;
     const endpoint = `${resolveBaseUrl(cfg)}/audio/speech`;
     setStatus("pending", game.i18n.format("NOODLR.Media.TtsTest.Working", { endpoint }));
 

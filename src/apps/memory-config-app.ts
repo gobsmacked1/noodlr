@@ -6,7 +6,6 @@
 
 import { MODULE_ID, MODULE_TITLE, RAG_SETTINGS, MEDIA_SETTINGS } from "../constants";
 import {
-  getRagConnection,
   getRagClient,
   getRagBackend,
   isRagEnabled,
@@ -19,6 +18,13 @@ import {
   getChatLogConfig,
 } from "../rag/config";
 import { RagClientError } from "../rag/client";
+import {
+  getRagTarget,
+  inspectRagTarget,
+  normalizeServicePath,
+  normalizeServiceUrl,
+  ragFailureAdvice,
+} from "../rag/target";
 import { getProviderView, saveProviderFromForm, type ProviderFormData } from "../providers/config";
 import { getPushToLogConfig } from "../media/config";
 import { wireProviderBlocks } from "./provider-ui";
@@ -66,6 +72,7 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
     const push = getPushToLogConfig();
     const chatLog = getChatLogConfig();
     const backend = getRagBackend();
+    const target = getRagTarget();
 
     return {
       moduleTitle: MODULE_TITLE,
@@ -76,7 +83,13 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
       backendService: backend === "service",
 
       enabled: Boolean(g(RAG_SETTINGS.enabled)),
-      serviceUrl: getRagConnection().serviceUrl,
+      target: {
+        ...target,
+        isProxy: target.mode === "proxy",
+        isDirect: target.mode === "direct",
+        origin: globalThis.location?.origin ?? "",
+        warning: backend === "service" ? inspectRagTarget(target) : null,
+      },
       hasSecret: hasRagSecret(),
 
       hybrid: tuning.hybrid,
@@ -116,6 +129,7 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
     if (root) {
       wireProviderBlocks(root);
       wireBackendGraying(root);
+      wireTargetMode(root);
     }
     installHeaderSaveButton(this);
   }
@@ -132,7 +146,11 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
     // Connection
     await set(RAG_SETTINGS.backend, o.backend === "service" ? "service" : "lite");
     await set(RAG_SETTINGS.enabled, Boolean(o.enabled));
-    await set(RAG_SETTINGS.serviceUrl, String(o.serviceUrl ?? "").trim());
+    await set(RAG_SETTINGS.targetMode, o.targetMode === "proxy" ? "proxy" : "direct");
+    // Both fields are kept whatever the mode, so flipping the picker back and forth doesn't erase
+    // the address you're not currently using.
+    await set(RAG_SETTINGS.servicePath, normalizeServicePath(String(o.servicePath ?? "")));
+    await set(RAG_SETTINGS.serviceUrl, normalizeServiceUrl(String(o.serviceUrl ?? "")));
     await saveRagSecret(String(o.secret ?? ""), Boolean(o.secretClear));
 
     // Retrieval tuning
@@ -179,18 +197,40 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
   }
 
   static async #onTest(this: NoodlrMemoryConfigApp): Promise<void> {
-    if (!isRagEnabled()) {
-      ui.notifications?.warn(game.i18n.localize("NOODLR.Rag.NotEnabled"));
+    // Results also land in a status line inside the window: a notification toast disappears before
+    // you can read a CORS explanation, let alone copy it.
+    const status = this.#root()?.querySelector<HTMLElement>('[data-role="rag-test-status"]');
+    const setStatus = (kind: "pending" | "ok" | "warn" | "error", text: string) => {
+      if (!status) return;
+      status.className = `noodlr-test-status noodlr-test-status--${kind}`;
+      status.textContent = text;
+    };
+
+    // A missing or nonsensical address reads as "not enabled" through isRagEnabled(), which is not
+    // what's wrong — say what's actually missing instead.
+    const target = getRagTarget();
+    const problem =
+      getRagBackend() === "service" && !target.effectiveUrl ? inspectRagTarget(target) : null;
+    if (problem || !isRagEnabled()) {
+      const msg = problem ?? game.i18n.localize("NOODLR.Rag.NotEnabled");
+      setStatus("warn", msg);
+      ui.notifications?.warn(msg);
       return;
     }
+
+    setStatus("pending", game.i18n.format("NOODLR.Rag.Testing", { url: target.effectiveUrl }));
     try {
       const health = await getRagClient().health();
-      ui.notifications?.info(
-        game.i18n.format("NOODLR.Rag.TestOk", { backend: health.backend ?? "?" }),
-      );
+      const msg = game.i18n.format("NOODLR.Rag.TestOk", { backend: health.backend ?? "?" });
+      setStatus("ok", msg);
+      ui.notifications?.info(msg);
     } catch (err) {
-      const msg = err instanceof RagClientError ? err.message : String(err);
-      ui.notifications?.error(game.i18n.format("NOODLR.Rag.TestFail", { error: msg }));
+      const detail = err instanceof RagClientError ? err.message : String(err);
+      // Unreachable is the interesting case: say which address was tried and why it may be wrong.
+      const advice =
+        err instanceof RagClientError && !err.status ? ` ${ragFailureAdvice(target)}` : "";
+      setStatus("error", `${detail}${advice}`);
+      ui.notifications?.error(game.i18n.format("NOODLR.Rag.TestFail", { error: detail }));
     }
   }
 
@@ -209,6 +249,32 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
  * the graying is purely a "this setting isn't active right now" signal. Reacts live to the
  * backend <select> without needing a save/re-render.
  */
+/**
+ * Show only the address field that the selected target mode uses, and keep the resolved URL preview
+ * honest as the GM types — "what will actually be fetched" is the question the old single URL box
+ * couldn't answer.
+ */
+function wireTargetMode(root: HTMLElement): void {
+  const select = root.querySelector<HTMLSelectElement>('select[name="targetMode"]');
+  const pathInput = root.querySelector<HTMLInputElement>('input[name="servicePath"]');
+  const preview = root.querySelector<HTMLElement>('[data-role="target-preview"]');
+  if (!select) return;
+
+  const apply = () => {
+    root.querySelectorAll<HTMLElement>("[data-target-mode]").forEach((el) => {
+      el.style.display = el.dataset.targetMode === select.value ? "" : "none";
+    });
+    if (preview) {
+      const origin = globalThis.location?.origin ?? "";
+      const path = normalizeServicePath(pathInput?.value ?? "");
+      preview.textContent = path ? `${origin}${path}/v1/health` : origin;
+    }
+  };
+  apply();
+  select.addEventListener("change", apply);
+  pathInput?.addEventListener("input", apply);
+}
+
 function wireBackendGraying(root: HTMLElement): void {
   const select = root.querySelector<HTMLSelectElement>('select[name="backend"]');
   const apply = (backend: string) => {
