@@ -115,8 +115,8 @@
   "NOODLR.Settings.Enabled.Name": "Enable Noodlr",
   "NOODLR.Settings.Enabled.Hint": "Turn Noodlr's features on or off for this world.",
 
-  "NOODLR.Settings.ChatContinueAfterRoll.Name": "Continue after dice rolls",
-  "NOODLR.Settings.ChatContinueAfterRoll.Hint": "After a GM reply that rolls dice, automatically ask the GM to continue once from the authoritative results.",
+  "NOODLR.Settings.ChatContinueAfterRoll.Name": "React to dice results (GM chat panel)",
+  "NOODLR.Settings.ChatContinueAfterRoll.Hint": "Your assistant never rolls its own dice — it writes a macro and Foundry rolls it for real. But by then its reply is finished, so it has not seen the number. This sends the totals back once so it can narrate what actually happened. Turn it off and a reply that rolls dice ends at the bare result, with no outcome. Costs at most one extra request per turn, and Retry still resends your original message. Does not affect AI-run NPC turns.",
 
   "NOODLR.Settings.AssistantName.Name": "The GM assistant's name",
   "NOODLR.Settings.AssistantName.Hint": "What to call Noodlr's assistant in both chat panels and on the chat cards it posts. Up to 64 plain characters. Default: Polly Histor.",
@@ -510,6 +510,7 @@
   "NOODLR.Combat.RunTurn": "Noodlr: run current NPC turn",
   "NOODLR.Combat.Running": "Noodlr: running {name}'s turn…",
   "NOODLR.Combat.Failed": "NPC turn failed: {error}",
+  "NOODLR.Combat.Empty": "{name}'s turn produced nothing to post — check the chat model and the combat prompt.",
   "NOODLR.Combat.NoCombat": "No active combat.",
   "NOODLR.Combat.NoCombatant": "No current combatant.",
   "NOODLR.Combat.IsPC": "The current combatant is a player character — Noodlr won't act for PCs.",

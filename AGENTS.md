@@ -186,6 +186,61 @@ Key engineering doctrines from it that shape the *module's* architecture:
 - Rules questions during combat hit the `rules` silo automatically.
 - Deliverable: run a full combat where Noodlr narrates and Midi QoL resolves.
 
+### Phase 7 — Autonomous NPC combatants (the "combat dossier" subsystem)
+
+Spec agreed with the user 2026-08-02. The largest feature in the module, built in layers, each one
+shippable alone. Goal: hostile combatants that behave plausibly *for what they actually are* —
+partially aware of the rules (via the `system_rules` silo) and fully aware of their own sheet
+(movement, abilities, feats, spells, inventory, consumables). Worked examples the user set as the
+bar: a skeletal archer that runs out of arrows, switches to a melee weapon, and closes to reach; a
+caster that heals itself or an ally; a bloodied, intelligent creature that flees or drinks a potion
+rather than dying in place.
+
+Why today's "Act as NPC" cannot do any of that: `runCurrentNpcTurn()` makes ONE completion, asks for
+"their single action", and injects only the combat-tracker block — which carries initiative, HP
+tiers, and conditions, and explicitly says positions are narrative zones. **The creature's own
+capabilities are never sent.** The model improvises a statblock from the creature's name, on a
+battlefield it cannot see, without ever seeing a die result (macros resolve after generation). Three
+missing inputs, one missing loop. Not a prompt-wording problem.
+
+Organizing principle: **we count, the model reasons, the automation modules resolve.** Noodlr never
+learns what a "bonus action" is. It reads the actor's items as Foundry stores them, including the
+system's own activation labels, and enforces only what is checkable as data — does this ability exist
+on this actor, does it have uses/ammo left, has that activation slot already been spent this turn.
+Meaning stays with the model plus the rules silo. Principle #1 survives intact.
+
+**The dossier** (user's term and framing): each hostile combatant gets a briefing generated from its
+sheet, live for the duration of the skirmish and discarded at death or combat end. Volatile numbers
+(uses, ammo, HP) are re-read every turn — a cached count is a wrong count the moment something is
+spent — while accumulated *notes* (what it did on previous turns, morale state) persist for the
+combat only.
+
+Layers:
+
+- **N1 — Dossier + perception briefing.** `src/combat/system-profiles.ts` (candidate-path data table,
+  D&D 5e filled in first, generic probing fallback — user chose the profile approach) and
+  `src/combat/dossier.ts`. Read-only; no behavior change beyond the model finally knowing its own
+  statblock. Includes the closing constraint "only these abilities exist" — the anti-improvisation clause.
+- **N2 — The turn loop.** Replace the single completion with propose → resolve dice → feed authoritative
+  results back → next step, until the model writes END TURN or a step cap trips. Same shape as the GM
+  chat continuation, generalized; multiattack, bonus actions, and move-then-shoot fall out of it.
+- **N3 — Structured intents + legality gate + execution.** The model proposes intents rather than prose;
+  the module validates them against the activation budget and the actor's real item list, then executes
+  through the item's own use path so Midi QoL/DAE/CPR resolve the mechanics. GM approval on by default.
+  Execution sits behind a thin adapter with a narrate-only fallback, because `item.use()` is dnd5e-shaped.
+- **N4 — Cognition tiers from the sheet** (user chose auto-from-INT/WIS with a per-actor override). The
+  strongest lever is *information scope*, and it is free: a beast is told only what it perceives (nearest
+  threat, who hurt it last, whether it is badly hurt), a tactician gets the full tracker, ally intent, and
+  what `npc_state` remembers about the party. Doctrine text, planning depth, and self-critique scale with
+  it; low tiers can route to a cheaper model, which matters when eight skeletons each take a turn.
+  Deliberate blunders come from a real seeded Foundry roll, not from temperature, so they are auditable
+  and reproducible in tests.
+- **N5 — Positioning.** Movement, cover, line of sight, morale/retreat, and coordination between
+  high-intelligence enemies. Hardest layer; deliberately last.
+
+Still refused, per principle #2: damage application, condition management, concentration, attack
+resolution. Those are Midi QoL's job and always will be.
+
 ### Phase 6 — Packaging & cutover
 
 - README, manifest + release URLs (release scheme: `https://github.com/gobsmacked1/noodlr/releases/download/v<version>/module.zip`; manifest at `.../releases/latest/download/module.json`), version to 1.0.0 at parity.
@@ -591,6 +646,61 @@ one unnavigable scrolling form, and prompts were invisible by design. Both fixed
   `docs/changelog.*`, matched against real filenames from `FilePicker.browse` — so the lowercase name is
   deliberate (a `CHANGELOG.md` may not match on a case-sensitive filesystem). Keep it user-facing:
   GMs read it, not developers.
+
+**v0.4.21 — N1 (combat dossier) and N2 (the turn loop) shipped.**
+
+See "Phase 7" above for the whole design. What landed, and where the seams are — this feature is
+being built in layers on purpose, so each release records what to distrust and how far back to go.
+
+Shipped:
+
+- `src/combat/system-profiles.ts` — candidate-path table (dnd5e/pf2e + generic fallbacks) with
+  `pick`/`pickNumber`/`pickString`. Where the numbers live, not what they mean.
+- `src/combat/dossier.ts` — live per-turn read of the combatant's sheet; per-combat notes cleared on
+  death (`updateCombatant` with `defeated`) and combat end (`deleteCombat`), wired in `module.ts`.
+- `src/combat/npc-turn.ts` — the loop: one beat per pass, real rolls fed back as authoritative totals,
+  `END TURN` sentinel, `MAX_TURN_STEPS = 4`, one chat post and one TTS for the whole turn.
+- `DEFAULT_COMBAT_PROMPT` rewritten for per-beat play. **Existing worlds keep the old text**, because
+  0.4.18 seeds prompt defaults into settings — a GM must press Reset on the Combat NPC-turn prompt or
+  the saved "keep it to 1-2 tight paragraphs and end by yielding the turn" fights the loop.
+
+Reservations and known gaps (in rough order of how likely each is to bite):
+
+- **Cost multiplier.** Up to 4 provider requests per NPC turn, per combatant. Eight skeletons is up to
+  32 requests a round. `MAX_TURN_STEPS` is a constant with no UI and no per-combatant opt-out; the
+  cheap-model routing that makes this affordable is N4. If a horde fight is unaffordable, this is the
+  regression to look at first.
+- **No stop button.** The GM chat panel can abort a stream; an NPC turn cannot. A model that keeps
+  finding one more thing to do bills the full cap before you can intervene.
+- **`END TURN` is regex-detected in prose.** A creature that narrates "she moves to end the turn" ends
+  early. Structured intents (N3) remove the ambiguity; until then, early stops are expected occasionally.
+- **Nothing streams to the table.** The whole turn appears at once after every beat resolves, so a
+  four-beat turn feels slower than the old single message even though it does more.
+- **System coverage is untested beyond reading the data shapes.** dnd5e paths are written from its
+  known layout, pf2e from knowledge rather than a live world, and everything else leans on generic
+  candidates. Unreadable fields are omitted silently — which means a sparse dossier on an exotic system
+  looks like "this creature has nothing," and the prompt will faithfully play it as having nothing.
+  There is no diagnostics view of the generated dossier yet; that would be the cheapest next safeguard.
+- **`labels.*` only exist after `prepareData`.** We fall back to raw fields, so an item may read
+  `action` instead of "Action" — cosmetic, but it is the wording the model reasons over.
+- **Silent truncation at `MAX_ACTIONS = 40`.** A spell-heavy caster can lose options with no marker in
+  the block saying the list was cut.
+- **dnd5e 4.x uses-field flip** (handled, but worth watching): `system.uses` became a *spent* count.
+  `readSupply` prefers a true remainder and derives `max - spent` otherwise. If a world reports
+  backwards charge counts, this is the line to check.
+- **Notes are per-client memory.** Two GM clients each keep their own dossier notes, so whoever clicks
+  the button sees only the turns their own client ran. Fine today (one GM runs combat), wrong the day
+  two do.
+- **NPC turns still never query the rules silo.** Phase 5 promised rules retrieval during combat and
+  this path has none — the creature knows its sheet and the tracker, not the rules. Deliberate for now
+  (latency, and retrieval is async while the loop is already long); revisit with N3.
+- **No execution.** Nothing is spent, moved, healed, or applied. Ammunition counts read correctly but
+  are only reported; the archer that "fires" still has the same arrow count next turn until Midi QoL or
+  the GM changes it. That is N3, and it is the layer where a bug can actually damage a world's state.
+
+Revert map: N1+N2 are additive except for `npc-turn.ts` (rewritten) and `DEFAULT_COMBAT_PROMPT`. To
+get the old one-shot NPC turn back, revert the v0.4.21 commit; nothing else in the module imports the
+dossier, and `registerDossierCleanup()` is a no-op if the files are gone.
 
 **v0.4.20 — the rules system is stated, and memory has a truth hierarchy.**
 

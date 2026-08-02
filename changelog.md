@@ -2,6 +2,28 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.21
+
+NPC turns stop being one blind swing. First of several passes — expect rough edges.
+
+- **Creatures now know their own sheet.** An AI-run turn is given a dossier built live from the
+  combatant: movement and alternate speeds, senses, defenses, mental scores, and every weapon, spell,
+  feature, and consumable it carries, with remaining charges and ammunition counts. Previously the
+  model was handed initiative and hit points and had to guess a statblock from the creature's name,
+  which is why enemies invented abilities and forgot the ones they had.
+- **A turn is now a turn, not a single action.** The creature narrates one beat, Foundry rolls the
+  dice for real, the actual totals go back to it, and it decides what to do with the rest of its turn
+  — up to four beats. Multiattack, a bonus action, or firing and then moving to cover all work now,
+  and nothing describes an outcome before the die is rolled.
+- Creatures remember what they did earlier in the same fight, and forget it when they die or the
+  fight ends.
+- **If you have used Noodlr before, press Reset on the "Combat NPC-turn system prompt"** in Text
+  Generation. Your saved copy still tells creatures to take one action and yield.
+
+Known limits this round: a turn can cost up to four requests per creature, so a large horde gets
+expensive; there is no stop button once a turn starts; and nothing is spent or applied automatically
+yet — arrows fired are narrated, not deducted. Execution comes next.
+
 ## 0.4.20
 
 Your rules system is now stated, not guessed.

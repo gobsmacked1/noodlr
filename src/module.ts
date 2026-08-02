@@ -35,6 +35,7 @@ import { refreshPushToLogButton, pushToLog, type TranscriptPayload } from "./med
 import { registerArtifactHooks, handleArtifactSocket } from "./output/artifacts";
 import { initChatSniffer } from "./log/chat-sniffer";
 import { initAdjudicationCapture } from "./players/adjudication";
+import { registerDossierCleanup } from "./combat/dossier";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 import {
   PLAYER_ASK,
@@ -180,6 +181,9 @@ Hooks.once("ready", () => {
     initChatSniffer();
     // Players-bot adjudication: capture player rolls from chat to resolve pending checks.
     initAdjudicationCapture();
+    // Combat dossiers live only for the skirmish: forget a creature's turn history when it dies
+    // or the fight ends.
+    registerDossierCleanup();
   }
 });
 
