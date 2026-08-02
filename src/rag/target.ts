@@ -1,8 +1,9 @@
 // Where the browser should send noodlr-memory requests, and why it might not arrive.
 //
-// The service listens on EITHER a Unix socket OR a TCP port, never both. A browser cannot open a
-// Unix socket at all, so the socket deployment is only reachable through a reverse proxy — which,
-// from the page's point of view, is just a path on Foundry's own origin. Hence two modes:
+// A browser cannot open a Unix socket at all, so a service reached over one is only usable through
+// a reverse proxy — which, from the page's point of view, is just a path on Foundry's own origin.
+// (noodlr-memory <=1.0 also disabled TCP whenever a socket was configured, making the proxy the
+// only route; 1.1 binds both.) Hence two modes:
 //
 //   proxy  — "/memory" on Foundry's origin. Works with the socket deployment, inherits Foundry's
 //            TLS, and is same-origin so no CORS and no preflight.
