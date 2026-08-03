@@ -42,6 +42,7 @@ import { registerAutomationCleanup } from "./combat/auto/registry";
 import { registerAutomationTurnHook } from "./combat/auto/hooks";
 import { registerEncounterTracking } from "./combat/auto/encounter";
 import { restoreForfeited } from "./combat/systems/dnd5e-rewards";
+import { loadBanter } from "./combat/banter/library";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 import {
   PLAYER_ASK,
@@ -198,6 +199,8 @@ Hooks.once("ready", () => {
     registerAutomationTurnHook();
     // Watches whether the party is still swinging, which is what mercy hangs on.
     registerEncounterTracking();
+    // Parsed once; a missing file just means silent monsters.
+    void loadBanter();
   }
 });
 

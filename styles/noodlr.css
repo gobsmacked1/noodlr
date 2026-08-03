@@ -860,3 +860,13 @@
 .noodlr-backend-note {
   font-style: italic;
 }
+
+/* An automated creature's taunt: set apart from its narrated action so the table can tell speech
+   from description at a glance. */
+.noodlr-banter {
+  font-style: italic;
+  color: var(--color-text-dark-primary, #191813);
+  border-left: 3px solid rgba(120, 46, 34, 0.7);
+  padding-left: 0.5em;
+  margin: 0.25em 0;
+}

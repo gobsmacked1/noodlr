@@ -379,7 +379,24 @@ Reservations and known gaps:
 - **Aggression is inferred from players rolling dice** during combat, which is what mercy hangs on.
   A proxy, and deliberately a generous one: a false positive costs a withheld mercy, a false negative
   spares a party that is still stabbing. Needs round ≥ 2, so it cannot fire on the opening round.
-- **Reactions and legendary actions are readable but not yet triggered.** Recharge state is honored
+- **Banter** (`combat/banter/`, user-supplied library 2026-08-03). `banter/banter.txt` ships in the
+  package and is **fetched at runtime, not bundled**, so a GM can edit, cut, or translate lines in
+  place with no build step. Missing file = silent monsters, never an error.
+  - Frequency: `INT + 2·CHA − 2·WIS`, clamped 0-10, 10% per point. The signs look wrong until you
+    read the user's reasoning: cleverness makes a creature pleased with its own commentary, charisma
+    makes it a show-off (doubled), and wisdom is knowing when to shut up (subtracted, doubled).
+  - Hard gate: **no language, no lines**, whatever the modifiers say.
+  - **Banter draws from its own seeded RNG stream** (`auto/random.ts`, stream `"banter"`). If it
+    shared the tactics stream, switching banter off would shift every subsequent number and silently
+    change what creatures *do*. Any future per-turn randomness needs its own stream for the same reason.
+  - Tagging is by section heading plus per-line detection, with ancestry words LATCHING onto the
+    following lines (the race section names a race once and then continues about it). A wrong-ancestry
+    or wrong-sex taunt scores 0 — excluded outright, not merely disfavoured, because "Elf!" thrown at
+    a dwarf is worse than silence. Gender markers are deliberately few: `hag-seed` is neutral (it is
+    the *spawn* of a hag, aimed at Caliban) and `fellows` is a crowd, both verified against the file.
+  - Speech follows the table's existing TTS switch; banter never enables voice on its own.
+- **Reactions and legendary actions are readable but not yet triggered** — which also means the
+  "or during a reaction" half of the banter trigger is unbuilt; turn-start only today. Recharge state is honored
   (a spent breath weapon is not offered). Reactions, counterspell, and legendary actions all fire on
   *other* creatures' turns, which needs an off-turn hook and a cost model the sheet does not state
   machine-readably. Tier 1 grants the access; the trigger layer is still to build.
@@ -398,7 +415,7 @@ Reservations and known gaps:
 
 - TypeScript, esbuild bundle to `dist/`; `module.json` id **`noodlr`** (do not install alongside the legacy reference module in the same world).
 - Format: prettier (printWidth 100). Validate: `npm run check` (tsc) + build before commit. Small commits at working checkpoints.
-- **Release cadence (2026-07-25):** the `-rcN` prerelease series is retired. Every shipped change is a normal incremented release (`v0.4.0`, `v0.4.1`, ...) cut with `gh release create` **without `--prerelease`** — Foundry's auto-update reads `releases/latest/download/module.json`, and GitHub excludes prereleases from "latest", so rc URLs were never picked up. Per release: bump `version` in `package.json` + `module.json`, point `module.json.download` at the new tag, `npm run check`/`lint`/build, package `module.zip` (module.json, LICENSE, README.md, changelog.md, dist, lang, styles, templates — including `templates/partials/` —, prompts, models), commit, tag, `gh release create <tag> module.zip module.json`. Add the release's notes to `changelog.md` (lowercase; Big Bad Module Manager reads it). Bump to 1.0.0 at feature parity.
+- **Release cadence (2026-07-25):** the `-rcN` prerelease series is retired. Every shipped change is a normal incremented release (`v0.4.0`, `v0.4.1`, ...) cut with `gh release create` **without `--prerelease`** — Foundry's auto-update reads `releases/latest/download/module.json`, and GitHub excludes prereleases from "latest", so rc URLs were never picked up. Per release: bump `version` in `package.json` + `module.json`, point `module.json.download` at the new tag, `npm run check`/`lint`/build, package `module.zip` (module.json, LICENSE, README.md, changelog.md, dist, lang, styles, templates — including `templates/partials/` —, prompts, models, **banter**), commit, tag, `gh release create <tag> module.zip module.json`. Add the release's notes to `changelog.md` (lowercase; Big Bad Module Manager reads it). Bump to 1.0.0 at feature parity.
 - Windows host gotcha: the file-Write tool intermittently emits new files as UTF-16LE — after creating any file, verify the first bytes are UTF-8 and convert if needed. Watch CRLF/LF (.gitattributes) since Foundry servers are often Linux.
 - Never store secrets in this file or in module settings defaults.
 

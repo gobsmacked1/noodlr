@@ -1,0 +1,504 @@
+# Battlefield Taunts for Fantasy RPG NPCs
+
+# Spellcaster taunts
+Your fireball wouldn't warm a bowl of soup!
+That wand is just a stick with delusions!
+Your familiar is embarrassed to be seen with you!
+That's not a spell, that's a sneeze with ambition!
+I have unlearned better magic than you will ever cast!
+Your ley lines are knotted, amateur!
+Your spellbook is mostly recipes, isn't it?
+Go conjure yourself some dignity!
+Your teleport put you in a hedge last time, didn't it?
+Your mana pool is a puddle!
+Your scrying mirror only shows disappointment!
+Your aura smells like burnt hair and regret!
+Your arcane focus is a soup spoon with a gem glued on!
+Prestidigitate yourself a spine, coward!
+Your master faked his own death to escape teaching you!
+
+# Martial taunts
+You swing like you're shooing bees!
+That sword is more rust than steel!
+You parry with your face, I see!
+I have been struck harder by weather!
+You couldn't hit a barn from the inside!
+You fight like a scarecrow in a strong wind!
+Your armor squeaks louder than it protects!
+Try holding the pointy end AWAY from yourself!
+You've got the reach of a toddler!
+I've fought training dummies with more initiative!
+You lunge like you're reaching for the last pastry!
+Somebody give this one a wooden practice sword and a nap!
+Even the ground you fall on is unimpressed!
+You throw daggers like you're seeding a field!
+You bleed too loudly!
+
+# Misc taunts
+A basilisk would look away out of pity!
+You smell like a troll's laundry day!
+A giant rat once beat you at chess, didn't it?
+You gelatinous embarrassment!
+You have the charisma of a bog!
+Slimes leave the room when you enter!
+Even a zombie has better posture!
+Dire wolves see you and choose the salad!
+A dragon wouldn't waste the breath!
+You lily-livered lamp-lighter!
+You spineless boot-scraper!
+Your courage went on ahead without you!
+You're the reason your side has a retreat plan!
+Your ancestors are all quietly leaving the hall!
+You couldn't hold a line with rope and nails!
+Even your shadow is backing away!
+Go back to guarding the vegetable cellar!
+Your knighthood was a clerical error!
+You're a rumor of a warrior!
+Your war banner is a dish towel of surrender!
+Beg prettier and I'll consider it!
+You have the fighting spirit of a moist rag!
+Your skull is doing an impression of an empty barrel!
+You've the wit of a doorstop and half the function!
+You couldn't spell your own name with the letters handed to you!
+Your head is entirely load-bearing!
+You lost an argument with a signpost!
+You've the reasoning of a soup!
+Your plan has holes you could sail a longship through!
+You're proof that helmets should come with instructions!
+You have all the depth of a dinner plate!
+Your intellect is a rumor started by kind friends!
+You once got lost in a straight hallway!
+Your inner voice gave up and moved out!
+Your head is a hollow gourd with opinions!
+Your beard looks like a squirrel lost a fight in it!
+That helmet makes your head look like a soup pot with regrets!
+Did a blind tailor curse you personally?
+Your boots have seen more manure than roads!
+Your face looks like a dropped pie!
+That haircut is a war crime in three kingdoms!
+You look like you were assembled in a hurry!
+You've got a face made for helmet-wearing!
+Bathe! I'm choking here!
+Your teeth have gaps you could park a cart in!
+You look like a portrait painted from a bad description!
+That mustache is doing all the work and losing!
+You wear that tabard like a bib!
+Sell some of that junk and buy a spine!
+That potion belt is just colored water and hope!
+You looted that armor off someone better!
+Your bedroll is worth more than your sword!
+Your coin purse jingles with disappointment!
+Your quiver's empty--like your head!
+Go fetch someone ten wolf pelts, errand-boy!
+You take jobs off tavern walls like a stray dog takes scraps!
+Adventurer? You're a well-armed tourist!
+Go stab rats in a cellar!
+Bards charge extra to leave you out of songs!
+You're the fourth party I've slain this week, and by far the easiest!
+Your "heroic deeds" are mostly deliveries!
+Somebody's been reading the wrong prophecy!
+Go loot a barrel!
+Every farmer in the valley has a chore list with your name on it!
+From whose corpse did you acquire that title?
+
+# Curses & Malicious Wishes
+The red plague rid you for learning me your language!
+A south-west blow on ye and blister you all o'er!
+As wicked dew as e'er my mother brushed with raven's feather from unwholesome fen drop on you both!
+All the infections that the sun sucks up light on you!
+Live loathed and long, most smiling, smooth, detested parasites!
+You fools of fortune, trencher-friends, time's flies!
+Vengeance rot you all!
+The gods confound thee!
+A pox of that jest!
+Now the rotten diseases of the south light upon such preposterous discoveries!
+Would the fountain of your mind were clear again, that I might water an ass at it!
+May your toast always land butter-side down!
+May every inn you enter be full!
+May your socks be perpetually damp!
+May your saddle chafe in new and inventive places!
+May your horse quietly despise you!
+May your ale be warm and your bed be cold!
+May a gull find your shiny helmet!
+May your boots fill with invisible pebbles!
+May every bard in the realm learn your embarrassing verse!
+May your maps all be from last century!
+May the last stair always surprise you!
+May all your rations taste faintly of fish!
+
+# Rogue taunt
+Sneaky? I heard you three hills ago!
+You pick locks like you're knitting!
+Your "backstab" was a firm nudge!
+
+# Bard taunt
+Play something, so I know where to swing!
+Your rhymes are crimes!
+That lute needs mercy, not tuning!
+You inspire nothing but silence!
+
+# Cleric taunt
+Pray louder, your god's clearly busy!
+Your holy symbol is bent and so is your faith!
+That blessing smelled like onions!
+Heal them faster, I can do this all day!
+
+# Ranger taunt
+Tracked us for two days and still arrived confused!
+Your animal companion is embarrassed for you!
+You couldn't find a bear shitting in the woods!
+Nice camouflage!
+
+# Barbarian taunt
+All that yelling and still so gentle!
+Rage harder, it's the only skill you have!
+You have arms like tree trunks and thoughts like twigs!
+Put a shirt on...no one wants to see that hairy gut!
+
+# Paladin taunt
+Your oath has more clauses than a merchant's contract!
+Shining armor, dull mind!
+Preach at me again and I'll fall asleep on your sword!
+Your virtue is very loud for something so untested!
+
+# Monk taunt
+Punching harder won't fix that haircut!
+All that breathing and you still can't reach me!
+Your inner peace is showing!
+Nice robes, jackass!
+
+# Druid taunt
+Turn yourself into something useful, like a chamberpot!
+You smell like a compost heap with ideals!
+Talk to the trees — they'll tell you to leave!
+Your bear form has fewer fleas than you!
+
+# Necromancer taunt
+Your undead summons are less emo than you!
+Even the dead file complaints about you!
+Raise something that can fight next time!
+
+# Fantasy Race & Trope Jabs
+Elf! Go stare meaningfully at a leaf!
+Two hundred years old and still this bad?
+Dwarf! Your beard is longer than your patience and shorter than your temper!
+Halfling! Fight from a stool, will you?
+Second breakfast won't save you now!
+Orc! All that muscle and you still can't open a jar!
+Gnome! You're a hat with legs!
+Half-elf, all-disappointment!
+Tiefling! Those horns are the pointiest thing about you!
+Dragonborn! You breathed at me and I got mildly humid!
+
+# Food & Tavern
+Your cooking killed more allies than your sword!
+You reek of the cheese and boiled cabbage!
+
+# Family & Ancestry
+Your family crest is a shrug on a shield!
+Your mother was a hamster and your father smelt of elderberries!
+Your ancestors are having a meeting about you right now!
+Your lineage is impressive; the descent has been steep!
+
+# Bureaucratic, Guild & Merchant
+File a complaint! Posthumously!
+Take a number, hero — the line to die starts here!
+Even the merchants haggle you down out of pity!
+
+# Short Barks & Snarls
+Bucket-head!
+Turnip!
+Bootlicker!
+Windbag!
+Sawdust-skull!
+Yield, worm!
+Softhands!
+Rust-bucket!
+Amateur!
+Fetch-boy!
+Down you go!
+Squire!
+Off with you, gnat!
+Coxcomb!
+Clotpoll!
+Coystrill!
+Cullion!
+Rampallian!
+Fustilarian!
+Scullion!
+Loon!
+Whey-face!
+Malt-worm!
+Moldwarp!
+Gudgeon!
+Puttock!
+Nut-hook!
+Mumble-news!
+Jack-a-napes!
+Varlet!
+Caitiff!
+Patch!
+Capon!
+Malt-horse!
+Mome!
+Gull!
+Dolt!
+Kite!
+Cur!
+Slave!
+Minion!
+Rogue!
+Hilding!
+Hag-seed!
+Moon-calf!
+Bed-presser!
+Beef-wit!
+Starveling!
+Prattling gabblers!
+Lickorous gluttons!
+Freckled bittors!
+Mangy rascals!
+Shite-a-bed scoundrels!
+Drunken roysters!
+Sly knaves!
+Drowsy loiterers!
+Slapsauce fellows!
+Slabberdegullion druggels!
+Lubberly louts!
+Cozening foxes!
+Ruffian rogues!
+Paltry customers!
+Sycophant-varlets!
+Drawlatch hoydens!
+Flouting milksops!
+Jeering companions!
+Staring clowns!
+Forlorn snakes!
+Ninny lobcocks!
+Scurvy sneaksbies!
+Fondling fops!
+Base loons!
+Saucy coxcombs!
+Idle lusks!
+Scoffing braggarts!
+Noddy meacocks!
+Blockish grutnols!
+Doddipol-joltheads!
+Jobbernol goosecaps!
+Foolish loggerheads!
+Flutch calf-lollies!
+Grouthead gnat-snappers!
+Lob-dotterels!
+Gaping changelings!
+Codshead loobies!
+Woodcock slangams!
+Ninny-hammer flycatchers!
+Noddypeak simpletons!
+Turdy-gut!
+Shitten shepherds!
+Go eat your coarse unranged bread, not these dainty cakes!
+Thou art pretty well crest-risen this morning!
+Thou didst eat yesternight too much millet and bolymong!
+How long is it since you have got horns, that you are become so proud?
+Thick mist-swallowers!
+Sneaking jobernol!
+Gulligut friar and true bacon-picker!
+Loggerheaded physicians, nuzzled in the brabbling shop of sophisters!
+A race of loobies!
+Ninnywhoop!
+Thou great looby!
+Maroufle rogues!
+Thou unworthy swillpot!
+Farewell, master tattler.
+Externally devoted apes, base snites!
+Puffed-up, wry-necked beasts, worse than the Huns!
+Cursed snakes, dissembled varlets, seeming saints!
+Slipshod caffards, beggars pretending wants!
+Fat chuff-cats, smell-feast knockers, doltish gulls!
+Out-strouting cluster-fists, contentious bulls!
+Pelf-lickers, everlasting gatherers, gold-graspers, coin-gripers, gulpers of mists!
+Niggish deformed sots! You clunch-fist dastards!
+Chichy sneakbill rogues! Ravenous dogs!
+Raisers of garboils! Firebrands of household broils!
+Lazy slugs, envious, covetous!
+Ugly lusks, and persons of disgrace!
+Your filthy trumperies, stuffed with pernicious lies, not worth a bubble!
+Anoint a villain, he will prick you; prick a villain, and he will anoint you.
+You are like the Melun eels: you cry before they come to you.
+He knows better how to empty the flagons, that is his art.
+He that grips too much holds fast but little.
+Cheater!
+Bawd!
+Cow-herd!
+Conjurer!
+Cutpurse!
+Witch!
+Thou vermin, have I ta'en thee out of dung?
+Thou wast no living thing would keep thee company but a spider, or worse.
+You might talk softlier, rascal.
+She-bear!
+Mother o' the bawds!
+Thou wretched thing of blood!
+Thou art a box of worm-seed, a salvatory of green mummy.
+Thieving bard, vile beggar with thy rags!
+Mandrake! Mannikin!
+Scabbed shite-bird and common scrounger!
+Gallows-bird with the wan visage!
+Thou crop and root of all trumpery!
+Thou peepest like a mouse amongst thorns.
+Thou darest not fight, dastard thou only speirest!
+
+# Proverbial & Period Formulae
+Thou art bought and sold.
+Go teach thy grandam to spin.
+Yield thee, coward, and live to be the show and gaze o' the time.
+Lay on, and damned be him that first cries "Hold, enough!"
+Come, brother, let us to the highest of the field.
+I'll tickle your catastrophe!
+Will you be so good, scald knave, as eat it?
+I'll knock your knave's pate.
+Marry, sir, we'll teach you to drink deep ere you depart.
+Thou art the son and heir of a mongrel bitch.
+What a brazen-faced varlet art thou!
+Speak'st thou in sober meanings?
+Thou whoreson little tidy Bartholomew boar-pig!
+You bread-chipper!
+Hence, home, you idle creatures, get you home!
+Vanish, or I shall give thee thy deserving.
+Hang thee, monster!
+Thou liest, malignant thing!
+Away, you bottle-ale rascal!
+Thou art unfit for any place but hell.
+Foul wrinkled witch, what mak'st thou in my sight?
+
+# Brains, Wit & Learning
+Thou hast no more brain than I have in mine elbows.
+He has not so much brain as ear-wax.
+Thou mongrel beef-witted lord!
+Thou crusty batch of nature!
+Thou core of envy!
+Thou idol of idiot-worshippers!
+Thou sodden-witted lord!
+Thou art here but to thrash Trojans, and thou art bought and sold among those of any wit like a barbarian slave.
+I would thou didst itch from head to foot.
+Thou idle immaterial skein of sleave silk!
+Thou green sarcenet flap for a sore eye!
+Thou tassel of a prodigal's purse!
+Thou art proclaimed a fool, I think.
+Thou clay-brained guts, thou knotty-pated fool!
+There's no more faith in thee than in a stewed prune.
+O gull! O dolt! As ignorant as dirt!
+Away, you three-inch fool!
+You logger-headed and unpolished grooms!
+You peasant swain! You whoreson malt-horse drudge!
+A witty mother! Witless else her son.
+Mome, malt-horse, capon, coxcomb, idiot, patch!
+Thou disputest like an infant: go, whip thy gig.
+They have lived long on the alms-basket of words.
+He hath not eat paper, as it were; he hath not drunk ink.
+Thou pigeon-egg of discretion!
+A knavish speech sleeps in a foolish ear.
+You are a fishmonger.
+These tedious old fools!
+Thou art damned, like an ill-roasted egg, all on one side.
+I do desire we may be better strangers.
+Nay then, God be wi' you, an you talk in blank verse.
+He is a slight unmeritable man, meet to be sent on errands.
+A peevish schoolboy, worthless of such honour, joined with a masker and a reveller!
+You may as well say that's a valiant flea that dare eat his breakfast on the lip of a lion.
+
+# Defiances & Battle Cries
+Turn, hell-hound, turn!
+Thou bloodier villain than terms can give thee out!
+Thou liest, abhorred tyrant.
+Out, dunghill!
+You souls of geese, that bear the shapes of men!
+You shames of Rome!
+All the contagion of the south light on you!
+Boils and plagues plaster you o'er!
+Mend and charge home, or I'll leave the foe and make my wars on you.
+You common cry of curs!
+The beast with many heads butts me away.
+Hang ye! Trust ye?
+Boy! False hound!
+Measureless liar!
+Away, slight man!
+You blocks, you stones, you worse than senseless things!
+Base Trojan, thou shalt die.
+You scurvy, lousy knave!
+You cullionly barber-monger, draw!
+Nor tripped neither, you base football player.
+Goose, if I had you upon Sarum plain, I'd drive ye cackling home to Camelot.
+Draw, you rascal: you come with letters against the King.
+Do you bite your thumb at us, sir?
+Thou art a villain.
+A plague o' both your houses!
+You rat-catcher, will you walk?
+Good King of Cats, nothing but one of your nine lives.
+Hang, cur, hang, you insolent noise-maker!
+A pox o' your throat, you bawling, blasphemous, incharitable dog!
+Go shake your ears.
+
+# Cowardice, Low Birth & Servile Trades
+Milk-livered man!
+Thou lily-livered boy!
+Cream-faced loon!
+What a whey-face!
+Go prick thy face and over-red thy fear.
+Away, you scullion! You rampallian! You fustilarian!
+A knave, a rascal, an eater of broken meats.
+Base, proud, shallow, beggarly, three-suited, hundred-pound, filthy worsted-stocking knave.
+Lily-livered, action-taking, glass-gazing, superserviceable, finical rogue.
+One-trunk-inheriting slave.
+Nature disclaims in thee: a tailor made thee.
+Thou whoreson zed! Thou unnecessary letter!
+Degenerate bastard!
+Detested kite!
+Thou art a boil, a plague-sore, an embossed carbuncle.
+You basket-hilt stale juggler!
+Away, you mouldy rogue, away!
+Away, you cutpurse rascal!
+A base slave, a hilding for a livery, a squire's cloth, a pantler.
+Thou art a robber, a law-breaker, a villain.
+Go, sir, rub your chain with crumbs.
+An ass-head, and a coxcomb, and a knave, a thin-faced knave, a gull!
+Out, hyperbolical fiend!
+Thou art a scholar; let us therefore eat and drink.
+Vile worm, thou wast o'erlooked even in thy birth.
+O base Hungarian wight!
+O be thou damned, inexecrable dog!
+Thou cut-throat dog.
+Thou cold-blooded slave!
+More of your conversation would infect my brain.
+
+# Fat, Lean, Foul & Deformed
+Peace, ye fat-guts!
+This sanguine coward, this bed-presser, this horseback-breaker, this huge hill of flesh!
+Thou stuffed cloak-bag of guts!
+That roasted Manningtree ox with the pudding in his belly!
+That reverend Vice, that grey Iniquity, that father Ruffian, that Vanity in years!
+You starveling! You eel-skin! You dried neat's-tongue! You stock-fish!
+You tailor's-yard, you sheath, you bow-case, you vile standing tuck!
+Thou whoreson mandrake!
+Here's Wart, a very ragged wart.
+You gross watery pumpion!
+This hodge-pudding, this bag of flax!
+Old, cold, withered, and of intolerable entrails.
+You Banbury cheese!
+Thou lump of foul deformity!
+Out of my sight! Thou dost infect mine eyes.
+Thou elvish-marked, abortive, rooting hog!
+Thou poisonous bunch-backed toad!
+Thou bottled spider!
+Thou rag of honour!
+Poor painted queen!
+Thou poisonous slave, got by the devil himself!
+Hag-seed, hence!
+A most scurvy monster!
+What a pied ninny's this! Thou scurvy patch!
+Thou debosh'd fish, thou!
+A mankind witch! A gross hag!
+You painted maypole!
+You minimus, of hindering knot-grass made; you bead, you acorn!
+Out, tawny Tartar, out! Out, loathèd medicine!
+You canker-blossom! You thief of love!
