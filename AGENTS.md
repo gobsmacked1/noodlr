@@ -365,6 +365,11 @@ Reservations and known gaps:
   Holds: the published CR→XP table (the actor's own `details.xp.value` wins when present, since
   homebrew overrides it), even splitting across PC combatants (floored — no XP conjured from a
   remainder), and the mercy forfeiture.
+- **XP counts what is left on the field: the dead and the surrendered, nothing for escapees**
+  (revised by the user 2026-08-02, replacing the original half-value-for-fleeing rule). Two reasons,
+  both worth keeping: a fled token is often deleted, so its value was never reliably countable, and
+  parties frequently rout enemies deliberately — intimidation, pity, protecting a faction's regard —
+  which is a fight they chose not to have rather than one they won. Do not "restore" the half rule.
 - **Forfeiture is destructive, so it is recorded before it happens.** Every removed item's full data
   and every coin is written to an actor flag (`noodlr.mercyForfeit`) *before* deletion;
   `restoreForfeited()` puts it all back, reachable from a button on the mercy card and from

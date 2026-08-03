@@ -30,12 +30,14 @@ Monsters now think for themselves — locally, instantly, and without spending a
   surrender — and a creature that is lawful or simply not evil may spare a party that has been beaten
   and has held its fire for a full round. Surrender and mercy flip the token from hostile to neutral
   on the spot, and Noodlr tells you what each outcome is worth: a creature that flees leaves no loot
-  and half its experience, one that surrenders yields everything, and a party that accepts mercy earns
+  and no experience, one that surrenders yields everything, and a party that accepts mercy earns
   nothing from the fight.
-- **Experience is awarded for you, on D&D 5e.** When the last hostile stops fighting, Noodlr totals
-  what the encounter was worth — using each creature's own XP value, or the standard table for its
-  challenge rating — halves it for anything that escaped, and splits the result evenly among the
-  characters in the fight. On other systems it reports the tally and leaves the award to you.
+- **Experience is awarded for you, on D&D 5e.** When the last hostile stops fighting, Noodlr counts
+  what is left on the field — the fallen and those who surrendered, valued by each creature's own XP
+  figure or the standard table for its challenge rating — and splits it evenly among the characters in
+  the fight. Anything that escaped is worth nothing: a party that drives enemies off, out of pity or
+  to keep a faction's regard, chose not to have that fight. On other systems the tally is reported and
+  the award left to you.
 - **Mercy has teeth, and an undo.** A party that accepts mercy loses its carried coin, held weapons,
   and worn armour. Every item and coin is written down before it is taken, and the card that announces
   it carries a "Give back the forfeited gear" button that restores all of it exactly.
