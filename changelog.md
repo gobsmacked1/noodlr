@@ -2,6 +2,23 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.26
+
+- **Automated turn pace.** New setting under Text Generation (default 6 seconds): the minimum time an
+  automated creature's turn occupies the table before initiative advances. A machine resolves a turn in
+  under a second, which reads as a blur rather than a fight. Time the creature already spent acting counts
+  toward it, so only the too-fast turns are held. Set it to 0 for the old behaviour.
+- **Spoken lines no longer talk over each other.** Speech was already queued one at a time, but the queue
+  measured each clip's length to know how long to wait — and silently treated an unreadable clip as
+  instantaneous, releasing the next line immediately. It now falls back to estimating from the text.
+- **Creatures should actually move now.** Movement was being requested and refused, and Noodlr believed
+  the refusal was success — so a creature announced closing 23 feet and stood still. Movement is now
+  verified against the token's stored position, retried at shorter distances when a destination is
+  rejected, and abandoned safely if a region behaviour pauses it mid-move (which previously could hang the
+  rest of the automated turns). When a move genuinely cannot happen you get a whisper saying so, and the
+  console explains which cause it was: walls, a veto by another module, or a grappled or mounted creature
+  whose position another module is holding in place.
+
 ## 0.4.25
 
 Corrections from a census of a real world — 193 creatures, 1689 items, 2067 activities — which found

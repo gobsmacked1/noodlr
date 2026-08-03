@@ -120,6 +120,22 @@ const SPEECH_GAP_MS = 250;
  * broadcast plays on other machines: we cannot await their playback, so the queue paces itself by
  * the clip's own duration.
  */
+/**
+ * Rough spoken length of a piece of text, in seconds.
+ *
+ * The fallback when the browser will not report a clip's duration — which returns 0, and a 0-second
+ * hold releases the speech queue immediately, so the next line starts over the top of the one still
+ * playing on every client. That is exactly the overlapping banter reported from play (2026-08-03):
+ * the queue was working and simply being told every clip was instantaneous.
+ *
+ * ~150 words per minute is ordinary narration pace. Bounded at both ends: never so short that it fails
+ * to separate two lines, never so long that one unreadable clip stalls the fight.
+ */
+function estimateSpokenSeconds(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.min(30, Math.max(2, words / 2.5));
+}
+
 function blobDuration(blob: Blob): Promise<number> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(blob);
@@ -260,7 +276,13 @@ export async function speakShared(
     const sound: any = helper.play({ src, volume: 1.0, autoplay: true, loop: false }, true);
 
     // Other clients' playback can't be awaited, so hold the queue for the clip's own length.
-    const seconds = await blobDuration(blob);
+    const measured = await blobDuration(blob);
+    const seconds = measured || estimateSpokenSeconds(trimmed);
+    if (!measured) {
+      debug(
+        `tts: clip duration unreadable; holding the queue for an estimated ${seconds.toFixed(1)}s`,
+      );
+    }
     // Whether the clip actually started, reported once rather than left to inference. A player
     // reporting silence while the GM hears the line is otherwise indistinguishable from a socket
     // that never arrived — and Firefox's own "Load of media resource failed" says nothing about

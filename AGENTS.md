@@ -1583,6 +1583,30 @@ lorebook/author's-note/post-history injection.
   - Also worth knowing: activity *names* are useless as identity — "Midi Use" 379, "Midi Attack" 349,
     "Midi Save" 298 are all midi's type titles. And `consumption.spellSlot: true` appears on plain
     weapon attacks, so it means nothing on its own.
+- **Token movement in v13+ (researched from core source, 2026-08-03, after v0.4.24 shipped movement that
+  announced itself and never happened).** All of this lives in `combat/auto/movement.ts`:
+  - `TokenDocument#move(waypoint, options)` returns `Promise<boolean>` and has **four paths that resolve
+    `false` without throwing** — path constrained to nothing, a `preMoveToken` veto, no usable waypoints,
+    or `stopMovement()`. **A boolean-returning core API needs its false branch handled, not just its
+    throw.** And the converse: **`move() === true` is not evidence of movement**, because core sets its
+    success flag *before* `preUpdateToken` fires, so a handler that deletes `x`/`y` (Rideable does this for
+    grappled/mounted tokens; Monk's Active Tiles for teleport cooldowns) yields `true` and a stationary
+    token. Verify against `doc._source.x/y` — never the prepared `x`/`y`, which are animated mid-move.
+  - **Wall constraint applies to API moves and the GM's "Unconstrained Movement" toggle does not**: core
+    reads that setting only in `Token#_getDragConstrainOptions`. "I can drag it there myself" proves
+    nothing. Bypass, when genuinely wanted, is `constrainOptions: {ignoreWalls: true}` or
+    `action: "displace"`. We pass `ignoreCost: true` only, because the planner budgets movement itself.
+  - Waypoint `x`/`y` are **top-left pixel integers**, not centres and not grid offsets. `snapped` is
+    metadata recording a claim, and snaps nothing — call `doc.getSnappedPosition()` to actually snap.
+    An unrecognised `action` **throws**; unknown waypoint keys are silently dropped.
+  - A move **paused** by a region behaviour (Terrain Mapper stairs/elevators) never settles its promise,
+    so every await is raced against a timeout and then `stopMovement()`ed. Without that, one stair tile
+    hangs a creature's turn and the whole automated initiative chain behind it.
+  - `update({x, y})` is not a teleport any more and not a fallback: since v13 it is routed through the
+    same constraint/veto pipeline, and merely hides the outcome behind a truthy return.
+  - Third-party vetoes to suspect first: **NotYourTurn** (`preMoveToken`, never checks `movement.method`,
+    so an API move is treated as a player drag; only warns at default GM setting) and **Token Warp**
+    (clamps out-of-bounds moves, vetoing ours while moving the token itself).
 - **Observe the world, don't infer it.** `api.surveyActions({ saveToFile: true })` censuses every NPC
   sheet in the world — activity types, activation types, range units, flag namespaces, spell methods,
   language shapes, and one worked example per activity type. When a data shape is in question, run it

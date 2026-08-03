@@ -532,6 +532,8 @@
   "NOODLR.Combat.Resolution.Undo": "Give back the forfeited gear",
   "NOODLR.Combat.Resolution.Restored": "Restored the forfeited gear to {restored} character(s).",
   "NOODLR.Combat.NoPlan": "Noodlr found nothing {name} could do — no usable attacks, items, or reachable targets on its sheet.",
+  "NOODLR.Combat.Pace.Name": "Automated turn pace (seconds)",
+  "NOODLR.Combat.Pace.Hint": "Minimum time an automated creature's turn occupies the table before initiative advances. A machine resolves a turn in under a second, which reads as a blur and makes spoken lines from consecutive creatures overlap. Time already spent acting counts toward this, so it slows only the turns that were too fast. 0 disables it.",
   "NOODLR.Combat.Runaway": "Noodlr has stopped advancing initiative: two dozen turns passed without reaching a player's. Advance the tracker yourself, and check whether anyone is left to fight.",
   "NOODLR.Combat.NoCombat": "No active combat.",
   "NOODLR.Combat.NoCombatant": "No current combatant.",

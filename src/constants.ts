@@ -87,6 +87,8 @@ export const COMBAT_SETTINGS = {
   automation: "combat.automation",
   /** Whether automated creatures get a spoken/typed line of flavor with their turn. */
   banter: "combat.banter",
+  /** Seconds an automated turn must last before the tracker advances, so the table can follow it. */
+  turnPace: "combat.turnPace",
 } as const;
 
 /**

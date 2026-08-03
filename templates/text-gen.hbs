@@ -79,6 +79,12 @@
       </select>
     </div>
 
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Combat.Pace.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Combat.Pace.Hint"}}</p>
+      <input type="number" name="combatTurnPace" value="{{turnPace}}" min="0" max="60" step="1" />
+    </div>
+
     <label class="noodlr-inline">
       <input type="checkbox" name="npcBanter" {{#if npcBanter}}checked{{/if}} />
       {{localize "NOODLR.Combat.Banter.Name"}}
