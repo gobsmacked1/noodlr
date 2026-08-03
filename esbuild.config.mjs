@@ -8,10 +8,22 @@
 // dist/ort/ (transformers.js fetches them from there at runtime; see rag/local/embedder.ts).
 
 import { build, context } from "esbuild";
-import { cp, mkdir, readdir } from "node:fs/promises";
+import { cp, mkdir, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 const watch = process.argv.includes("--watch");
+
+/**
+ * Wipe dist/ before building.
+ *
+ * Code splitting emits content-hashed chunk names and esbuild never removes the previous build's, so
+ * dist/ grew to ~460 files / 17 MB of which all but a handful were unreachable — and every one of them
+ * shipped inside module.zip (2026-08-03). Safe to delete wholesale: everything in here is generated,
+ * including dist/ort/, which copyOrtAssets() re-copies from node_modules on every build.
+ */
+async function cleanDist() {
+  await rm("dist", { recursive: true, force: true });
+}
 
 // Foundry isn't cross-origin isolated (no COOP/COEP -> no SharedArrayBuffer), so ONNX Runtime
 // Web can't use its pthread-threaded build and falls back to the ASYNCIFY (single-threaded)
@@ -61,6 +73,8 @@ const options = {
     js: "/* Noodlr for Foundry VTT. MIT. Generated bundle; edit src/. */",
   },
 };
+
+await cleanDist();
 
 if (watch) {
   const ctx = await context(options);

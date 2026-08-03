@@ -8,6 +8,7 @@
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
     "fetch-model": "node scripts/fetch-model.mjs",
+    "package": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1",
     "check": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",

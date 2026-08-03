@@ -421,7 +421,7 @@ Reservations and known gaps:
 
 - TypeScript, esbuild bundle to `dist/`; `module.json` id **`noodlr`** (do not install alongside the legacy reference module in the same world).
 - Format: prettier (printWidth 100). Validate: `npm run check` (tsc) + build before commit. Small commits at working checkpoints.
-- **Release cadence (2026-07-25):** the `-rcN` prerelease series is retired. Every shipped change is a normal incremented release (`v0.4.0`, `v0.4.1`, ...) cut with `gh release create` **without `--prerelease`** — Foundry's auto-update reads `releases/latest/download/module.json`, and GitHub excludes prereleases from "latest", so rc URLs were never picked up. Per release: bump `version` in `package.json` + `module.json`, point `module.json.download` at the new tag, `npm run check`/`lint`/build, package `module.zip` (module.json, LICENSE, README.md, changelog.md, dist, lang, styles, templates — including `templates/partials/` —, prompts, models, **banter**), commit, tag, `gh release create <tag> module.zip module.json`. Add the release's notes to `changelog.md` (lowercase; Big Bad Module Manager reads it). Bump to 1.0.0 at feature parity.
+- **Release cadence (2026-07-25):** the `-rcN` prerelease series is retired. Every shipped change is a normal incremented release (`v0.4.0`, `v0.4.1`, ...) cut with `gh release create` **without `--prerelease`** — Foundry's auto-update reads `releases/latest/download/module.json`, and GitHub excludes prereleases from "latest", so rc URLs were never picked up. Per release: bump `version` in `package.json` + `module.json`, point `module.json.download` at the new tag, then **`npm run package`** (`scripts/package.ps1` — asserts the two versions agree and that the download URL matches the tag, runs check/lint/clean-build, verifies no dangling chunk references, zips the payload and then re-opens the archive to confirm `module.json`, `dist/noodlr.js`, the ORT asyncify wasm, `lang`, `styles`, `banter`, `templates/partials/` and the ONNX weights are all inside). Then commit, tag, `gh release create <tag> module.zip module.json`. Add the release's notes to `changelog.md` (lowercase; Big Bad Module Manager reads it). Bump to 1.0.0 at feature parity.
 - **Verify the release's ASSETS, not just the tag (2026-08-03).** v0.4.26 was cut with `gh release create`
   and no files attached, which Foundry reports as `No module manifest found at <url>` — the manifest URL is
   `releases/latest/download/module.json`, so an assetless release makes the *newest* release the broken one
@@ -435,9 +435,15 @@ Reservations and known gaps:
   weights are already on disk from `npm run fetch-model`. A correct asset is ~29 MB: `dist/ort` (~35 MB of
   wasm, compresses hard) plus `models/.../model_quantized.onnx` (~22 MB, barely compresses at all). Sanity
   check by size before uploading; anything near 13 MB is missing the model.
-- `dist/` accumulates every past build's hashed chunks (esbuild never prunes; ~460 files, 17 MB, most of it
-  dead) and all of it ships. Harmless but wasteful — a `rimraf dist` before packaging would cut the asset
-  substantially. Not done yet; verify a clean rebuild boots before adopting it.
+- **The build wipes `dist/` first (2026-08-03).** Code splitting emits content-hashed chunk names and
+  esbuild never removes the previous build's, so `dist/` had reached ~460 JS/map files (17 MB, nearly all
+  unreachable) and every one shipped. A clean build emits 28. Deleting `dist/` wholesale is safe —
+  everything in it is generated, `dist/ort/` included, which `copyOrtAssets()` re-copies from
+  `node_modules` on each build. The upshot for debugging: a chunk that fails to emit is now an honest 404
+  rather than being masked by a stale file of the same name, which is what the packaging script's
+  dangling-reference check guards.
+- Sourcemaps stay in the shipped package and the bundle stays unminified, deliberately: console stack
+  traces from play are the primary diagnostic channel, and they are worth far more than the ~3.5 MB.
 - Windows host gotcha: the file-Write tool intermittently emits new files as UTF-16LE — after creating any file, verify the first bytes are UTF-8 and convert if needed. Watch CRLF/LF (.gitattributes) since Foundry servers are often Linux.
 - Never store secrets in this file or in module settings defaults.
 
