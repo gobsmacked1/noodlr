@@ -20,6 +20,8 @@ did nothing else.
   creature behaving oddly.
 - **One less console warning.** Noodlr no longer touches a deprecated Foundry name while checking
   line of sight.
+- **Voice playback now reports failure.** If a broadcast line does not start, the console says so
+  instead of leaving you to guess whether the audio failed or never arrived.
 
 ## 0.4.22
 

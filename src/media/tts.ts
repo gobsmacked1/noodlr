@@ -257,10 +257,22 @@ export async function speakShared(
     debug("tts: broadcasting speech", { src, type: blob.type || "(none)", bytes: blob.size });
     stopCurrentAudio();
     // `true` = also emit to every other connected client.
-    helper.play({ src, volume: 1.0, autoplay: true, loop: false }, true);
+    const sound: any = helper.play({ src, volume: 1.0, autoplay: true, loop: false }, true);
 
     // Other clients' playback can't be awaited, so hold the queue for the clip's own length.
     const seconds = await blobDuration(blob);
+    // Whether the clip actually started, reported once rather than left to inference. A player
+    // reporting silence while the GM hears the line is otherwise indistinguishable from a socket
+    // that never arrived — and Firefox's own "Load of media resource failed" says nothing about
+    // which of the two happened. Diagnostic only: no behaviour hangs off it. (2026-08-03)
+    if (sound) {
+      const state = { loaded: sound.loaded, failed: sound.failed, playing: sound.playing };
+      if (state.failed || (!state.playing && !state.loaded)) {
+        warn(`tts: local playback did not start (${JSON.stringify(state)}) for ${src}`);
+      } else {
+        debug("tts: local playback state", state);
+      }
+    }
     await sleep(seconds * 1000 + SPEECH_GAP_MS);
   });
 }
