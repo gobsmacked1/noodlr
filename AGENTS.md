@@ -382,10 +382,16 @@ Reservations and known gaps:
 - **Banter** (`combat/banter/`, user-supplied library 2026-08-03). `banter/banter.txt` ships in the
   package and is **fetched at runtime, not bundled**, so a GM can edit, cut, or translate lines in
   place with no build step. Missing file = silent monsters, never an error.
-  - Frequency: `INT + 2·CHA − 2·WIS`, clamped 0-10, 10% per point. The signs look wrong until you
-    read the user's reasoning: cleverness makes a creature pleased with its own commentary, charisma
-    makes it a show-off (doubled), and wisdom is knowing when to shut up (subtracted, doubled).
-  - Hard gate: **no language, no lines**, whatever the modifiers say.
+  - Frequency: `INT + 2·CHA − 2·WIS`, clamped 0-10, 10% per point. **The signs are intentional and
+    confirmed — do not "fix" the subtraction.** Cleverness makes a creature pleased with its own
+    commentary, charisma makes it a show-off (doubled), and wisdom is knowing when to shut up
+    (subtracted, doubled). The minus also runs in reverse for free: a negative WIS modifier flips
+    positive, so fools are the loudest things on the field. One term, both behaviours.
+  - Hard gate: **no language, no lines**, whatever the modifiers say. Anything that *can* talk is
+    then floored at 1 point (10%). Checked against published stat blocks before adding the floor:
+    the raw formula puts goblins, hobgoblins, bandits, orcs, and ogres at exactly 0 (a goblin's −1 WIS
+    gives +2, its −1 CHA takes −2 back), which muted every mook while dragons ran at 90%. The floor
+    sits outside the formula, after the language gate, so the arithmetic itself stays as specified.
   - **Banter draws from its own seeded RNG stream** (`auto/random.ts`, stream `"banter"`). If it
     shared the tactics stream, switching banter off would shift every subsequent number and silently
     change what creatures *do*. Any future per-turn randomness needs its own stream for the same reason.
