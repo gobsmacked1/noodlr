@@ -422,6 +422,22 @@ Reservations and known gaps:
 - TypeScript, esbuild bundle to `dist/`; `module.json` id **`noodlr`** (do not install alongside the legacy reference module in the same world).
 - Format: prettier (printWidth 100). Validate: `npm run check` (tsc) + build before commit. Small commits at working checkpoints.
 - **Release cadence (2026-07-25):** the `-rcN` prerelease series is retired. Every shipped change is a normal incremented release (`v0.4.0`, `v0.4.1`, ...) cut with `gh release create` **without `--prerelease`** — Foundry's auto-update reads `releases/latest/download/module.json`, and GitHub excludes prereleases from "latest", so rc URLs were never picked up. Per release: bump `version` in `package.json` + `module.json`, point `module.json.download` at the new tag, `npm run check`/`lint`/build, package `module.zip` (module.json, LICENSE, README.md, changelog.md, dist, lang, styles, templates — including `templates/partials/` —, prompts, models, **banter**), commit, tag, `gh release create <tag> module.zip module.json`. Add the release's notes to `changelog.md` (lowercase; Big Bad Module Manager reads it). Bump to 1.0.0 at feature parity.
+- **Verify the release's ASSETS, not just the tag (2026-08-03).** v0.4.26 was cut with `gh release create`
+  and no files attached, which Foundry reports as `No module manifest found at <url>` — the manifest URL is
+  `releases/latest/download/module.json`, so an assetless release makes the *newest* release the broken one
+  and blocks updating. Pushing the commit and tag is not shipping. After every release:
+  `gh release view <tag> --json assets` must list **both** `module.json` and `module.zip`, then fetch
+  `releases/latest/download/module.json` and confirm `version` matches and its `download` URL returns 200.
+- **`models/` must be in the zip.** `rag/local/embedder.ts` sets `allowRemoteModels = false` and points
+  `localModelPath` at `modules/noodlr/models/`, so Memory Lite's in-browser embedder has no fallback: an
+  asset without the weights 404s for anyone installing by manifest. The **v0.4.25 asset shipped without it**
+  (13.24 MB, no `models/` entries) — a real regression that local dev installs cannot notice, because the
+  weights are already on disk from `npm run fetch-model`. A correct asset is ~29 MB: `dist/ort` (~35 MB of
+  wasm, compresses hard) plus `models/.../model_quantized.onnx` (~22 MB, barely compresses at all). Sanity
+  check by size before uploading; anything near 13 MB is missing the model.
+- `dist/` accumulates every past build's hashed chunks (esbuild never prunes; ~460 files, 17 MB, most of it
+  dead) and all of it ships. Harmless but wasteful — a `rimraf dist` before packaging would cut the asset
+  substantially. Not done yet; verify a clean rebuild boots before adopting it.
 - Windows host gotcha: the file-Write tool intermittently emits new files as UTF-16LE — after creating any file, verify the first bytes are UTF-8 and convert if needed. Watch CRLF/LF (.gitattributes) since Foundry servers are often Linux.
 - Never store secrets in this file or in module settings defaults.
 
