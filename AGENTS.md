@@ -358,9 +358,19 @@ Reservations and known gaps:
   Hostile to Neutral for surrender and mercy (one reversible field), and posts a GM-whispered card
   stating what the addendum says the outcome is worth. It deliberately does **not** award experience,
   divide loot, or strip the party's currency/weapons/armour on a mercy — experience and loot are
-  system-specific arithmetic, and confiscating gear off player-owned sheets is irreversible and must
-  be a human decision. **Open question for the user: should gear-stripping ever be automated, behind
-  a confirmation?**
+  system-specific arithmetic — see the rewards adapter below, which the user approved on 2026-08-02.
+- **`combat/systems/dnd5e-rewards.ts` is the one place Noodlr does system arithmetic, deliberately
+  fenced.** Gated on `game.system.id === "dnd5e"`, returns a no-op report elsewhere, and nothing in
+  `auto/` imports system knowledge — a second system is a sibling file, not edits in the planner.
+  Holds: the published CR→XP table (the actor's own `details.xp.value` wins when present, since
+  homebrew overrides it), even splitting across PC combatants (floored — no XP conjured from a
+  remainder), and the mercy forfeiture.
+- **Forfeiture is destructive, so it is recorded before it happens.** Every removed item's full data
+  and every coin is written to an actor flag (`noodlr.mercyForfeit`) *before* deletion;
+  `restoreForfeited()` puts it all back, reachable from a button on the mercy card and from
+  `api.restoreForfeitedGear()`. A mercy ruling that lands wrong mid-session must be one click to undo,
+  not a reconstruction from memory. Forfeiture and the XP award both run once, at encounter end, not
+  at the moment of the ruling — "no experience from the combat encounter" is an encounter-level rule.
 - **Aggression is inferred from players rolling dice** during combat, which is what mercy hangs on.
   A proxy, and deliberately a generous one: a false positive costs a withheld mercy, a false negative
   spares a party that is still stabbing. Needs round ≥ 2, so it cannot fire on the opening round.

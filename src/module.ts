@@ -41,6 +41,7 @@ import { toggleSelectedCombatantAutomation } from "./combat/auto/control";
 import { registerAutomationCleanup } from "./combat/auto/registry";
 import { registerAutomationTurnHook } from "./combat/auto/hooks";
 import { registerEncounterTracking } from "./combat/auto/encounter";
+import { restoreForfeited } from "./combat/systems/dnd5e-rewards";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 import {
   PLAYER_ASK,
@@ -73,6 +74,7 @@ export interface NoodlrApi {
   generateVideo(description: string): Promise<void>;
   togglePushToLog(): void;
   runNpcTurn(): Promise<void>;
+  restoreForfeitedGear(): Promise<number>;
 }
 
 const api: NoodlrApi = {
@@ -118,6 +120,8 @@ const api: NoodlrApi = {
   generateVideo: (description: string) => createAndShareVideo({ description }),
   togglePushToLog: () => pushToLog.toggle(),
   runNpcTurn: () => runCurrentNpcTurn(),
+  /** Undo a mercy forfeiture from the console, if the chat card has scrolled away. */
+  restoreForfeitedGear: () => restoreForfeited(),
 };
 
 Hooks.once("init", () => {

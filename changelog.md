@@ -31,8 +31,14 @@ Monsters now think for themselves — locally, instantly, and without spending a
   and has held its fire for a full round. Surrender and mercy flip the token from hostile to neutral
   on the spot, and Noodlr tells you what each outcome is worth: a creature that flees leaves no loot
   and half its experience, one that surrenders yields everything, and a party that accepts mercy earns
-  nothing from the fight. It reports; you award. It will never reach into a player's sheet to take
-  their coin, weapons, or armour.
+  nothing from the fight.
+- **Experience is awarded for you, on D&D 5e.** When the last hostile stops fighting, Noodlr totals
+  what the encounter was worth — using each creature's own XP value, or the standard table for its
+  challenge rating — halves it for anything that escaped, and splits the result evenly among the
+  characters in the fight. On other systems it reports the tally and leaves the award to you.
+- **Mercy has teeth, and an undo.** A party that accepts mercy loses its carried coin, held weapons,
+  and worn armour. Every item and coin is written down before it is taken, and the card that announces
+  it carries a "Give back the forfeited gear" button that restores all of it exactly.
 - **New setting — Combat automation** (Text Generation), Full by default: Noodlr plays every monster's
   turn as it comes up. Partial gives you an Act-as-NPC tool instead: select a token, press it, and
   Noodlr plays that creature for this fight only — press again to take it back mid-fight. Off hides
