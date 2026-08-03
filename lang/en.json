@@ -532,6 +532,7 @@
   "NOODLR.Combat.Resolution.Undo": "Give back the forfeited gear",
   "NOODLR.Combat.Resolution.Restored": "Restored the forfeited gear to {restored} character(s).",
   "NOODLR.Combat.NoPlan": "Noodlr found nothing {name} could do — no usable attacks, items, or reachable targets on its sheet.",
+  "NOODLR.Combat.Runaway": "Noodlr has stopped advancing initiative: two dozen turns passed without reaching a player's. Advance the tracker yourself, and check whether anyone is left to fight.",
   "NOODLR.Combat.NoCombat": "No active combat.",
   "NOODLR.Combat.NoCombatant": "No current combatant.",
   "NOODLR.Combat.IsPC": "The current combatant is a player character — Noodlr won't act for PCs.",

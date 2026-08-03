@@ -2,6 +2,38 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.24
+
+Automated creatures now actually do things, and they read their sheets the way the game system means
+them to be read.
+
+- **They move, and they act.** Until now Noodlr only announced what a creature intended and left the GM
+  to perform it. Creatures now close the distance, back out of melee, slip into cover, run for the scene
+  edge — and their attacks and spells are rolled through the game system's own use path, so Midi QoL,
+  DAE and the rest of your automation resolve them exactly as if you had clicked the button. Noodlr
+  still rolls nothing itself.
+- **A creature that cannot reach you walks toward you.** A melee-only creature further away than one
+  move had no option at all before, which is why a Dire Wolf spent every round bellowing for help.
+- **Reaches and ranges are right.** A monster's bite reads as a 5 ft bite instead of a 0 ft one — the
+  cause of most creatures standing around. Spell ranges, thrown weapons, metric scenes and
+  see-the-description ranges are all handled properly now.
+- **A reaction is no longer something a creature can spend its turn on.** Reactions, legendary actions
+  and lair actions are recognized as off-turn and set aside (they get their own layer later); ten-minute
+  rituals are excluded entirely.
+- **Limited monster spellcasting works.** The common sheet shape — a feature with a few uses per day
+  that casts a spell — is now understood, including which casting methods spend a spell slot and which
+  are innate or at-will.
+- **"Midi Attack" mystery solved.** That was Midi QoL's own label for the creature's real attack, not a
+  phantom item. Actions are now named "Mace (Midi Attack)" so it is never confusing again. Activities
+  that Midi marks as automation-only are correctly left alone.
+- **Automation ends its own turns.** An automated creature now acts and then passes initiative, so a
+  horde of skeletons resolves itself and stops dead on a player's turn. Creatures you kept for yourself
+  are never advanced past. If two dozen turns pass without reaching a player — nobody left to fight, or
+  an all-NPC brawl — Noodlr stops advancing and says so rather than cycling rounds unattended.
+- **New GM tool.** `game.modules.get("noodlr").api.surveyActions({ saveToFile: true })` censuses every
+  NPC sheet in your world and writes a summary file. If a creature behaves oddly after a system update,
+  that plus `api.explainTurn()` is everything needed to report it.
+
 ## 0.4.23
 
 A hotfix for the first play test of automated combat, in which every creature bellowed for help and

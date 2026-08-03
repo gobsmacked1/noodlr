@@ -1515,6 +1515,52 @@ lorebook/author's-note/post-history injection.
   - `api.explainTurn()` (`src/combat/auto/explain.ts`) dumps what was read and how every option scored
     for the selected combatant. Reach for it first when a creature behaves oddly; it turns this class
     of silent-empty bug into a one-line answer.
+- **dnd5e 5.x facts the combat reader depends on** (researched from system source 2026-08-03, after two
+  releases were lost to inference; `src/combat/actions.ts` is the only place that should know any of it):
+  - `activity.range.units` has INITIAL value `"self"`, and `range.override === false` means "this
+    activity states no range; use the item's". Reading either literally gives a reach of zero, which is
+    why a Dire Wolf could not bite anybody. `"spec"` means see-the-description; `"any"` is unlimited;
+    distances are `ft`/`mi`/`m`/`km`. Melee fallback: `item.system.range.reach`, else 5 ft.
+  - An empty `attack.type.value` means **melee/weapon**, not unknown: the system fills it during data
+    preparation, and its weapon-type map deliberately omits `natural`, so every claw and bite lands
+    there. Only an explicit `"ranged"` makes something ranged.
+  - Spells: `system.method` (was `preparation.mode`) with values `atwill`/`innate`/`ritual`/`pact`/
+    `spell`; `system.prepared` is a NUMBER (0/1/2), and NPCs are never prepared-filtered. Whether a
+    method spends a slot is `CONFIG.DND5E.spellcasting[method]?.slots` — ask the table, do not hardcode.
+  - Limited monster casting is usually a **feat with a `cast` activity**: uses live on the feat, and the
+    spell it points at is where the shape lives. Enumerate the cast activity (for the uses) and skip
+    spell items flagged `flags.dnd5e.cachedFor` (clones the system makes on first use), or you offer the
+    same ability twice with the wrong resource attached.
+  - Action economy is `activity.activation.type`; `CONFIG.DND5E.activityActivationTypes` carries
+    `passive`, `scalar` and `consume.property` metadata. Legendary/mythic draw on
+    `actor.system.resources.legact`; `resources.lair` is a boolean plus an initiative count, not a pool.
+  - Languages: `system.traits.languages.value` is a real `Set` (plus semicolon-delimited `.custom`), and
+    the literal `"ALL"` is a sentinel. `.communication` (telepathy) is NOT a language — a telepath with
+    no tongue cannot be taunted in words.
+- **"Midi Attack" is a label, not a thing.** midi-qol replaces the system's activity document classes and,
+  with its Activity Prefix setting on, an activity displays midi's localized *type title* as its name. Do
+  not match on it, and do not treat it as a duplicate to skip — it IS the creature's real attack. The
+  activities that genuinely must be skipped are `canUse === false`, `isRider`, and
+  `midiProperties.automationOnly`. Because midi may also register `midiAttack`-style types instead of
+  replacing classes, classify activities by what they CARRY (`attack`, `damage.parts`, `save`) rather than
+  by `type` string equality. Execute via `MidiQOL.completeActivityUse` with `midiOptions.targetUuids` +
+  `ignoreUserTargets` when midi is present (falling back to `activity.use`), and set the acting user's
+  targets as well: midi's default is to read `game.user.targets`, so an automated turn otherwise inherits
+  whatever the GM had selected.
+- **Automation owns the tracker; the GM owns their own creatures.** "Combat automation" full/partial is
+  what decides whether Noodlr plays a creature, and playing one now includes ending its turn and
+  advancing initiative (user's call, 2026-08-03). Consequences that must not be regressed: advancement is
+  skipped if the tracker moved while the turn resolved (the GM got there first, or a surrender ended the
+  fight); a resolved creature is skipped PAST rather than replayed, or the fight stalls on its corpse;
+  the console entry point deliberately does not advance; and a runaway brake (`RUNAWAY_LIMIT` in
+  `combat/auto/hooks.ts`) stops the chain after 24 consecutive automated turns, because an NPC-vs-NPC
+  fight or a wiped party is otherwise an unbounded loop issuing real rolls unattended.
+- **Observe the world, don't infer it.** `api.surveyActions({ saveToFile: true })` censuses every NPC
+  sheet in the world — activity types, activation types, range units, flag namespaces, spell methods,
+  language shapes, and one worked example per activity type. When a data shape is in question, run it
+  before writing code against a guess. Both v0.4.22 and v0.4.23 shipped bugs that this would have caught
+  in seconds (user's suggestion, 2026-08-03: "we can map whatever you need dynamically from within the
+  running world itself").
 - **Probe Foundry globals lazily, one at a time.** Building an array of fallback candidates evaluates
   every entry, and merely *touching* a deprecated global (`ClockwiseSweepPolygon`) emits a console
   warning even when the modern namespace already answered. `src/combat/auto/positioning.ts` stores

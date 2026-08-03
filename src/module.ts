@@ -42,6 +42,7 @@ import { registerAutomationCleanup } from "./combat/auto/registry";
 import { registerAutomationTurnHook } from "./combat/auto/hooks";
 import { registerEncounterTracking } from "./combat/auto/encounter";
 import { explainTurn } from "./combat/auto/explain";
+import { surveyActions } from "./combat/survey";
 import { restoreForfeited } from "./combat/systems/dnd5e-rewards";
 import { loadBanter } from "./combat/banter/library";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
@@ -78,6 +79,7 @@ export interface NoodlrApi {
   runNpcTurn(): Promise<void>;
   restoreForfeitedGear(): Promise<number>;
   explainTurn(): void;
+  surveyActions(opts?: { saveToFile?: boolean; max?: number }): Promise<unknown>;
 }
 
 const api: NoodlrApi = {
@@ -127,6 +129,8 @@ const api: NoodlrApi = {
   restoreForfeitedGear: () => restoreForfeited(),
   /** Dump what the planner can read off the selected combatant, and how it scored its options. */
   explainTurn: () => explainTurn(),
+  /** Census every NPC sheet in the world, so data shapes are observed rather than assumed. */
+  surveyActions: (opts) => surveyActions(opts),
 };
 
 Hooks.once("init", () => {
