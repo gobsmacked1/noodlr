@@ -79,7 +79,7 @@ export interface NoodlrApi {
   runNpcTurn(): Promise<void>;
   restoreForfeitedGear(): Promise<number>;
   explainTurn(): Promise<void>;
-  surveyActions(opts?: { saveToFile?: boolean; max?: number }): Promise<unknown>;
+  surveyActions(opts?: { saveToFile?: boolean; max?: number; asText?: boolean }): Promise<unknown>;
 }
 
 const api: NoodlrApi = {
