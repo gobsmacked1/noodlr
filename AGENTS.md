@@ -218,11 +218,23 @@ Key engineering doctrines from it that shape the *module's* architecture:
 > best option), and `breadth` (how many options it weighs — its attention span and the CPU ceiling).
 >
 > **Tier ladder** (`src/combat/auto/tiers.ts`), thresholds from the user's table on (INT+WIS)/2:
-> 1 basic attacks + call for help · 2 + target the apparent weakest · 3 + avoid strong opponents,
-> use inventory, flee when hurt · 4 + stealth, deception, control maneuvers, self-healing, keep
-> distance from melee, seek cover at end of turn (revised by the user later the same day) · 5 + heal
-> and protect allies · 6 + target the real threats, focus fire · 7 + reposition for advantage, hold
-> resources · 8 + manipulate enemies, resource denial · 9 + the long game.
+> 1 its entire action economy (move, action, bonus action, features, spell-likes, reactions, recharge
+> abilities, legendary actions) + call for help · 2 + target the apparent weakest, flee when hurt ·
+> 3 + avoid strong opponents, use inventory, Help an ally, surrender · 4 + stealth, deception, control
+> maneuvers, advanced casting, self-healing, keep distance, seek cover, mercy · 5 + heal and protect
+> allies · 6 + target the real threats, focus fire · 7 + reposition for advantage, hold resources ·
+> 8 + manipulate enemies, resource denial · 9 + the long game.
+>
+> **Two relocations the user made on 2026-08-02 that are easy to undo by accident:** fleeing lives at
+> tier 2, not 3 — running from pain is instinct, and a cornered rat manages it. Access to the full
+> action economy lives at tier 1: even an insect uses everything it physically has, because competence
+> is about *choosing*, never about access. Tier 1's limits are `breadth` and `noise`, not a shorter kit.
+>
+> **The inverted withdrawal rule (subtle, easy to "fix" backwards).** Tier 4 steps out of melee only
+> "when not at risk of an opportunity attack". The naive reading backs away when something is adjacent
+> — the exact moment leaving costs a free hit. So an already-engaged creature stays and fights, and one
+> that is merely *about to be* closed on (enemy within reach + speed) gives ground while it is still
+> free to. Refusing the melee before it starts is the competent play.
 >
 > **`TIER_CAVEAT = 7` — where the ladder stops being honest.** Tiers 1-6 are fully mechanical. Tier 7
 > is stretching: "bait them into the trap room" needs authored terrain the planner cannot invent.
@@ -341,6 +353,23 @@ Reservations and known gaps:
   detail we refuse to model, so a 10-ft polearm may be planned as if adjacent.
 - **Unreadable INT/WIS lands at tier 4, not tier 1** — a missing number turning a dragon into a beetle
   is the worse failure.
+- **Encounter resolution** (`auto/encounter.ts`, addendum of 2026-08-02): a fight can end by flight,
+  surrender, or mercy rather than a body count. The module records the outcome, flips the token from
+  Hostile to Neutral for surrender and mercy (one reversible field), and posts a GM-whispered card
+  stating what the addendum says the outcome is worth. It deliberately does **not** award experience,
+  divide loot, or strip the party's currency/weapons/armour on a mercy — experience and loot are
+  system-specific arithmetic, and confiscating gear off player-owned sheets is irreversible and must
+  be a human decision. **Open question for the user: should gear-stripping ever be automated, behind
+  a confirmation?**
+- **Aggression is inferred from players rolling dice** during combat, which is what mercy hangs on.
+  A proxy, and deliberately a generous one: a false positive costs a withheld mercy, a false negative
+  spares a party that is still stabbing. Needs round ≥ 2, so it cannot fire on the opening round.
+- **Reactions and legendary actions are readable but not yet triggered.** Recharge state is honored
+  (a spent breath weapon is not offered). Reactions, counterspell, and legendary actions all fire on
+  *other* creatures' turns, which needs an off-turn hook and a cost model the sheet does not state
+  machine-readably. Tier 1 grants the access; the trigger layer is still to build.
+- **Alignment gates mercy**, read as free text: lawful-anything, or anything not evil. An unreadable
+  alignment is treated as *not* merciful — inventing a conscience the GM never wrote is the worse error.
 - Revert map: the pivot is self-contained in `src/combat/auto/` plus the rewritten `npc-turn.ts`.
   Restoring the AI loop means restoring that one file from v0.4.21.
 

@@ -40,6 +40,7 @@ import { getCombatAutomation } from "./combat/config";
 import { toggleSelectedCombatantAutomation } from "./combat/auto/control";
 import { registerAutomationCleanup } from "./combat/auto/registry";
 import { registerAutomationTurnHook } from "./combat/auto/hooks";
+import { registerEncounterTracking } from "./combat/auto/encounter";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
 import {
   PLAYER_ASK,
@@ -191,6 +192,8 @@ Hooks.once("ready", () => {
     // Automation opt-ins are per-encounter too; released when combat ends.
     registerAutomationCleanup();
     registerAutomationTurnHook();
+    // Watches whether the party is still swinging, which is what mercy hangs on.
+    registerEncounterTracking();
   }
 });
 

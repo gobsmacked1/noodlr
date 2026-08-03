@@ -26,6 +26,13 @@ Monsters now think for themselves — locally, instantly, and without spending a
 - **It reads the actual sheet, every turn.** An archer out of arrows will not fire; a creature with an
   empty potion slot will not drink one; a badly hurt creature that is bright enough to value its own
   life will try to leave.
+- **Fights can now end without a body count.** A beaten creature may run, or throw down its weapon and
+  surrender — and a creature that is lawful or simply not evil may spare a party that has been beaten
+  and has held its fire for a full round. Surrender and mercy flip the token from hostile to neutral
+  on the spot, and Noodlr tells you what each outcome is worth: a creature that flees leaves no loot
+  and half its experience, one that surrenders yields everything, and a party that accepts mercy earns
+  nothing from the fight. It reports; you award. It will never reach into a player's sheet to take
+  their coin, weapons, or armour.
 - **New setting — Combat automation** (Text Generation), Full by default: Noodlr plays every monster's
   turn as it comes up. Partial gives you an Act-as-NPC tool instead: select a token, press it, and
   Noodlr plays that creature for this fight only — press again to take it back mid-fight. Off hides
