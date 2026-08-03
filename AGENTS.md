@@ -1575,6 +1575,11 @@ lorebook/author's-note/post-history injection.
     89 ranged); only 17 of 366 attacks state no numeric range, and all 17 are `self` (11) or `touch` (6),
     which is the population the reach fallback exists for; every spell in that world uses `method:
     "spell"`; 74 of 193 creatures have no language at all, so banter correctly never reaches them.
+  - **The empty-activation rule is load-bearing, not redundant.** A follow-up census on 0.4.25 came back
+    `riders: 2`, `midiAutomationOnly: 0`, `canUseFalse: 13` out of 2067 activities — so the system's own
+    rider flag does NOT mark the 109 empty-activation companions, and midi links its save/damage halves
+    through its own fields instead. Do not "simplify" by trusting `isRider` to catch them; keep all four
+    checks, and re-measure with the survey if midi's linkage changes.
   - Also worth knowing: activity *names* are useless as identity — "Midi Use" 379, "Midi Attack" 349,
     "Midi Save" 298 are all midi's type titles. And `consumption.spellSlot: true` appears on plain
     weapon attacks, so it means nothing on its own.
