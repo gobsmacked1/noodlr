@@ -1500,6 +1500,25 @@ lorebook/author's-note/post-history injection.
   v0.4.17 after transcripts, artifact commits and retires had been silently duplicating per GM.
   Per-client counters have the same hazard: broadcast speech filenames are namespaced by user id
   because two GMs both start their slot ring at zero and overwrite each other's audio.
+- **A capability read that comes back empty is a bug until proven otherwise.** Found in the first play
+  test of automated combat (2026-08-03, fix in v0.4.23): every creature "called out for help" and did
+  nothing else, because the planner asked each item for `system.actionType` and dnd5e v4+ (the 2024
+  rules) no longer has one — everything doable moved into `item.system.activities`, a collection of
+  typed activities each carrying its own attack type, range and uses. An archmage read as having zero
+  attacks, and the planner *correctly* played a creature with no attacks. The failure mode is the
+  dangerous one: no error, no exception, plausible-looking output. Consequences now baked in —
+  - `src/combat/actions.ts` is the single normalizer from an actor's items to `CreatureAction`s. It
+    duck-types the shape (activities present? use it; otherwise the legacy `actionType`) rather than
+    branching on `game.system.id`, and it **logs** when an actor with items yields no actions.
+  - Never fall through to `system.actionType` on an item that *has* an `activities` field, even an
+    empty one: dnd5e keeps a deprecation shim there and reading it logs a warning per item.
+  - `api.explainTurn()` (`src/combat/auto/explain.ts`) dumps what was read and how every option scored
+    for the selected combatant. Reach for it first when a creature behaves oddly; it turns this class
+    of silent-empty bug into a one-line answer.
+- **Probe Foundry globals lazily, one at a time.** Building an array of fallback candidates evaluates
+  every entry, and merely *touching* a deprecated global (`ClockwiseSweepPolygon`) emits a console
+  warning even when the modern namespace already answered. `src/combat/auto/positioning.ts` stores
+  thunks and resolves them in order for exactly this reason.
 - **Secrecy travels with the turn, never with the UI.** "Hide from players" is one-shot: the checkbox clears
   once a prompt is accepted (a sticky box silently muted the mirrored text *and* the broadcast audio for the
   rest of the session). Consequently, anything that re-runs a turn must pass the original turn's `hidden`

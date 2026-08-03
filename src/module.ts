@@ -41,6 +41,7 @@ import { toggleSelectedCombatantAutomation } from "./combat/auto/control";
 import { registerAutomationCleanup } from "./combat/auto/registry";
 import { registerAutomationTurnHook } from "./combat/auto/hooks";
 import { registerEncounterTracking } from "./combat/auto/encounter";
+import { explainTurn } from "./combat/auto/explain";
 import { restoreForfeited } from "./combat/systems/dnd5e-rewards";
 import { loadBanter } from "./combat/banter/library";
 import { runCurrentNpcTurn } from "./combat/npc-turn";
@@ -76,6 +77,7 @@ export interface NoodlrApi {
   togglePushToLog(): void;
   runNpcTurn(): Promise<void>;
   restoreForfeitedGear(): Promise<number>;
+  explainTurn(): void;
 }
 
 const api: NoodlrApi = {
@@ -123,6 +125,8 @@ const api: NoodlrApi = {
   runNpcTurn: () => runCurrentNpcTurn(),
   /** Undo a mercy forfeiture from the console, if the chat card has scrolled away. */
   restoreForfeitedGear: () => restoreForfeited(),
+  /** Dump what the planner can read off the selected combatant, and how it scored its options. */
+  explainTurn: () => explainTurn(),
 };
 
 Hooks.once("init", () => {

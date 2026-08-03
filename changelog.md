@@ -2,6 +2,25 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.23
+
+A hotfix for the first play test of automated combat, in which every creature bellowed for help and
+did nothing else.
+
+- **Creatures can see their own attacks again.** On the 2024 rules (dnd5e v4 and later), everything a
+  monster can do lives in a new place on its sheet, and Noodlr was still looking in the old one. Every
+  creature therefore read as having no attacks at all, and shouting for the others was the only thing
+  left it could do. Noodlr now reads both layouts, including spell slots, limited-use activities,
+  recharge powers, and ammunition.
+- **Spells that force a save are understood properly.** A fireball counts as an attack; a hold person
+  counts as crowd control. They are now told apart by whether the spell does damage.
+- **New GM diagnostic.** With a token selected during combat, run
+  `game.modules.get("noodlr").api.explainTurn()` in the console to see exactly what Noodlr can read off
+  that creature and how it scored every option it considered. This is the fastest way to report a
+  creature behaving oddly.
+- **One less console warning.** Noodlr no longer touches a deprecated Foundry name while checking
+  line of sight.
+
 ## 0.4.22
 
 Monsters now think for themselves — locally, instantly, and without spending a cent on AI.
