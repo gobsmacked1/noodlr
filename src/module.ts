@@ -78,7 +78,7 @@ export interface NoodlrApi {
   togglePushToLog(): void;
   runNpcTurn(): Promise<void>;
   restoreForfeitedGear(): Promise<number>;
-  explainTurn(): void;
+  explainTurn(): Promise<void>;
   surveyActions(opts?: { saveToFile?: boolean; max?: number }): Promise<unknown>;
 }
 

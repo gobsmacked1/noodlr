@@ -1555,6 +1555,29 @@ lorebook/author's-note/post-history injection.
   the console entry point deliberately does not advance; and a runaway brake (`RUNAWAY_LIMIT` in
   `combat/auto/hooks.ts`) stops the chain after 24 consecutive automated turns, because an NPC-vs-NPC
   fight or a wiped party is otherwise an unbounded loop issuing real rolls unattended.
+- **What the first real census proved (193 actors, 1689 items, 2067 activities; dnd5e 5.3.3 on Foundry
+  14.365 with midi-qol, chris-premades, ddb-importer, Argon — `noodlr-vtt/noodlr-sheet-survey.json`).**
+  Three of these overturned code written the same day from documentation alone:
+  - **An empty `activation.type` means "not independently usable"** — 109 of 2067 activities, with empty
+    activation *labels* to match, are the companion half of something else (the save rider on a bite, the
+    extra damage on a sneak attack). Preparation fills an activation in when the item has one, so empty on
+    a prepared actor is an assertion. Treating it as an action let a creature spend its turn on the save
+    half of an attack it never made. `economyOf("")` returns null; do not "helpfully" default it.
+  - **Passive activations must not be turn options.** 106 `special` activations exist (grapple-escape
+    checks and the like). They are classified `free` for honesty but excluded from turn planning.
+  - **Wrappers are how monsters cast.** 509 `cast` activities against 524 spell items: "1/day each:
+    fireball" is a feat holding the uses and pointing at a *compendium* spell. `fromUuidSync` on an
+    unloaded pack returns an index stub with no activities, so the spell must be resolved with an await
+    (`prewarmCastSpells`, called before `planTurn`) or every caster reads as having no spells. Where a
+    spell appears both as an item and behind a wrapper, the **wrapper wins** — it owns the resource, and
+    casting the item bypasses the daily limit.
+  - Confirmations, not corrections: `attack.type.value` was never empty on a prepared actor (277 melee,
+    89 ranged); only 17 of 366 attacks state no numeric range, and all 17 are `self` (11) or `touch` (6),
+    which is the population the reach fallback exists for; every spell in that world uses `method:
+    "spell"`; 74 of 193 creatures have no language at all, so banter correctly never reaches them.
+  - Also worth knowing: activity *names* are useless as identity — "Midi Use" 379, "Midi Attack" 349,
+    "Midi Save" 298 are all midi's type titles. And `consumption.spellSlot: true` appears on plain
+    weapon attacks, so it means nothing on its own.
 - **Observe the world, don't infer it.** `api.surveyActions({ saveToFile: true })` censuses every NPC
   sheet in the world — activity types, activation types, range units, flag namespaces, spell methods,
   language shapes, and one worked example per activity type. When a data shape is in question, run it

@@ -2,6 +2,23 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.25
+
+Corrections from a census of a real world — 193 creatures, 1689 items, 2067 activities — which found
+three things no amount of reading documentation would have.
+
+- **Spellcasters can cast again.** A monster's spells usually live behind a feature holding the uses
+  ("1/day each: fireball") that points at the spell in a compendium. Noodlr could not follow that pointer
+  in time, so every caster read as having no spells at all and fell back to swinging or shouting. Spells
+  are now loaded before the turn is planned.
+- **A spell that appears twice is offered once.** Where a creature carries a spell both in its list and
+  behind a limited-use feature, Noodlr now uses the feature — so a once-a-day spell stays once a day
+  instead of being cast from the list every round.
+- **No more spending a turn on the leftovers of an attack.** Roughly one activity in twenty on a sheet
+  is the companion half of something else: the saving throw attached to a bite, the extra damage on a
+  sneak attack. Those were being offered as full actions, so a creature could spend its turn on the save
+  half of an attack it never made. Same for grapple-escape checks and other special-activation entries.
+
 ## 0.4.24
 
 Automated creatures now actually do things, and they read their sheets the way the game system means
