@@ -24,6 +24,7 @@ import {
   getCombatAutomation,
   getMoveSpeed,
   getTurnPaceSeconds,
+  isAutoEngageEnabled,
   isNpcBanterEnabled,
 } from "../combat/config";
 import {
@@ -114,6 +115,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       npcBanter: isNpcBanterEnabled(),
       turnPace: getTurnPaceSeconds(),
       moveSpeed: getMoveSpeed(),
+      autoEngage: isAutoEngageEnabled(),
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
       playersPrompt: promptFieldView(SETTINGS.playersSystemPrompt),
@@ -174,6 +176,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       COMBAT_SETTINGS.moveSpeed,
       Number.isFinite(moveSpeed) ? Math.min(20, Math.max(0, moveSpeed)) : 0,
     );
+    await set(COMBAT_SETTINGS.autoEngage, Boolean(o.combatAutoEngage));
 
     await this.savePromptFields(form);
 

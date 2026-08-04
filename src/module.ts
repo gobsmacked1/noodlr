@@ -40,6 +40,8 @@ import { getCombatAutomation } from "./combat/config";
 import { toggleSelectedCombatantAutomation } from "./combat/auto/control";
 import { registerAutomationCleanup } from "./combat/auto/registry";
 import { registerAutomationTurnHook } from "./combat/auto/hooks";
+import { registerPerceptionWatch } from "./combat/auto/perception";
+import { registerReactionHooks } from "./combat/auto/reactions";
 import { registerEncounterTracking } from "./combat/auto/encounter";
 import { explainTurn } from "./combat/auto/explain";
 import { flattenElevation, restoreElevation, testMove } from "./combat/auto/diagnose";
@@ -214,6 +216,10 @@ Hooks.once("ready", () => {
     // Automation opt-ins are per-encounter too; released when combat ends.
     registerAutomationCleanup();
     registerAutomationTurnHook();
+    // Hostile creatures noticing the party and starting the fight without a GM's clicks.
+    registerPerceptionWatch();
+    // Off-turn reactions: opportunity attacks and hitting back when hurt.
+    registerReactionHooks();
     // Watches whether the party is still swinging, which is what mercy hangs on.
     registerEncounterTracking();
     // Parsed once; a missing file just means silent monsters.

@@ -2,6 +2,46 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.30
+
+- **Creatures take reactions on other people's turns.** Opportunity attacks when an enemy leaves their
+  reach, and striking back when hurt off-turn. Built on Foundry's own hooks and the creature's own sheet,
+  so it works with no other module installed — where Midi QoL is present the roll still routes through
+  it, but nothing here needs it. The whole route of a move is examined rather than just where it ended,
+  so circling out of reach and back again still provokes, while a teleport correctly provokes nothing.
+  A creature clever enough to save its reaction for something better (tier 7 and up) sometimes will; a
+  wolf snapping at fleeing prey does not deliberate. An enemy that took the Disengage action is not
+  punished for it, the paralysed and the stunned do not swing, and each creature gets one reaction per
+  round, tracked by Noodlr rather than read from anyone else's flags. If a table already runs Gambit's
+  Premades with its own opportunity attacks, Noodlr stands aside rather than hitting the party twice.
+- **Hostile creatures start the fight themselves.** Every six seconds Noodlr checks whether any hostile
+  creature can actually see a player's token — running that creature's own detection modes, so darkness,
+  darkvision, blindsight, tremorsense, invisibility and the walls between them all count, and none of it
+  is judged from the GM's point of view. When one can, everyone on the scene joins the encounter, the
+  monsters roll initiative and combat begins; your players still roll their own, because that is the one
+  die roll they expect to make at the start of a fight. Creatures whose tokens have vision switched off,
+  which is most NPCs in dnd5e, fall back to the senses their stat block claims rather than being
+  permanently blind, and one with no way to perceive anything at all says so in the console instead of
+  failing quietly. There is a one-minute lull after every fight so survivors who still have the party in
+  sight cannot immediately start the next one, and the whole thing is a switch under Text Generation for
+  GMs who prefer to time their own ambushes. Only ever active while Combat Automation is Full or Partial.
+
+- **Creatures move the way their stat block says they do.** Only walk speed was being read, so a wyvern
+  was handed its 20 ft walk instead of its 80 ft fly and then complained it was out of range, while
+  anything with no land speed at all — most aquatic monsters — read as speed 0 and never took a step.
+  Flying, swimming, burrowing and climbing speeds are now read, the fastest sensible one sets the
+  movement budget, and Foundry is told which mode is in use so its own terrain and wall rules for that
+  mode apply. Swimming and burrowing stay reserved for creatures that have no other way to travel,
+  since Foundry models no terrain types and picking one speculatively would be inventing a rule.
+- **Height is part of the distance now.** Reach is measured through the air rather than across the
+  floor, a creature that can fly or climb will rise to meet something above it, and one that can do
+  neither no longer walks hopefully toward a hovering wizard and wastes its turn.
+- **Difficult terrain is honoured.** Movement was being spent as raw distance with terrain cost ignored,
+  which quietly let creatures cross a bog at full speed. Foundry now enforces the budget in cost, which
+  is the accounting the rules describe — and which correctly charges a flyer nothing for the bog.
+- **Banter is half as frequent.** Same formula, twice the scale: each point is now worth 5% rather than
+  10%, so a creature that used to jeer on 60% of its turns does so on 30%.
+
 ## 0.4.29
 
 - **A slow walk is no longer mistaken for a hang.** Abandoning a move used to be on a flat eight-second

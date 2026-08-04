@@ -91,6 +91,8 @@ export const COMBAT_SETTINGS = {
   turnPace: "combat.turnPace",
   /** Grid squares per second an automated token slides across the canvas. 0 leaves Foundry's own pace. */
   moveSpeed: "combat.moveSpeed",
+  /** Whether hostile creatures start the fight themselves on noticing the party. */
+  autoEngage: "combat.autoEngage",
 } as const;
 
 /**

@@ -39,6 +39,19 @@ reference exists; drop the reference folder at retirement.
 
 ## Design principles
 
+0. **No third-party module is ever a dependency (user, 2026-08-04; overrides any convenience argument).**
+   Midi QoL is the specific case that prompted this: superb, widely installed, and repeatedly quiet for
+   months at a stretch, so anything built on it strands the table when it lapses. The rule is *learn
+   from them, depend on none of them*. Read their source to find out how a thing is done, then implement
+   it against core Foundry and the game system's own API, which are the only two things guaranteed to be
+   there. Where a module IS present it may raise fidelity — our item-use path already routes through
+   midi when it exists, so reactions get its full workflow — but every feature must work with nothing
+   installed but Foundry and a system. Principle #2 below (mechanics belong to mechanics modules) is
+   about not *duplicating* their work when they are present; it is not licence to require them.
+   Corollary for detection triggers: prefer signals core cannot take away. Token position hooks and a
+   hit-point decrease are available in every system and every version; "the attack roll is about to
+   resolve" is not, and needs a per-system entry in `system-profiles.ts` rather than a guess.
+
 0. **Rules versus tactics (amended 2026-08-02).** Principle 1 below forbids hardcoded system rules,
    and it still does — but it was being read as forbidding system-specific *tactics*, which stalled
    the NPC combatant work. The line is now explicit: Noodlr may know **where a system keeps its
@@ -1648,6 +1661,101 @@ lorebook/author's-note/post-history injection.
     The one place a clock CAN end something early is the move stall watchdog, which is why it counts only
     time with no visible animation — a twelve-square walk at one square per second is twelve legitimate
     seconds, and the flat 8-second timeout it replaced would have killed it mid-stride as a hang.
+  - **Off-turn reactions, natively (2026-08-04).** `combat/auto/reactions.ts`, no module required — see
+    design principle #0. Two triggers, chosen because core alone can detect them with certainty:
+    `preUpdateToken`/`updateToken` for "someone left my reach" (snapshot who had the mover in reach
+    BEFORE the change, compare after; these two hooks have been stable for many versions and catch a
+    move made by any means), and a hit-point decrease via `preUpdateActor`/`updateActor` for "I was hurt
+    off-turn" — split across both hooks because the old value only exists before and the reaction must
+    not resolve until the damage has landed. Reaction-spent bookkeeping is OURS, keyed by combatant and
+    cleared on round change, not read from any module's flags.
+    Two things to know before extending it. An opportunity attack is not a sheet entry in any system —
+    it is an ordinary melee attack spent as a reaction — so the code looks for the best melee attack,
+    not a reaction-flagged item. And damage carries no attribution, so the creature whose turn it is
+    gets the blame; that is right nearly always and wrong for traps and lingering area effects, which is
+    why it is logged as an assumption.
+  - **What the midi review established (2026-08-04, read from source; clones under `C:\Project\_research`).**
+    Facts worth not rediscovering:
+    - **Midi does NOT automate opportunity attacks.** Its `reactionmoved`/`isMoved` trigger type is
+      declared but never dispatched from any of the eleven `doReactions` call sites. Its `recordAOO`
+      setting is bookkeeping only: it marks a reaction spent when *you* attack off-turn.
+    - **Gambit's Premades DOES**, via a Region per combatant, and is therefore a hard conflict — two
+      opportunity attacks per departure. Hence the stand-aside check in `reactions.ts`. chris-premades
+      implements no OA and registers no midi hooks, so it is safe. Gambit's is v13-only as of 2.1.44.
+    - **Midi's reaction prompt cannot be answered programmatically** — `ReactionDialog` has no
+      auto-select, and the only supported intervention is the awaited `midi-qol.ReactionFilter`. Do NOT
+      cancel that hook and substitute your own Shield: midi only re-reads AC when the dialog returned a
+      real result, so the attack resolves against the stale AC. Pre-empt earlier instead.
+    - **`MidiQOL.setReactionUsed()` is a silent no-op unless `enforceReactions` is `"all"` or
+      `"displayOnly"`** (it defaults to `"none"`, and `"character"` does not cover NPCs). We call it
+      anyway, purely so midi's own prompt suppresses itself, and never rely on it — hence our own ledger.
+    - dnd5e 5.3.3 has **zero reaction tracking** and **no Disengage flag, item or status effect**; it is
+      prose in stat blocks only. The community convention is an ActiveEffect literally named "disengage",
+      which is what we match.
+    - Reaction uses want `isReaction: true` and `workflowOptions.targetConfirmation: "none"` in
+      `midiOptions`, which is what midi's own reaction path passes.
+  - **Planned, not built: Shield, Parry, Counterspell.** Without midi, dnd5e never compares an attack roll
+    to an AC — a human eyeballs it — so there is no "about to hit" moment and Shield genuinely cannot be
+    timed natively. The shape that respects principle #0 is a two-part job: an optional adapter that
+    lights up when midi is present, hooking `midi-qol.preCheckHits` (the last point at which an AC change
+    is still read by `checkHits`, followed by `actor.reset()`), `midi-qol.hitsChecked` for Parry, and
+    `midi-qol.isDamaged` for retaliation at higher fidelity than our hit-point watcher; plus a NATIVE
+    Counterspell off dnd5e's own activity-use hooks, since "a spell is being cast" is observable without
+    midi. Every midi hook built from `WorkflowState_X` exists as both `midi-qol.preX` and `midi-qol.postX`
+    and is awaited, so an async handler legitimately delays the workflow.
+  - **Asking "can that monster see that player" (2026-08-04, source-verified).** Everything in
+    `combat/auto/perception.ts`. Three separate traps, each of which fails SILENTLY:
+    1. `token.isVisible` and `canvas.visibility.testVisibility` answer whether the CURRENT USER can see
+       something. Core's method iterates `canvas.effects.visionSources` (what is initialized on this
+       client) and short-circuits to `return game.user.isGM` when there are none — a confident "yes" to
+       everything on an automation client. Neither can be scoped to an arbitrary token.
+    2. An uncontrolled NPC has **no vision source on a GM's client**: `Token#_isVisionSource()` refuses
+       for a GM unless the token is controlled. Build one by hand —
+       `new CONFIG.Canvas.visionSourceClass({sourceId, object: token})` then
+       `initialize(token.document._getVisionSourceData())` — and **never call `add()`**, which would
+       register the monster's eyes with the canvas and change what the GM sees. Destroy it after use.
+       `DetectionMode#testVisibility(visionSource, mode, config)` takes the source as a PARAMETER, which
+       is the only reason per-creature perception is possible at all.
+    3. **dnd5e never maps stat-block senses onto detection modes, and NPC tokens ship with sight off.**
+       Its character template sets `prototypeToken.sight.enabled: true`; its NPC template has no
+       prototypeToken block, and core's default is `enabled: sight.range > 0` with range 0.
+       `_prepareDetectionModes()` returns early when sight is disabled, so the token gets NO modes and a
+       vision test returns false for the entire bestiary. Senses live at
+       `system.attributes.senses.ranges.{darkvision,blindsight,truesight,tremorsense}` since dnd5e 5.3
+       (flat path still shimmed); vision-5e is the module that does the mapping properly. Our fallback:
+       no usable modes → stated senses + a wall test, and log the creature once. **Never let an empty
+       capability read pass as "cannot see".**
+    Also: `detectionModes` is a **Record keyed by id in v14, an Array of `{id,...}` in v13** — the wrong
+    shape yields an empty list, i.e. a blind monster, with no error. And running the detection-mode loop
+    is what gets lighting, magical darkness and invisibility right for free; do not hand-roll those.
+    Patrol (theripper93) tests `fov.contains()` only, which is why it ignores all of the above — take its
+    architecture, not its test. Behaviour was the reference; the code is ours, nothing is vendored here.
+  - **Starting a combat unattended (2026-08-04, source-verified).** Find the encounter **by scene**
+    (`game.combats.find(c => c.scene?.id === scene.id)`) — `game.combats.viewed` is the tracker's current
+    selection, i.e. UI state, and is meaningless on an automation client. Then
+    `TokenDocument.createCombatants(docs, {combat})` (handles the already-a-combatant case),
+    `combat.rollNPC()`, `combat.startCombat()`. dnd5e overrides `rollAll`/`rollNPC`/`rollInitiative`, so
+    core's methods already apply the system's initiative configuration — never pass a formula.
+    `rollNPC` not `rollAll` on purpose: rolling a player's initiative for them takes away the one roll
+    they expect to make, and it is not the work the GM asked to be relieved of.
+    `CONFIG.specialStatusEffects.DEFEATED` (default `"dead"`) via `document.hasStatusEffect()` is the
+    defeated test; disposition must be `=== HOSTILE`, never `< 0`, because SECRET is −2 and is GM
+    bookkeeping. Fires vetoable `noodlrPreCombatInitiated` and `noodlrCombatInitiated` hooks.
+  - **Movement is not just walking (2026-08-04).** `combat/auto/locomotion.ts` reads every mode on the
+    sheet and is the only place allowed to decide which one a creature uses. Two rules encoded there,
+    both deliberate: flight wins over walking whenever it is faster (a dragon does not jog), while swim,
+    burrow and climb are last resorts for creatures with nothing else, because Foundry models no terrain
+    types and choosing "swim" for a land creature crossing a dungeon floor would be inventing a rule.
+    The chosen mode sets the movement BUDGET as well as the action passed to `move()` — reading walk
+    speed alone gave a wyvern 20 ft instead of 80 and gave aquatic monsters 0.
+  - **Let core do the cost accounting.** `moveTo` passes `maxCost: budget` rather than `ignoreCost: true`.
+    The old flag was a quiet rules violation: difficult terrain costs double, so 30 ft of movement buys
+    15 ft of bog, and core already knows the multiplier for every movement action — including that a
+    flyer pays nothing for the bog. Do not reintroduce `ignoreCost` to "fix" a short move.
+  - **Reach is three-dimensional.** `BoardActor.elevation` exists and the planner measures separation as
+    `hypot(horizontal, rise)`. A creature that can neither fly nor climb is not offered a melee option
+    against something above it, which is what stopped ground troops from walking hopefully at a hovering
+    caster and burning the turn. Horizontal-only measurement remains elsewhere (kiting, cover) on purpose.
   - `api.testMove()` (`combat/auto/diagnose.ts`) is the ground truth when this recurs: it really moves the
     selected token one square, escalating walls-enforced → walls-ignored → `displace` → `noHook`, reports
     core's answer at each stage, and restores the position. Whichever attempt first succeeds names the
