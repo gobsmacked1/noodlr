@@ -2,6 +2,17 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.31
+
+- **Fixed: monsters took a whole round before the players had rolled initiative.** Automatic engagement
+  began the fight the instant the monsters had their numbers, which put a monster at the top of a
+  provisional turn order and let automation play the round — in testing, a player was unconscious before
+  ever rolling. The encounter and everyone's roll button now appear as before, but combat does not begin
+  until every combatant has an initiative, and if nobody rolls within a minute the rest are rolled for
+  and the fight starts with an announcement, so an absent player cannot freeze the table. Independently
+  of how a fight starts, automation now refuses to play anyone's turn while a combatant is still
+  unrolled — including a combat you began by hand.
+
 ## 0.4.30
 
 - **Creatures take reactions on other people's turns.** Opportunity attacks when an enemy leaves their

@@ -1741,6 +1741,17 @@ lorebook/author's-note/post-history injection.
     `CONFIG.specialStatusEffects.DEFEATED` (default `"dead"`) via `document.hasStatusEffect()` is the
     defeated test; disposition must be `=== HOSTILE`, never `< 0`, because SECRET is −2 and is GM
     bookkeeping. Fires vetoable `noodlrPreCombatInitiated` and `noodlrCombatInitiated` hooks.
+  - **A turn order is not real until everyone has a number (2026-08-04, from a live test).** Rolling the
+    monsters and calling `startCombat()` in the same breath put a monster at turn zero of a provisional
+    order and automation played the whole round: the player was unconscious before ever rolling. Two
+    independent guards now, and both are wanted. `perception.ts` posts the "roll for initiative" call,
+    then holds up to `INITIATIVE_WAIT_MS` (60 s, polled once a second) for `initiativeSettled()` before
+    `startCombat()`; on expiry it `rollAll()`s the stragglers and says so in chat, because an absent
+    player must not be able to freeze an encounter. `hooks.ts` `takeTurn()` independently refuses to play
+    any turn while a non-defeated combatant has no initiative, which also covers a combat the GM began by
+    hand, and picks the fight back up from an `updateCombatant` hook the moment the last straggler rolls
+    (guarded by a `combat:round:combatant` token so the two entry points cannot both play the same turn).
+    Defeated combatants are excluded from the check so a corpse cannot deadlock the fight.
   - **Movement is not just walking (2026-08-04).** `combat/auto/locomotion.ts` reads every mode on the
     sheet and is the only place allowed to decide which one a creature uses. Two rules encoded there,
     both deliberate: flight wins over walking whenever it is faster (a dragon does not jog), while swim,
