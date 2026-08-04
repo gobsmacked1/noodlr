@@ -1640,6 +1640,14 @@ lorebook/author's-note/post-history injection.
     in `positioning.ts`, where the question is line of sight rather than legality.
   - Every rejection on the movement path must name the square and the reason. A bare `continue` is what
     made this cost three releases: `moveTo` reported refusals in detail while nothing ever reached it.
+  - **Turn pace is a floor on duration, gated on completion — never a deadline (2026-08-04).** The clock
+    starts when the tracker reaches the creature, and the tracker only advances after `runTurnFor`'s
+    promise resolves, so a turn that takes longer than the floor simply takes longer. Nothing anywhere
+    cuts a turn short, and nothing keys off "movement finished". Say this plainly when it comes up: the
+    natural reading of "minimum turn duration" is a timer that could truncate a turn, and it is not one.
+    The one place a clock CAN end something early is the move stall watchdog, which is why it counts only
+    time with no visible animation — a twelve-square walk at one square per second is twelve legitimate
+    seconds, and the flat 8-second timeout it replaced would have killed it mid-stride as a hang.
   - `api.testMove()` (`combat/auto/diagnose.ts`) is the ground truth when this recurs: it really moves the
     selected token one square, escalating walls-enforced → walls-ignored → `displace` → `noHook`, reports
     core's answer at each stage, and restores the position. Whichever attempt first succeeds names the

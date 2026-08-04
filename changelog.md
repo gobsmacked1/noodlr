@@ -2,6 +2,14 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.29
+
+- **A slow walk is no longer mistaken for a hang.** Abandoning a move used to be on a flat eight-second
+  timer, which was fine until movement speed became configurable: a creature crossing twelve squares at
+  one square per second takes twelve seconds legitimately, and the timer would have cut the walk off
+  mid-stride. Time spent visibly moving no longer counts against it, so only a genuinely stuck move —
+  one paused by a region behaviour, say — gets abandoned.
+
 ## 0.4.28
 
 - **Creatures walk instead of blinking.** A turn now waits for the token to finish sliding before the

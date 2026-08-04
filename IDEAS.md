@@ -10,6 +10,15 @@ Parked tangents — one line each. Promote to the roadmap in AGENTS.md when pick
   (no client slicing needed); client-side overlap+blend tiling only as a fallback. A
   disabled "Upscale to 4x (coming soon)" checkbox is shown in the Map generator config as a
   placeholder. Revisit when OpenRouter (or an easy hosted endpoint) exposes upscaling.
+- **Split movement across a turn (a "turn script" instead of one option).** Real play is
+  move a few feet → attack → bonus-action Disengage → spend the rest of the movement backing
+  off (user, 2026-08-04). The planner currently emits ONE option plus an optional end-of-turn
+  cover step, so `close` and `kite` are the only shapes where movement and action interleave,
+  and the movement budget is spent in a single call rather than drawn down across steps. The
+  change is to have the planner emit an ordered list of steps sharing one movement allowance,
+  with the executor spending from it — which also makes the action economy explicit (action /
+  bonus action / movement remaining) rather than implied. Worth doing after basic movement is
+  confirmed working in a live encounter; it is a planner refactor, not a movement fix.
 - **Third-party lore importers (World Anvil / Dungeon Alchemist / etc.).** Deferred as low ROI:
   most of these either export to JSON/CSV — already covered by the generic structured import
   (rc5) — or produce maps/scenes (Dungeon Alchemist → images/UVTT), which is scene/map territory,
