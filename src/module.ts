@@ -42,6 +42,7 @@ import { registerAutomationCleanup } from "./combat/auto/registry";
 import { registerAutomationTurnHook } from "./combat/auto/hooks";
 import { registerEncounterTracking } from "./combat/auto/encounter";
 import { explainTurn } from "./combat/auto/explain";
+import { flattenElevation, restoreElevation, testMove } from "./combat/auto/diagnose";
 import { surveyActions } from "./combat/survey";
 import { restoreForfeited } from "./combat/systems/dnd5e-rewards";
 import { loadBanter } from "./combat/banter/library";
@@ -80,6 +81,9 @@ export interface NoodlrApi {
   restoreForfeitedGear(): Promise<number>;
   explainTurn(): Promise<void>;
   surveyActions(opts?: { saveToFile?: boolean; max?: number; asText?: boolean }): Promise<unknown>;
+  testMove(): Promise<void>;
+  flattenElevation(): Promise<number>;
+  restoreElevation(): Promise<number>;
 }
 
 const api: NoodlrApi = {
@@ -131,6 +135,11 @@ const api: NoodlrApi = {
   explainTurn: () => explainTurn(),
   /** Census every NPC sheet in the world, so data shapes are observed rather than assumed. */
   surveyActions: (opts) => surveyActions(opts),
+  /** Move the selected token one square and report what core did at every stage, then put it back. */
+  testMove: () => testMove(),
+  /** Set every token in this scene to elevation 0, reversibly. */
+  flattenElevation: () => flattenElevation(),
+  restoreElevation: () => restoreElevation(),
 };
 
 Hooks.once("init", () => {

@@ -1629,6 +1629,21 @@ lorebook/author's-note/post-history injection.
   - Third-party vetoes to suspect first: **NotYourTurn** (`preMoveToken`, never checks `movement.method`,
     so an API move is treated as a player drag; only warns at default GM setting) and **Token Warp**
     (clamps out-of-bounds moves, vetoing ours while moving the token itself).
+  - **Do not let our own geometry veto a move (2026-08-04).** v0.4.26 still moved nothing, and the reason
+    was not in `moveTo` at all: the callers discarded every candidate destination first, silently, so core
+    was never asked. Two causes, both ours. `occupied()` compared a Token placeable against a
+    TokenDocument with `===`, so a creature counted *itself* as an obstacle. And our flat
+    `blocked()` wall test vetoed candidates on an elevated scene — a party on top of a barbican reads as
+    walled in by the rooms underneath, because that test knows nothing about elevation. `blocked()` is now
+    advisory in `movement.ts` (logged, never a veto): **core is the authority on whether a move is legal,
+    and a second silent opinion can only subtract moves it would have allowed.** It is still a real veto
+    in `positioning.ts`, where the question is line of sight rather than legality.
+  - Every rejection on the movement path must name the square and the reason. A bare `continue` is what
+    made this cost three releases: `moveTo` reported refusals in detail while nothing ever reached it.
+  - `api.testMove()` (`combat/auto/diagnose.ts`) is the ground truth when this recurs: it really moves the
+    selected token one square, escalating walls-enforced → walls-ignored → `displace` → `noHook`, reports
+    core's answer at each stage, and restores the position. Whichever attempt first succeeds names the
+    cause without any inference.
 - **Observe the world, don't infer it.** `api.surveyActions({ saveToFile: true })` censuses every NPC
   sheet in the world — activity types, activation types, range units, flag namespaces, spell methods,
   language shapes, and one worked example per activity type. When a data shape is in question, run it

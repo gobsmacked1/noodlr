@@ -2,6 +2,29 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.27
+
+Movement, third attempt — this time aimed at the part that was never saying anything.
+
+- **The silence is gone.** v0.4.26 explained refusals in detail but explained nothing at all when the
+  move was never attempted, and that turned out to be the actual case: candidate destinations were being
+  discarded before Foundry was ever asked. Every rejection now says which square, and why.
+- **A creature was blocking itself.** The occupied-square check compared the wrong kind of object, so a
+  creature counted its own token as something standing in the way and quietly refused to take short steps.
+- **Walls beneath a raised floor no longer stop a creature standing on it.** Noodlr's own line-of-sight
+  test is flat, so a party fighting on top of a structure read as walled in by the rooms below them. That
+  test is now advisory — Foundry decides whether a move is legal, as it should.
+- **Elevation is carried explicitly.** A creature at a height stays at that height when it moves.
+- **"Unconstrained Movement" now applies to automated creatures too.** Foundry only ever consults that GM
+  toggle when you drag a token by hand, so Noodlr's moves were wall-constrained even with it switched on.
+  It now behaves the way your own dragging does. Off by default, so tables that enforce walls still do.
+- **New: `game.modules.get("noodlr").api.testMove()`.** Select a token, run it, and it moves one square in
+  front of you and reports exactly what Foundry said — escalating through walls-enforced, walls-ignored,
+  displace, and hooks-disabled — then puts the token back. Whichever attempt first succeeds names the
+  cause. It also lists which of your other modules are known to interfere with movement.
+- **New: `api.flattenElevation()` and `api.restoreElevation()`.** Set every token in the current scene to
+  elevation 0 and put them back afterwards, for taking height out of the picture while testing.
+
 ## 0.4.26
 
 - **Automated turn pace.** New setting under Text Generation (default 6 seconds): the minimum time an
