@@ -81,7 +81,7 @@ export interface NoodlrApi {
   restoreForfeitedGear(): Promise<number>;
   explainTurn(): Promise<void>;
   surveyActions(opts?: { saveToFile?: boolean; max?: number; asText?: boolean }): Promise<unknown>;
-  testMove(): Promise<void>;
+  testMove(): Promise<Record<string, unknown> | undefined>;
   flattenElevation(): Promise<number>;
   restoreElevation(): Promise<number>;
 }

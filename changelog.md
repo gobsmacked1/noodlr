@@ -2,6 +2,16 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.28
+
+- **Creatures walk instead of blinking.** A turn now waits for the token to finish sliding before the
+  attack card and the spoken line land, so the movement is something the table watches rather than
+  something that already happened. New setting under Text Generation: **Automated movement speed**, in
+  squares per second, where 0 keeps Foundry's own pace and lower numbers make the walk easier to follow.
+  Bear in mind a slower walk lengthens turns, so a long move may want a longer turn pace too.
+- **`api.testMove()` output is copyable now.** It printed into a collapsible console group, which meant
+  the findings could not be copied out — it now prints one JSON block and returns the same object.
+
 ## 0.4.27
 
 Movement, third attempt — this time aimed at the part that was never saying anything.

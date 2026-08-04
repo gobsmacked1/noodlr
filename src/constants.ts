@@ -89,6 +89,8 @@ export const COMBAT_SETTINGS = {
   banter: "combat.banter",
   /** Seconds an automated turn must last before the tracker advances, so the table can follow it. */
   turnPace: "combat.turnPace",
+  /** Grid squares per second an automated token slides across the canvas. 0 leaves Foundry's own pace. */
+  moveSpeed: "combat.moveSpeed",
 } as const;
 
 /**

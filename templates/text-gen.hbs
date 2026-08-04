@@ -82,8 +82,14 @@
     <div class="noodlr-field">
       <label>{{localize "NOODLR.Combat.Pace.Name"}}</label>
       <p class="notes">{{localize "NOODLR.Combat.Pace.Hint"}}</p>
-      <input type="number" name="combatTurnPace" value="{{turnPace}}" min="0" max="60" step="1" />
-    </div>
+  <input type="number" name="combatTurnPace" value="{{turnPace}}" min="0" max="60" step="1" />
+</div>
+
+<div class="noodlr-field">
+  <label>{{localize "NOODLR.Combat.MoveSpeed.Name"}}</label>
+  <p class="notes">{{localize "NOODLR.Combat.MoveSpeed.Hint"}}</p>
+  <input type="number" name="combatMoveSpeed" value="{{moveSpeed}}" min="0" max="20" step="1" />
+</div>
 
     <label class="noodlr-inline">
       <input type="checkbox" name="npcBanter" {{#if npcBanter}}checked{{/if}} />

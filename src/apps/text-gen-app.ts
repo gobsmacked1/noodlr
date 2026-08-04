@@ -20,7 +20,12 @@ import {
   isTipsterEnabled,
 } from "../prompt/settings";
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
-import { getCombatAutomation, getTurnPaceSeconds, isNpcBanterEnabled } from "../combat/config";
+import {
+  getCombatAutomation,
+  getMoveSpeed,
+  getTurnPaceSeconds,
+  isNpcBanterEnabled,
+} from "../combat/config";
 import {
   detectedSystemLabel,
   getRulesetName,
@@ -108,6 +113,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       },
       npcBanter: isNpcBanterEnabled(),
       turnPace: getTurnPaceSeconds(),
+      moveSpeed: getMoveSpeed(),
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
       playersPrompt: promptFieldView(SETTINGS.playersSystemPrompt),
@@ -162,6 +168,11 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
     await set(
       COMBAT_SETTINGS.turnPace,
       Number.isFinite(pace) ? Math.min(60, Math.max(0, pace)) : 6,
+    );
+    const moveSpeed = Number(o.combatMoveSpeed);
+    await set(
+      COMBAT_SETTINGS.moveSpeed,
+      Number.isFinite(moveSpeed) ? Math.min(20, Math.max(0, moveSpeed)) : 0,
     );
 
     await this.savePromptFields(form);

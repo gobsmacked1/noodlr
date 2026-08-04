@@ -534,6 +534,8 @@
   "NOODLR.Combat.NoPlan": "Noodlr found nothing {name} could do — no usable attacks, items, or reachable targets on its sheet.",
   "NOODLR.Combat.Pace.Name": "Automated turn pace (seconds)",
   "NOODLR.Combat.Pace.Hint": "Minimum time an automated creature's turn occupies the table before initiative advances. A machine resolves a turn in under a second, which reads as a blur and makes spoken lines from consecutive creatures overlap. Time already spent acting counts toward this, so it slows only the turns that were too fast. 0 disables it.",
+  "NOODLR.Combat.MoveSpeed.Name": "Automated movement speed (squares per second)",
+  "NOODLR.Combat.MoveSpeed.Hint": "How fast an automated creature slides across the canvas. A creature that arrives instantly reads as a teleport rather than a walk, and players notice. 0 keeps Foundry's own animation pace; lower numbers make the walk easier to follow. Turns wait for the slide to finish, so a slow setting lengthens turns and may want a longer turn pace above.",
   "NOODLR.Combat.Runaway": "Noodlr has stopped advancing initiative: two dozen turns passed without reaching a player's. Advance the tracker yourself, and check whether anyone is left to fight.",
   "NOODLR.Combat.NoCombat": "No active combat.",
   "NOODLR.Combat.NoCombatant": "No current combatant.",
