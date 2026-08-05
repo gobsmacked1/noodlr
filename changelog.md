@@ -2,6 +2,17 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.36
+
+- **Darkness you carry with you.** A warlock with Devil's Sight who casts Darkness on themselves and
+  walks through the fight is now handled: darkness emitted by a token is recognised alongside darkness
+  placed on the map, and a creature standing inside its own cloud is found the same way as one standing
+  behind somebody else's. The guard still has to pierce it, which is the whole point of the build.
+- Fog and darkness are now also recognised when a module applies them as an effect on the creature
+  rather than as a placed template — v0.4.35 only looked for them on the map.
+- Wild shape and polymorph give a hiding creature +5, on the reasoning that most shapes a druid picks
+  are unremarkable. Truesight sees through it.
+
 ## 0.4.35
 
 - **Fog, darkness and illusions now work where you actually put them: in the way.** The previous release

@@ -1807,7 +1807,14 @@ lorebook/author's-note/post-history injection.
       two token centres at half a grid square (capped at 80 samples) and test containment against
       MeasuredTemplates, Regions, and AmbientLights configured as darkness sources. Each is absolute
       until pierced, so a watcher must get past the interposed thing before it has any chance at what is
-      behind it. **Naming is the hard part, not the geometry:** Foundry records nothing on a template
+      behind it. **Worn and interposed are both real and the screens table is checked BOTH ways**
+      (user's correction, 2026-08-05): a fog bank is usually placed, but Darkness cast on oneself is the
+      canonical Devil's Sight warlock build — they walk the battlefield inside it, seeing out perfectly
+      while the guard still has to pierce it. That renders as light emitted by the TOKEN, which the
+      ambient-light layer never sees, so token lights with `light.negative` are scanned too; and when a
+      module applies it as an effect instead, the worn check catches it. The sampled line includes both
+      endpoints, so a creature standing in its own darkness is found exactly like one standing behind
+      someone else's. **Naming is the hard part, not the geometry:** Foundry records nothing on a template
       about which spell placed it beyond an origin link that has moved across dnd5e versions and may now
       point at an Activity rather than an Item, so several paths are tried and an unresolvable name means
       the screen is ignored — the correct failure, since an unrecognised template must not start blocking
