@@ -1841,6 +1841,18 @@ lorebook/author's-note/post-history injection.
     whole dungeon. Measured with elevation, and deliberately through walls — it models a shout. The party
     is deliberately NOT radius-limited: adventurers arrive together, and a scout spotted ahead of the
     marching order should not be left fighting alone.
+  - **Sweeping does not stop when the fight starts (2026-08-05, user's report).** The radius cap has a
+    necessary consequence: creatures out of earshot legitimately miss the opening, and they must be able
+    to arrive later or they never arrive at all — a hostile outside the original radius was shot at over
+    several rounds and the tracker ignored it. So sweeps continue during combat, restricted to hostiles
+    not already enlisted, and a hit routes to `reinforce()` instead of `engage()`: add the newcomer plus
+    whoever IT can shout to, `rollNPC()` (which rolls only the unrolled, leaving existing places intact),
+    announce, done — never `startCombat()` again. Two entry points, because perception is not the only
+    way into a fight: **being hurt joins you regardless of what you saw**, on `preUpdateActor` (not
+    `updateActor` — only a DROP counts and the old value is gone afterwards), matching the victim by
+    `actor.token.id` because an unlinked token's synthetic actor reports the shared BASE actor id.
+    Sweeps still stand down for a combat that exists but has not started: that is someone mid-setup, and
+    usually our own initiative wait.
   - **A turn order is not real until everyone has a number (2026-08-04, from a live test).** Rolling the
     monsters and calling `startCombat()` in the same breath put a monster at turn zero of a provisional
     order and automation played the whole round: the player was unconscious before ever rolling. Two
@@ -1890,6 +1902,15 @@ lorebook/author's-note/post-history injection.
 
 ## Open decisions / risks
 
+- **OPEN BUG — melee-only hostiles still move oddly (reported 2026-08-05, v0.4.36 test).** The user saw
+  "unusual movement behaviour" from melee-only creatures during an otherwise clean encounter and had no
+  time to characterise it. Nothing narrower is known yet: not whether they stall, overshoot, path badly
+  or refuse to close. Start by having them run a fight with `api.explainTurn()` on a misbehaving creature
+  and `api.testMove()` on its token, since between them those report the planner's scoring and every
+  stage of what core did with the move. Prime suspects given recent work: `reachableElevation` and the
+  3D `separation` check in `planner.attackOptions` (added with locomotion in v0.4.30), and the
+  `maxCost: budget` constraint, which silently refuses a path that costs more than the creature's speed
+  rather than moving it as far as it can.
 - Lorebook storage shape (world-scoped JournalEntry vs module setting vs flat file in world data) — decide in Phase 3.
 - Multi-GM/assistant-GM permissions model for Chronicle review and silo resets.
 - `noodlr.app` domain not yet acquired/configured; git + releases now hosted on `github.com/gobsmacked1` (see Phase 6 status). Revisit if a self-hosted forge / custom domain is preferred.

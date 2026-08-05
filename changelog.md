@@ -2,6 +2,14 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.37
+
+- **Latecomers can join a fight in progress.** Creatures too far away to hear the shout that started the
+  encounter no longer sit it out forever. They keep watching, and if the party comes into view they roll
+  in late, bringing whoever they can shout to with them.
+- **Being attacked puts you in the fight, seen or not.** A hostile shot at from across the room now joins
+  the encounter even if it never spotted the archer, which is what should have happened the first time.
+
 ## 0.4.36
 
 - **Darkness you carry with you.** A warlock with Devil's Sight who casts Darkness on themselves and
