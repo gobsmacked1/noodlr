@@ -1741,6 +1741,14 @@ lorebook/author's-note/post-history injection.
     `CONFIG.specialStatusEffects.DEFEATED` (default `"dead"`) via `document.hasStatusEffect()` is the
     defeated test; disposition must be `=== HOSTILE`, never `< 0`, because SECRET is −2 and is GM
     bookkeeping. Fires vetoable `noodlrPreCombatInitiated` and `noodlrCombatInitiated` hooks.
+  - **Perception is one-way, and shouting has a range (2026-08-04, user's spec).** Only a hostile
+    creature spotting a player token ever starts a fight; nothing tests a player as the spotter, because
+    a party that chose to sneak has chosen not to fight and opening combat on the players' own eyeballs
+    would make stealth impossible. Recruitment is capped by `getEngageRadius()` (default 30, scene units,
+    configurable): only hostiles within that distance of the SPOTTER join, so one sentry cannot pull a
+    whole dungeon. Measured with elevation, and deliberately through walls — it models a shout. The party
+    is deliberately NOT radius-limited: adventurers arrive together, and a scout spotted ahead of the
+    marching order should not be left fighting alone.
   - **A turn order is not real until everyone has a number (2026-08-04, from a live test).** Rolling the
     monsters and calling `startCombat()` in the same breath put a monster at turn zero of a provisional
     order and automation played the whole round: the player was unconscious before ever rolling. Two

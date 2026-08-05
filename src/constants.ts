@@ -93,6 +93,7 @@ export const COMBAT_SETTINGS = {
   moveSpeed: "combat.moveSpeed",
   /** Whether hostile creatures start the fight themselves on noticing the party. */
   autoEngage: "combat.autoEngage",
+  engageRadius: "combat.engageRadius",
 } as const;
 
 /**

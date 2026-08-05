@@ -10,6 +10,16 @@ Parked tangents — one line each. Promote to the roadmap in AGENTS.md when pick
   (no client slicing needed); client-side overlap+blend tiling only as a fallback. A
   disabled "Upscale to 4x (coming soon)" checkbox is shown in the Map generator config as a
   placeholder. Revisit when OpenRouter (or an easy hosted endpoint) exposes upscaling.
+- **Stealth should get a say in being spotted.** Perception currently answers "is there a clear line to
+  a lit token", which is Foundry's vision question, not 5e's: a rogue with Stealth 27 creeping past a
+  guard with Passive Perception 10 is seen the moment the wall ends. Wants a contested read — the party's
+  last Stealth roll (or Dexterity (Stealth) passive) against the spotter's passive Perception, only for
+  tokens the players have actually declared as sneaking. Needs a way to know that a party is sneaking at
+  all, which Foundry does not model; a toolbar toggle or an effect is probably the honest answer.
+- **Reinforcements: hostiles outside the shout radius joining later.** The 30 ft recruitment cap means a
+  warband two rooms away legitimately misses the fight — but it should be able to arrive once the noise
+  of combat reaches it, rather than standing idle forever. Wants a per-round sweep during combat that
+  adds hostiles who can now see or hear the fight, which needs a sound-propagation model we do not have.
 - **Split movement across a turn (a "turn script" instead of one option).** Real play is
   move a few feet → attack → bonus-action Disengage → spend the rest of the movement backing
   off (user, 2026-08-04). The planner currently emits ONE option plus an optional end-of-turn

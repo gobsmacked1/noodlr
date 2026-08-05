@@ -2,6 +2,16 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.32
+
+- **A creature that spots you can only call for help so far.** Automatic engagement used to bring every
+  hostile on the scene into the fight; now only those within earshot of the creature that actually
+  noticed you join, so a scene built as four encounters stays four encounters. The distance is set by
+  the new "How far a creature can call for help" field in Text Generation (default 30 ft, in the scene's
+  own units, counted through walls because it is a shout — 0 means the spotter fights alone). Your party
+  is not distance-limited: every player-owned token on the scene still rolls, so a scout who is spotted
+  ahead of the marching order is not left fighting alone.
+
 ## 0.4.31
 
 - **Fixed: monsters took a whole round before the players had rolled initiative.** Automatic engagement

@@ -22,6 +22,7 @@ import {
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
 import {
   getCombatAutomation,
+  getEngageRadius,
   getMoveSpeed,
   getTurnPaceSeconds,
   isAutoEngageEnabled,
@@ -116,6 +117,8 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       turnPace: getTurnPaceSeconds(),
       moveSpeed: getMoveSpeed(),
       autoEngage: isAutoEngageEnabled(),
+      engageRadius: getEngageRadius(),
+      distanceUnits: String((canvas as any)?.scene?.grid?.units ?? "ft"),
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
       playersPrompt: promptFieldView(SETTINGS.playersSystemPrompt),
@@ -177,6 +180,8 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       Number.isFinite(moveSpeed) ? Math.min(20, Math.max(0, moveSpeed)) : 0,
     );
     await set(COMBAT_SETTINGS.autoEngage, Boolean(o.combatAutoEngage));
+    const radius = Number(o.combatEngageRadius);
+    await set(COMBAT_SETTINGS.engageRadius, Number.isFinite(radius) && radius >= 0 ? radius : 30);
 
     await this.savePromptFields(form);
 
