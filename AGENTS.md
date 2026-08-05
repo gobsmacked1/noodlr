@@ -1786,6 +1786,26 @@ lorebook/author's-note/post-history injection.
       applied by hand there. Sense ranges come from Vision 5e's `actor.detectionModes` when present — a
       plain `Record<modeId, range>` computed for every actor *regardless of `sight.enabled`*, which makes
       it strictly better than reading the sheet — and from `senses.ranges` otherwise.
+    - **Beyond mundane hiding, and the one deliberate breach of Principle 1 (2026-08-04, user's list).**
+      Invisibility, Fog Cloud, Darkness, Nondetection, Pass Without Trace, the illusion spells, Mask of
+      the Wild, Nature's Veil and friends are recognised BY NAME from a table in
+      `combat/systems/dnd5e-concealment.ts` — the module's SECOND and last game-system-specific file,
+      after `dnd5e-rewards.ts`. Rules-as-data, not branches: `auto/stealth.ts` never learns a spell name.
+      The two sides meet through a small abstract capability vocabulary — `truesight`, `seeInvisible`,
+      `blindsight`, `tremorsense`, `devilsSight`, `etherealSight`, `detectMagic`, `divination`,
+      `hearing` — where a concealment declares what `pierced`s it and a sense declares what it `grants`.
+      **To port to another system:** write a sibling file exporting the same three functions
+      (`concealmentsOn`, `detectorsOn`, `sheetSenses`) gated on its own `game.system.id`, and switch on
+      it in `stealth.ts`. A system without invisibility simply never emits `seeInvisible` and the engine
+      is unchanged. Name matching is not laziness: Foundry stores no machine-readable "this conceals"
+      marker and dnd5e's conditions cover only `invisible`, so the name is the only signal that exists.
+      It fails safe — an unrecognised effect does nothing, exactly as before the table existed.
+    - **Three rules encoded there that are easy to get wrong.** Nondetection is applied to the WATCHER,
+      not the hider: it conceals nobody, it blinds the diviner, hence a `negates` list rather than a
+      `pierced` one. Magical Darkness is deliberately not beaten by darkvision. And `trait` versus
+      `effect` is a correctness distinction — an always-on trait (Mask of the Wild, Feral Senses, a
+      wolf's Keen Hearing) is matched against items, an activated ability (Nature's Veil, One with
+      Shadows) only against active effects, or every ranger would be permanently invisible.
     - **Not modelled, deliberately:** the 2024 prerequisites for Hide (Heavily Obscured or ¾ cover, and
       out of all enemy line of sight), size, and lighting-based Perception modifiers. Also the wild-shaped
       flea: no mechanical hook exists for "this shape is unremarkable", and that stays the GM's call.

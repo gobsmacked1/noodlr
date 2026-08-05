@@ -2,6 +2,21 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.34
+
+- **Concealment beyond the Stealth skill.** Hiding is no longer only about a die roll. Invisibility (the
+  spell, the potion, the ring, Dust of Disappearance, Mislead), Etherealness, magical Darkness, Fog
+  Cloud, Umbral Shroud, Nature's Veil, One with Shadows, Mask of the Wild, the illusion spells, Silence,
+  Pass Without Trace (+10, as it should be) and Nondetection are all recognised and all behave
+  differently. An invisible bard who never rolled Stealth is now genuinely unnoticed.
+- **And the countermeasures.** Truesight, See Invisibility, Glitterdust, Faerie Fire, Detect Magic,
+  Locate Creature, Feral Senses, Witch Sight, Devil's Sight, blindsight and tremorsense each see through
+  the right things and not the wrong ones — magical Darkness still defeats darkvision, Nondetection
+  still blinds a diviner, and a monster with Keen Hearing and Smell gets its +5. Sense ranges are
+  respected: blindsight 30 is not blindsight everywhere.
+- These lists live in one file (`systems/dnd5e-concealment.ts`) as data, so a future game system is a new
+  table rather than a rewrite. `api.surveyPerception()` now also reports what each watcher can see with.
+
 ## 0.4.33
 
 - **Rogues work again.** A creature about to raise the alarm now checks its passive Perception against
