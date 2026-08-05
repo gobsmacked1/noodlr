@@ -2,6 +2,20 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.35
+
+- **Fog, darkness and illusions now work where you actually put them: in the way.** The previous release
+  only noticed them as effects on the creature hiding, which is not how anyone plays — you drop the fog
+  bank, the sphere of Darkness or the illusory hedge between yourself and the guard. Noodlr now checks
+  what physically stands on the line between a watcher and its target, covering placed spell templates,
+  scene regions, and lights configured as darkness. A watcher has to get past the screen before it has
+  any chance at whoever is behind it.
+- **Nondetection now blocks precisely what the spell says.** It strips only what a watcher was getting
+  out of a Divination spell — True Seeing, See Invisibility, Detect Magic, Locate Creature, scrying — and
+  leaves a creature's own senses alone, so a demon's innate truesight still works and Faerie Fire still
+  outlines you. It conceals nothing on its own, which is the point: it is the layer you add underneath
+  your Stealth roll to close the gap that stealth cannot.
+
 ## 0.4.34
 
 - **Concealment beyond the Stealth skill.** Hiding is no longer only about a die roll. Invisibility (the

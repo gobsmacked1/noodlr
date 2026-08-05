@@ -1800,9 +1800,26 @@ lorebook/author's-note/post-history injection.
       is unchanged. Name matching is not laziness: Foundry stores no machine-readable "this conceals"
       marker and dnd5e's conditions cover only `invisible`, so the name is the only signal that exists.
       It fails safe — an unrecognised effect does nothing, exactly as before the table existed.
+    - **Concealment placed in the world, not worn (2026-08-04, user's correction).** `auto/screens.ts`.
+      A party does not cast Fog Cloud on itself — it drops the fog, the Darkness sphere or the illusory
+      hedge BETWEEN itself and the guard, so nothing is ever applied to the hider and an effects-only
+      model misses the common case entirely. Screens are found geometrically: walk the line between the
+      two token centres at half a grid square (capped at 80 samples) and test containment against
+      MeasuredTemplates, Regions, and AmbientLights configured as darkness sources. Each is absolute
+      until pierced, so a watcher must get past the interposed thing before it has any chance at what is
+      behind it. **Naming is the hard part, not the geometry:** Foundry records nothing on a template
+      about which spell placed it beyond an origin link that has moved across dnd5e versions and may now
+      point at an Activity rather than an Item, so several paths are tried and an unresolvable name means
+      the screen is ignored — the correct failure, since an unrecognised template must not start blocking
+      sight. Not modelled: the Study action to disbelieve an illusion, which is a player's declared action
+      and not something a six-second poll should perform on an NPC's behalf.
     - **Three rules encoded there that are easy to get wrong.** Nondetection is applied to the WATCHER,
-      not the hider: it conceals nobody, it blinds the diviner, hence a `negates` list rather than a
-      `pierced` one. Magical Darkness is deliberately not beaten by darkvision. And `trait` versus
+      not the hider: it conceals nobody, it blinds the diviner. It removes ONLY capabilities that came
+      from a Divination spell (`divined`, tracked separately by `detectorsOn`) — a demon's innate
+      truesight is its own eyes and survives, while True Seeing, See Invisibility, Detect Magic and
+      Locate Creature do not. Glitterdust and Faerie Fire also survive, being evocations that coat a
+      creature in light rather than scry for it. Magical Darkness is deliberately not beaten by
+      darkvision. And `trait` versus
       `effect` is a correctness distinction — an always-on trait (Mask of the Wild, Feral Senses, a
       wolf's Keen Hearing) is matched against items, an activated ability (Nature's Veil, One with
       Shadows) only against active effects, or every ranger would be permanently invisible.
