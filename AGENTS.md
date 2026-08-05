@@ -1741,6 +1741,54 @@ lorebook/author's-note/post-history injection.
     `CONFIG.specialStatusEffects.DEFEATED` (default `"dead"`) via `document.hasStatusEffect()` is the
     defeated test; disposition must be `=== HOSTILE`, never `< 0`, because SECRET is −2 and is GM
     bookkeeping. Fires vetoable `noodlrPreCombatInitiated` and `noodlrCombatInitiated` hooks.
+  - **Stealth: Foundry's vision question is not 5e's question (2026-08-04).** `combat/auto/stealth.ts`.
+    Core answers "is there an unobstructed line to a lit token"; 5e asks "did you beat their Perception".
+    Nothing connects the two natively — verified in dnd5e 5.3.3 source: the `hiding` status effect
+    (introduced 3.1.0, note the "-ing") has no `special` key and is read by *nothing*, and a Stealth
+    roll's total is never persisted to actor, token or flag; it exists as a chat message and then it is
+    gone. Every piece of stealth state is therefore ours to own.
+    - **We patch nothing, and that is the whole design.** Stealthy wraps each detection mode's
+      `_canDetect` through libWrapper because it must change what every client renders. We do not: our
+      sweep builds its own vision source and calls `testVisibility` itself, so we own the call site and
+      simply refuse our own result. No libWrapper, no prototype-ordering war with Stealthy or Vision 5e,
+      and no chance of an automation query altering the GM's screen. If we ever *do* need to affect
+      rendering, Vision 5e's maintainer gave the recipe in their issue #77: wrap
+      `CONFIG.Canvas.detectionModes.<id>.prototype._canDetect` per mode in a `setup` hook — never
+      `DetectionMode.prototype._canDetect`, which Vision 5e's subclasses override without calling super.
+    - **Only a declared hider is contested.** An ordinary walking player is spotted exactly as before.
+      State comes from the first source that answers: Stealthy's `window.stealthy.getBankedStealth(token)`
+      (returns `undefined` when not hiding — its author's documented integration surface, and there is no
+      `game.modules.get("stealthy").api`), Perceptive's `flags.perceptive.PPDCFlag` (`-1` means
+      "impossible"), our own `flags.noodlr.stealth`, then dnd5e's inert `hiding` status honoured with
+      passive Stealth. Their modules outrank our flag on purpose: when the two disagree the GM should be
+      able to trust the UI in front of them. This is the entire integration — no dependency, no patching.
+    - **Passive Perception versus a static DC, never a re-roll.** A six-second poll that rolled each
+      sweep would eventually spot anyone by luck, which is a worse rule than either edition's. Ties go to
+      the spotter: 2024 makes the Stealth total the DC for a Perception check, and a check meets its DC
+      on equal. 2014's letter wants an *active* check by a creature that searches; passive-vs-DC is the
+      universal convention and we use it under both rulesets deliberately.
+    - **Capture via `createChatMessage`, not `dnd5e.rollSkillV2`.** The hook fires only on the rolling
+      client, so every client would race to write the flag and only some would have permission. The chat
+      hook fires everywhere, letting the primary GM be the single writer. Message shape (verified):
+      `flags.dnd5e.roll = {skillId: "ste", type: "skill"}`, total at `rolls[0].total`. Speaker matching
+      must prefer `speaker.token` and only fall back to `speaker.actor` for linked actors — every
+      unlinked goblin shares one actor id. Hook-name trivia if we ever switch: in dnd5e 5.x *both*
+      `dnd5e.rollSkill` and `dnd5e.rollSkillV2` fire with the same `(rolls, {ability, skill, subject})`
+      shape, so listening to both double-handles every roll.
+    - **Never silent.** A stale hidden state suppressing every encounter forever is this feature's most
+      likely failure, and it looks identical to the feature being broken. Each spotter/target pairing
+      logs its suppression once, hiding clears on an attack roll or a verbally-cast spell and on combat
+      end, and `api.surveyPerception()` dumps the whole matrix with distances, detection modes, passive
+      Perception and each verdict.
+    - **Concealment is only checked on the fallback path.** When real detection modes run, core already
+      enforces invisibility and burrowing in its own `_canDetect`; doing it again would disagree with the
+      screen. The stat-block fallback bypasses all of that, so invisibility and the Ethereal Plane are
+      applied by hand there. Sense ranges come from Vision 5e's `actor.detectionModes` when present — a
+      plain `Record<modeId, range>` computed for every actor *regardless of `sight.enabled`*, which makes
+      it strictly better than reading the sheet — and from `senses.ranges` otherwise.
+    - **Not modelled, deliberately:** the 2024 prerequisites for Hide (Heavily Obscured or ¾ cover, and
+      out of all enemy line of sight), size, and lighting-based Perception modifiers. Also the wild-shaped
+      flea: no mechanical hook exists for "this shape is unremarkable", and that stays the GM's call.
   - **Perception is one-way, and shouting has a range (2026-08-04, user's spec).** Only a hostile
     creature spotting a player token ever starts a fight; nothing tests a player as the spotter, because
     a party that chose to sneak has chosen not to fight and opening combat on the players' own eyeballs

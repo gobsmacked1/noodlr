@@ -40,7 +40,8 @@ import { getCombatAutomation } from "./combat/config";
 import { toggleSelectedCombatantAutomation } from "./combat/auto/control";
 import { registerAutomationCleanup } from "./combat/auto/registry";
 import { registerAutomationTurnHook } from "./combat/auto/hooks";
-import { registerPerceptionWatch } from "./combat/auto/perception";
+import { registerPerceptionWatch, surveyPerception } from "./combat/auto/perception";
+import { registerStealthWatch } from "./combat/auto/stealth";
 import { registerReactionHooks } from "./combat/auto/reactions";
 import { registerEncounterTracking } from "./combat/auto/encounter";
 import { explainTurn } from "./combat/auto/explain";
@@ -84,6 +85,7 @@ export interface NoodlrApi {
   explainTurn(): Promise<void>;
   surveyActions(opts?: { saveToFile?: boolean; max?: number; asText?: boolean }): Promise<unknown>;
   testMove(): Promise<Record<string, unknown> | undefined>;
+  surveyPerception(): Promise<Record<string, unknown>>;
   flattenElevation(): Promise<number>;
   restoreElevation(): Promise<number>;
 }
@@ -139,6 +141,8 @@ const api: NoodlrApi = {
   surveyActions: (opts) => surveyActions(opts),
   /** Move the selected token one square and report what core did at every stage, then put it back. */
   testMove: () => testMove(),
+  /** Who can see whom on this scene, with the Perception and Stealth numbers behind each verdict. */
+  surveyPerception: () => surveyPerception(),
   /** Set every token in this scene to elevation 0, reversibly. */
   flattenElevation: () => flattenElevation(),
   restoreElevation: () => restoreElevation(),
@@ -218,6 +222,8 @@ Hooks.once("ready", () => {
     registerAutomationTurnHook();
     // Hostile creatures noticing the party and starting the fight without a GM's clicks.
     registerPerceptionWatch();
+    // Records Stealth rolls, so a creature that hid stays hidden until it gives itself away.
+    registerStealthWatch();
     // Off-turn reactions: opportunity attacks and hitting back when hurt.
     registerReactionHooks();
     // Watches whether the party is still swinging, which is what mercy hangs on.

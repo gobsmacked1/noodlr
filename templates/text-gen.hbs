@@ -105,6 +105,12 @@
     </div>
 
     <label class="noodlr-inline">
+      <input type="checkbox" name="combatStealth" {{#if stealthContest}}checked{{/if}} />
+      {{localize "NOODLR.Combat.Stealth.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Combat.Stealth.Hint"}}</p>
+
+    <label class="noodlr-inline">
       <input type="checkbox" name="npcBanter" {{#if npcBanter}}checked{{/if}} />
       {{localize "NOODLR.Combat.Banter.Name"}}
     </label>

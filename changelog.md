@@ -2,6 +2,22 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.33
+
+- **Rogues work again.** A creature about to raise the alarm now checks its passive Perception against
+  the Stealth of whoever it is looking at, instead of spotting anything a wall is not in front of. A
+  player who rolled Stealth, or who has the Hiding condition ticked on their token, gets that contest;
+  everyone else is spotted exactly as before. Invisibility and the Ethereal Plane are respected on the
+  fallback path that most monsters take. Hiding ends when you attack, cast something with a verbal
+  component, or the fight ends. If Stealthy or Perceptive is installed, their numbers are used instead
+  of ours — neither is required, and nothing is patched either way.
+- **New: `game.modules.get("noodlr").api.surveyPerception()`** prints who can see whom on the current
+  scene, with distances, each creature's detection modes, passive Perception, and what each target is
+  doing to stay unseen. Every suppressed engagement is also logged once, so a fight that does not start
+  says why instead of looking broken.
+- Turn the whole contest off with "Let a Stealth roll keep you unnoticed" in Text Generation if you would
+  rather adjudicate hiding yourself.
+
 ## 0.4.32
 
 - **A creature that spots you can only call for help so far.** Automatic engagement used to bring every

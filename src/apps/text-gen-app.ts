@@ -26,6 +26,7 @@ import {
   getMoveSpeed,
   getTurnPaceSeconds,
   isAutoEngageEnabled,
+  isStealthEnabled,
   isNpcBanterEnabled,
 } from "../combat/config";
 import {
@@ -118,6 +119,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       moveSpeed: getMoveSpeed(),
       autoEngage: isAutoEngageEnabled(),
       engageRadius: getEngageRadius(),
+      stealthContest: isStealthEnabled(),
       distanceUnits: String((canvas as any)?.scene?.grid?.units ?? "ft"),
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
@@ -182,6 +184,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
     await set(COMBAT_SETTINGS.autoEngage, Boolean(o.combatAutoEngage));
     const radius = Number(o.combatEngageRadius);
     await set(COMBAT_SETTINGS.engageRadius, Number.isFinite(radius) && radius >= 0 ? radius : 30);
+    await set(COMBAT_SETTINGS.stealth, Boolean(o.combatStealth));
 
     await this.savePromptFields(form);
 

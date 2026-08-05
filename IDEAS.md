@@ -10,12 +10,16 @@ Parked tangents — one line each. Promote to the roadmap in AGENTS.md when pick
   (no client slicing needed); client-side overlap+blend tiling only as a fallback. A
   disabled "Upscale to 4x (coming soon)" checkbox is shown in the Map generator config as a
   placeholder. Revisit when OpenRouter (or an easy hosted endpoint) exposes upscaling.
-- **Stealth should get a say in being spotted.** Perception currently answers "is there a clear line to
-  a lit token", which is Foundry's vision question, not 5e's: a rogue with Stealth 27 creeping past a
-  guard with Passive Perception 10 is seen the moment the wall ends. Wants a contested read — the party's
-  last Stealth roll (or Dexterity (Stealth) passive) against the spotter's passive Perception, only for
-  tokens the players have actually declared as sneaking. Needs a way to know that a party is sneaking at
-  all, which Foundry does not model; a toolbar toggle or an effect is probably the honest answer.
+- **Hide should check its own prerequisites (2024 rules).** Built in v0.4.33: a Stealth roll now buys a
+  contest against passive Perception. Not built: the 2024 requirement that you be Heavily Obscured or
+  behind three-quarters cover *and* out of every enemy's line of sight before Hide is even legal, and the
+  DC 15 floor on the attempt. dnd5e models cover as the `coverHalf`/`coverThreeQuarters`/`coverTotal`
+  statuses, so the cover half is readable; "heavily obscured" needs a lighting read we do not have yet.
+- **Imprecise detection is a different trigger from being seen.** Vision 5e flags tremorsense, hearing
+  and the detect-spells as `imprecise`: a creature that hears you knows *something* is there, not who or
+  where. Starting a normal combat off that is wrong — it should raise an alert, or start a fight with the
+  hider still unlocated, rather than a clean ambush. Needs our sweep to carry the detection level through
+  instead of collapsing to a boolean.
 - **Reinforcements: hostiles outside the shout radius joining later.** The 30 ft recruitment cap means a
   warband two rooms away legitimately misses the fight — but it should be able to arrive once the noise
   of combat reaches it, rather than standing idle forever. Wants a per-round sweep during combat that
