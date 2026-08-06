@@ -1944,6 +1944,77 @@ lorebook/author's-note/post-history injection.
     the attempt loop would otherwise report a swing that never happened.
   - Diagnostics: `api.surveyEconomy()`.
 
+- **Nobody enforces Speed either (v0.4.39, 2026-08-05).** Same shape of finding as the action economy, and
+  verified the same way. Core Foundry v13+ *does* have a real movement model — `TokenDocument#movementHistory`
+  records every waypoint crossed during a turn, `Combat#_clearMovementHistoryOnStartTurn` resets it, and each
+  waypoint carries a terrain-adjusted `cost` — but core has no concept of a creature's Speed and never
+  compares the two. dnd5e supplies the number and spends it entirely on ruler colour (`TokenRuler5e` in
+  `module/canvas/ruler.mjs`: green under Speed, amber under double, red beyond). `movementAutomation` sounds
+  like the setting for this and is not — it governs movement *cost* (difficult terrain, climb/swim without
+  the matching speed, crawl, token blocking), never a budget. midi-qol has exactly one `moveToken` listener
+  and it expires DAE `isMoved` effects. So the ruler turns red and the token keeps going. Load-bearing:
+  - **Truncate on the drag, veto everywhere else.** `Token#_getDragConstrainOptions` can carry `maxCost`
+    (added in core **14.357** — it does not exist in v13, where unknown keys are silently destructured
+    away), and core then discards waypoints past the budget inside `constrainMovementPath`, so the token
+    stops at the line exactly as it stops at a wall. `preMoveToken` is the backstop for arrow keys: it can
+    reject a move outright but **cannot shorten one** — waypoints are deep-frozen and only `autoRotate`
+    and `showRuler` are writable.
+  - **Budget the whole turn, not the remainder.** Core's docs do not say whether `maxCost` is measured
+    against the proposed path alone or the path plus the history already recorded this turn, and the answer
+    decides whether a second drag in one turn starts from zero. Passing the whole-turn allowance is correct
+    under the "history counts" reading and merely lets the backstop do the work under the other; passing
+    the remainder would silently halve the budget under the first. Do not "simplify" this without testing.
+  - **Dash is charged, not asked.** A creature with its Action in hand may drag past its Speed; the moment
+    it does, `moveToken` spends the Action as a Dash and posts it to chat. The dash count lives in the
+    action ledger's `Tally`, not beside the movement code, so it resets on the same lazy turn stamp as the
+    Action that paid for it.
+  - **Subclass `CONFIG.Token.objectClass` at `setup`, not `init`** — dnd5e installs `Token5e` at `init`, and
+    extending whatever is there keeps its `ignoreTokens` handling. Registered from `init` on **every**
+    client, not from the GM-only `ready` block: the person being constrained is the player.
+  - Exempt: the GM (staging is not cheating), Noodlr's own automation (it budgets before it steps), and
+    anyone moving outside their own turn. Diagnostics: `api.surveyMovement()`.
+
+- **Ammunition is not a consumption type (fixed v0.4.39).** `activityAvailable` looked for a consumption
+  target of `type: "ammunition"`, which does not exist: dnd5e 5.3.3 has exactly six consumption types
+  (`activityUses`, `itemUses`, `material`, `hitDice`, `spellSlots`, `attribute` — `config.mjs`
+  `DND5E.activityConsumptionTypes`). Ammunition is a property of the **weapon**, resolved against the
+  actor's stock at roll time through `item.system.ammunitionOptions`, a getter that already filters the
+  actor's consumables to the right subtype and marks empty stacks `disabled`. The dead check meant an
+  archer with an empty quiver looked fully armed, so the planner picked the bow, the use failed, and the
+  creature spent its turn doing nothing rather than drawing the sword on its own sheet. Ask the getter;
+  do not reimplement the filter.
+
+- **Standing in fire is not weather (v0.4.39).** The planner had no notion that one square could be worse
+  than another, so a hostile burned to death inside an Incendiary Cloud without ever trying to leave.
+  `auto/hazards.ts` tests the creature's centre against every placed template and region using the same
+  containment primitives as the sight-screen test, and rings outward for the nearest clear, walkable,
+  unoccupied point. **Which areas hurt is not a geometric question** — a template knows its radius and
+  nothing about what is inside it — so that judgement is a name table in `systems/dnd5e-hazards.ts`,
+  quarantined exactly like the concealment table. Persistent areas only: an instantaneous Fireball leaves
+  its template on the canvas long after the fire is gone, and a creature fleeing yesterday's explosion
+  looks broken. Gated on the new tier-2 `understandsHazards`, so mindless things still burn where they
+  stand.
+
+## Configuration, not code: what to tell a GM
+
+Three reported problems were world configuration rather than module bugs. Recorded because they will be
+reported again.
+
+- **Reactions, concentration and saves all prompting the GM** is midi's `playerForActor()`. It matches an
+  active user against an **explicit** `actor.ownership[userId] === 3` entry, and Foundry's ownership dialog
+  *deletes* the entry for any user left on "Default" — so a character shared via "Default: Owner" has no
+  explicit entry, matches nothing, and falls through to `preferredActiveGM()`. Assistant GMs never match at
+  all, because every lookup searches `game.users.players`, which excludes GMs by definition. Fix: give each
+  player an explicit Owner row on their own character. Separately, midi's `doConcentrationCheck` defaults to
+  `"chat"`, which **auto-rolls** the save rather than offering it; `"chatOnly"` hands it back to the player.
+- **Eldritch Blast beams stuck on a corpse.** dnd5e 5.3.3 does not model beams at all — the SRD item is one
+  attack activity with one 1d10 part and `target.affects.count: 1`; multiple beams exist only in the prose,
+  and the expectation is one press per beam. The lock-on is midi's `untargetDeadTokens`, which reads
+  `hp.value <= 0` 500 ms after the workflow ends, so with manual damage application the corpse still has
+  positive HP and is never released. Both `AutoRemoveTargets` and `TargetConfirmation` are **client**-scoped,
+  so the GM's settings never reach the player's browser. Per-beam retargeting has been an open dnd5e feature
+  request since 2021 ([#1067](https://github.com/foundryvtt/dnd5e/issues/1067), closed unimplemented).
+
 ## Open decisions / risks
 
 - **OPEN BUG — melee-only hostiles still move oddly (reported 2026-08-05, v0.4.36 test).** The user saw
@@ -1954,7 +2025,9 @@ lorebook/author's-note/post-history injection.
   stage of what core did with the move. Prime suspects given recent work: `reachableElevation` and the
   3D `separation` check in `planner.attackOptions` (added with locomotion in v0.4.30), and the
   `maxCost: budget` constraint, which silently refuses a path that costs more than the creature's speed
-  rather than moving it as far as it can.
+  rather than moving it as far as it can. **New evidence (2026-08-05):** `maxCost` did not exist before
+  core 14.357, so on a v13 host that constraint was being silently ignored and the creature had no budget
+  at all — worth confirming the host version before chasing anything subtler.
 - Lorebook storage shape (world-scoped JournalEntry vs module setting vs flat file in world data) — decide in Phase 3.
 - Multi-GM/assistant-GM permissions model for Chronicle review and silo resets.
 - `noodlr.app` domain not yet acquired/configured; git + releases now hosted on `github.com/gobsmacked1` (see Phase 6 status). Revisit if a self-hosted forge / custom domain is preferred.

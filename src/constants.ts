@@ -97,6 +97,10 @@ export const COMBAT_SETTINGS = {
   stealth: "combat.stealth",
   /** How hard the action economy is enforced against players: "off" | "warn" | "block". */
   economy: "combat.economy",
+  /** Whether a creature's Speed caps how far a player can drag it in a turn. */
+  movement: "combat.movement",
+  /** Whether the tracker clears itself once nothing hostile is left standing. */
+  autoEnd: "combat.autoEnd",
 } as const;
 
 /**

@@ -2,6 +2,24 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.39
+
+- **Speed is now a limit.** Nothing in Foundry has ever enforced it: the system colours the drag ruler red
+  once you pass your Speed and then lets you keep going, so a character could cross the whole map and still
+  attack. Tokens now stop at the edge of their Speed. If you still have your action, you may keep dragging —
+  that spends the action as a Dash and says so in chat, so the table can see it. The GM's own dragging is
+  never restricted. `api.surveyMovement()` explains any token's budget.
+- **The fight ends when it's over.** No more handing out turns to an initiative order in which nobody has an
+  enemy left. Once the last hostile falls, the summary card posts and the tracker clears itself.
+- **No more six-second pauses for corpses.** Dead creatures are skipped instantly instead of holding the
+  table open for a turn nobody is watching — which is what made the end of a fight such a slog.
+- **Archers draw their swords.** A creature that ran out of arrows was sitting out the rest of the fight,
+  because the empty quiver was never noticed. It now falls back to whatever else it is carrying.
+- **Creatures walk out of fire.** A hostile stood inside an Incendiary Cloud until it died, because nothing
+  in the decision tree knew one square could be worse than another. Anything with an animal's instincts now
+  notices it is standing in something harmful and steps clear. Mindless things still burn where they stand.
+- Both new behaviours can be switched off under Text Generation.
+
 ## 0.4.38
 
 - **One action per turn, at last.** Neither Foundry nor the D&D 5e system counts actions — the only

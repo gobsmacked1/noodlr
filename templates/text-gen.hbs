@@ -122,6 +122,18 @@
     </div>
 
     <label class="noodlr-inline">
+      <input type="checkbox" name="combatMovement" {{#if movementCap}}checked{{/if}} />
+      {{localize "NOODLR.Combat.Movement.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Combat.Movement.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="combatAutoEnd" {{#if autoEnd}}checked{{/if}} />
+      {{localize "NOODLR.Combat.AutoEnd.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Combat.AutoEnd.Hint"}}</p>
+
+    <label class="noodlr-inline">
       <input type="checkbox" name="npcBanter" {{#if npcBanter}}checked{{/if}} />
       {{localize "NOODLR.Combat.Banter.Name"}}
     </label>

@@ -44,6 +44,7 @@ import { registerPerceptionWatch, surveyPerception } from "./combat/auto/percept
 import { registerStealthWatch } from "./combat/auto/stealth";
 import { registerReactionHooks } from "./combat/auto/reactions";
 import { registerEconomyHooks } from "./combat/economy/enforce";
+import { registerMovementCap, surveyMovement } from "./combat/economy/movement";
 import { surveyEconomy } from "./combat/economy/survey";
 import { registerEncounterTracking } from "./combat/auto/encounter";
 import { explainTurn } from "./combat/auto/explain";
@@ -89,6 +90,7 @@ export interface NoodlrApi {
   testMove(): Promise<Record<string, unknown> | undefined>;
   surveyPerception(): Promise<Record<string, unknown>>;
   surveyEconomy(): Record<string, unknown>;
+  surveyMovement(): unknown;
   flattenElevation(): Promise<number>;
   restoreElevation(): Promise<number>;
 }
@@ -148,6 +150,8 @@ const api: NoodlrApi = {
   surveyPerception: () => surveyPerception(),
   /** What every combatant has left this turn, and how many attacks one action buys them. */
   surveyEconomy: () => surveyEconomy(),
+  /** How far the selected token may still move this turn, and what that number is built from. */
+  surveyMovement: () => surveyMovement(),
   /** Set every token in this scene to elevation 0, reversibly. */
   flattenElevation: () => flattenElevation(),
   restoreElevation: () => restoreElevation(),
@@ -161,6 +165,12 @@ Hooks.once("init", () => {
   // Shared Handlebars partials for the config windows. Handlebars throws on a missing partial, so
   // this has to finish before a window can render — `init` is early enough that it always does.
   void registerNoodlrPartials();
+
+  // Speed as an actual limit, which nothing else in the stack treats as one. Registered here rather
+  // than with the other combat hooks for two reasons: it installs a Token subclass at `setup`, which
+  // has already passed by the time `ready` runs, and it has to be on the PLAYERS' clients, since a
+  // player dragging their own token is the only thing it constrains.
+  registerMovementCap();
 
   // Expose the API on the module entry so it's reachable as
   // game.modules.get("noodlr").api during development.
