@@ -6,9 +6,13 @@ All notable changes to Noodlr, newest first. Written for GMs rather than develop
 
 - **Speed is now a limit.** Nothing in Foundry has ever enforced it: the system colours the drag ruler red
   once you pass your Speed and then lets you keep going, so a character could cross the whole map and still
-  attack. Tokens now stop at the edge of their Speed. If you still have your action, you may keep dragging —
-  that spends the action as a Dash and says so in chat, so the table can see it. The GM's own dragging is
-  never restricted. `api.surveyMovement()` explains any token's budget.
+  attack. Tokens now stop at the edge of their Speed. If you have something left to spend, you may keep
+  dragging — that is charged as a Dash and said out loud in chat, so the table can see it. The GM's own
+  dragging is never restricted. `api.surveyMovement()` explains any token's budget.
+- **Rogues and monks Dash the way they're supposed to.** Cunning Action and Step of the Wind make Dash a
+  bonus action rather than an action, as does Expeditious Retreat while it lasts, so those characters keep
+  their action for the fight. Anything else that grants it can be marked with an Active Effect on
+  `flags.noodlr.bonusDash`.
 - **The fight ends when it's over.** No more handing out turns to an initiative order in which nobody has an
   enemy left. Once the last hostile falls, the summary card posts and the tracker clears itself.
 - **No more six-second pauses for corpses.** Dead creatures are skipped instantly instead of holding the

@@ -40,7 +40,12 @@ The 2024 rules codified these as a closed keyword list.
   **Shove** as options: there is no separate Shove action, you take the Attack action and choose the
   option for one of your attacks.
 - **Magic** — the new keyword for casting a spell with a casting time of 1 action, or using a magic item.
-- **Dash** — extra movement equal to your speed this turn.
+- **Dash** — extra movement equal to your speed this turn. **Not always an action:** a Rogue's Cunning
+  Action (level 2) and a Monk's Step of the Wind both make Dash a *bonus action, for free*, and the Monk
+  may spend 1 Focus point to Dash and Disengage together. Expeditious Retreat (Sorcerer / Wizard /
+  Warlock) grants a bonus-action Dash for the spell's duration. Some species and general feats do the
+  same. Noodlr reads these from the sheet — see `src/combat/systems/dnd5e-dash.ts` — and prefers the
+  bonus action whenever one is available.
 - **Disengage** — your movement provokes no opportunity attacks this turn.
 - **Dodge** — attacks against you have disadvantage; you have advantage on Dexterity saves.
 - **Help** — give an ally advantage on their next check or attack roll, or assist a task.

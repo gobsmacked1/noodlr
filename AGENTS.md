@@ -1964,10 +1964,24 @@ lorebook/author's-note/post-history injection.
     decides whether a second drag in one turn starts from zero. Passing the whole-turn allowance is correct
     under the "history counts" reading and merely lets the backstop do the work under the other; passing
     the remainder would silently halve the budget under the first. Do not "simplify" this without testing.
-  - **Dash is charged, not asked.** A creature with its Action in hand may drag past its Speed; the moment
-    it does, `moveToken` spends the Action as a Dash and posts it to chat. The dash count lives in the
-    action ledger's `Tally`, not beside the movement code, so it resets on the same lazy turn stamp as the
-    Action that paid for it.
+  - **Dash is charged, not asked.** A creature with something left to spend may drag past its Speed; the
+    moment it does, `moveToken` charges the Dash and posts it to chat. The dash count lives in the action
+    ledger's `Tally`, not beside the movement code, so it resets on the same lazy turn stamp as the slot
+    that paid for it.
+  - **Dash is NOT always an Action.** Corrected before release (user, 2026-08-06). A Rogue with Cunning
+    Action and a Monk with Step of the Wind Dash as a **bonus action, for free**, and Expeditious Retreat
+    grants the same to Sorcerers, Wizards and Warlocks while it runs. Charging the Action in those cases
+    silently deletes the class feature, on the most routine thing a rogue does all night. `systems/dnd5e-dash.ts`
+    reads it from `system.identifier` (`cunning-action`, `monks-focus`, `step-of-the-wind`, `fleet-step`,
+    `ki`) — the same stable-identifier mechanism as Extra Attack — falling back to item and effect names,
+    with `flags.noodlr.bonusDash` as the escape hatch for anything unlisted. Expeditious Retreat is
+    `effectOnly`, since owning the spell grants nothing: dnd5e names its concentration effect
+    `"Concentrating: <spell>"`, so the SPELL name is what gets matched, never the localised prefix.
+    **The bonus action is preferred whenever it is available**, because that is what those features are
+    for; the Action is the fallback once the bonus action is gone. If both are free the player is not
+    asked, which is a deliberate call — it is a legal choice between two resources rather than a rule
+    violation, the bonus action is right in nearly every case, and a dialog every time a rogue runs would
+    be worse than an occasional undo.
   - **Subclass `CONFIG.Token.objectClass` at `setup`, not `init`** — dnd5e installs `Token5e` at `init`, and
     extending whatever is there keeps its `ignoreTokens` handling. Registered from `init` on **every**
     client, not from the GM-only `ready` block: the person being constrained is the player.
