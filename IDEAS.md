@@ -43,6 +43,16 @@ Parked tangents — one line each. Promote to the roadmap in AGENTS.md when pick
 - **A flyer knocked prone should fall.** 5e: if a creature's fly speed drops to 0 — grappled, restrained,
   paralysed, prone — it falls unless it has Hover or flies magically. `Locomotion.hover` is already read;
   nothing acts on it yet. Small, self-contained, and only matters at tables that put flyers in the air.
+- **The rest of the 2024 action economy.** Action, bonus action and reaction are now counted (v0.4.38),
+  but the movement and interaction rules around them are not: standing up costs half your speed, crawling
+  and unaided climbing/swimming cost double, dropping prone is free, mounting costs half, and the second
+  free object interaction in a turn should demand the Utilize action. Ready is not modelled either, so
+  there is no held action to release as a reaction. The full rules text and a gap-by-gap audit are in
+  `docs/action-economy-2024.md` — work from that rather than re-deriving it.
+- **Haste's extra action is narrower than ours.** `flags.noodlr.extraAction` grants a general action, but
+  the spell allows only Attack (one attack), Dash, Disengage, Hide or Utilize. Enforcing the subset needs
+  per-effect action whitelists; until then a hasted caster could take two spell actions and the public
+  override log is what catches it.
 - **Third-party lore importers (World Anvil / Dungeon Alchemist / etc.).** Deferred as low ROI:
   most of these either export to JSON/CSV — already covered by the generic structured import
   (rc5) — or produce maps/scenes (Dungeon Alchemist → images/UVTT), which is scene/map territory,

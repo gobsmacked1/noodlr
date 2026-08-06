@@ -2,6 +2,23 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.38
+
+- **One action per turn, at last.** Neither Foundry nor the D&D 5e system counts actions — the only
+  per-turn limits either enforces are legendary actions and movement, so nothing has ever stopped anyone
+  attacking five times and casting twice. Noodlr now counts an action, a bonus action and a reaction for
+  every combatant, refreshing at the start of that creature's own turn.
+- **Fighters still get every swing.** Extra Attack is read from the character sheet, and Multiattack from
+  the monster's own stat block, so one action buys as many attacks as the creature is entitled to.
+- **Monsters Noodlr runs are held to the rules exactly**, with no way to overrule them. Automation that
+  cheats is worse than no automation, because nobody is watching the monster's turn that closely.
+- **Players get a choice, set by the GM** under Text Generation: don't count at all, ask before allowing
+  it, or refuse outright. Asking is the default. Say yes and the table sees it — every override is posted
+  to the chat log — which is what keeps Haste and its like playable without anyone having to police it.
+  The GM is only ever asked, never refused.
+- If an effect grants an extra action, express it as an Active Effect on `flags.noodlr.extraAction`.
+  `api.surveyEconomy()` shows what everyone has left.
+
 ## 0.4.37
 
 - **Latecomers can join a fight in progress.** Creatures too far away to hear the shout that started the

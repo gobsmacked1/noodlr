@@ -95,6 +95,8 @@ export const COMBAT_SETTINGS = {
   autoEngage: "combat.autoEngage",
   engageRadius: "combat.engageRadius",
   stealth: "combat.stealth",
+  /** How hard the action economy is enforced against players: "off" | "warn" | "block". */
+  economy: "combat.economy",
 } as const;
 
 /**

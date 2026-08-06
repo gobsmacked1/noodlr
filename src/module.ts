@@ -43,6 +43,8 @@ import { registerAutomationTurnHook } from "./combat/auto/hooks";
 import { registerPerceptionWatch, surveyPerception } from "./combat/auto/perception";
 import { registerStealthWatch } from "./combat/auto/stealth";
 import { registerReactionHooks } from "./combat/auto/reactions";
+import { registerEconomyHooks } from "./combat/economy/enforce";
+import { surveyEconomy } from "./combat/economy/survey";
 import { registerEncounterTracking } from "./combat/auto/encounter";
 import { explainTurn } from "./combat/auto/explain";
 import { flattenElevation, restoreElevation, testMove } from "./combat/auto/diagnose";
@@ -86,6 +88,7 @@ export interface NoodlrApi {
   surveyActions(opts?: { saveToFile?: boolean; max?: number; asText?: boolean }): Promise<unknown>;
   testMove(): Promise<Record<string, unknown> | undefined>;
   surveyPerception(): Promise<Record<string, unknown>>;
+  surveyEconomy(): Record<string, unknown>;
   flattenElevation(): Promise<number>;
   restoreElevation(): Promise<number>;
 }
@@ -143,6 +146,8 @@ const api: NoodlrApi = {
   testMove: () => testMove(),
   /** Who can see whom on this scene, with the Perception and Stealth numbers behind each verdict. */
   surveyPerception: () => surveyPerception(),
+  /** What every combatant has left this turn, and how many attacks one action buys them. */
+  surveyEconomy: () => surveyEconomy(),
   /** Set every token in this scene to elevation 0, reversibly. */
   flattenElevation: () => flattenElevation(),
   restoreElevation: () => restoreElevation(),
@@ -226,6 +231,8 @@ Hooks.once("ready", () => {
     registerStealthWatch();
     // Off-turn reactions: opportunity attacks and hitting back when hurt.
     registerReactionHooks();
+    // One action, one bonus action, one reaction — which neither Foundry nor dnd5e counts.
+    registerEconomyHooks();
     // Watches whether the party is still swinging, which is what mercy hangs on.
     registerEncounterTracking();
     // Parsed once; a missing file just means silent monsters.

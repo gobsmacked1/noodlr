@@ -1900,6 +1900,50 @@ lorebook/author's-note/post-history injection.
   in full view of the table (v0.4.16). Hidden turns are badged **GM ONLY** and use local `speak()`, never
   `speakShared()`, because broadcast audio lands at a predictable unauthenticated URL.
 
+- **Nobody counts actions, so we do (v0.4.38, 2026-08-05).** Verified in dnd5e 5.3.3 source, not assumed:
+  `CONFIG.DND5E.activityActivationTypes` gives each activation type an optional `consume` property naming
+  an actor resource pool, and exactly three declare one — `legendary`, `mythic` and `crew`. `action`,
+  `bonus` and `reaction` carry a label, a header and a group and nothing else, which means the whole
+  consumption block at `mixin.mjs:540` (gated on `activationConfig?.consume`) never runs for them and the
+  system's own "not enough actions" warnings are unreachable. No per-turn counter exists anywhere in the
+  data model. This is intentional — the system's JSDoc says *"Currently only handles legendary actions"*
+  and "Action tracking" is an unshipped 5.0.0 roadmap item — and no module fills the gap either: midi's
+  `enforceReactions`/`enforceBonusActions` default to `"none"`, there is no `enforceActions` at all, and
+  even when enabled midi asks rather than blocks. Full rules reference and gap audit in
+  [`docs/action-economy-2024.md`](docs/action-economy-2024.md). Load-bearing details:
+  - **The veto is `dnd5e.preUseActivity`, not a patch.** It fires before the usage dialog and before any
+    chat card, and returning false cancels cleanly. midi's activity `use()` calls `super.use()`, so the
+    same hook fires under midi as without it. Do not reach for libWrapper here.
+  - **Do NOT add `consume: { property }` to `activityActivationTypes.action` to borrow the system's
+    legendary-action enforcement.** It is tempting and it is wrong: it mutates shared config for every
+    other module in the world and would double-count against anything else doing the same.
+  - **The budget lives on the actor as a flag, not in a Map.** The hook fires on whichever client used
+    the item, so a player's browser must be able to read and write its own budget; GM-side memory is
+    invisible to exactly the person it needs to stop. Writing through `actor.setFlag` also gets unlinked
+    tokens right for free, because it lands in that token's ActorDelta.
+  - **Nothing is ever reset.** A tally carries the stamp of the turn it belongs to, and a stale stamp
+    reads as zero. Derived, not stored, so every client computes the same answer with no write and no
+    race. The stamp is the round in which the creature's own turn most recently began — which is what
+    "refreshes at the start of your turn" means, and what a naive per-round reset gets wrong for a
+    reaction spent earlier in the round than the creature's own turn.
+  - **Actions and attacks are separate currencies.** One Action buys several attacks, so counting attack
+    rolls as actions stops a fighter's second swing — the single most common thing in the game. Actions
+    used is `nonAttackActions + ceil(attacks / attacksPerAction)`. `attacksPerAction` is *read*, not
+    guessed: dnd5e class features carry stable `system.identifier` values (`extra-attack`,
+    `two-extra-attacks`, `three-extra-attacks`). Monsters have no such field, so Multiattack prose is
+    parsed for a number word and defaults to **2** when unparseable — biased generous on purpose, since
+    blocking a legal attack is a bug report while allowing one too many is merely a bad turn.
+  - **Automated creatures are hard-blocked; players are configurable; the GM is never blocked, only
+    asked.** The player default is "ask, then log the answer publicly" rather than a hard block, because
+    the rules break their own general case constantly — Haste grants a whole extra action — and a system
+    with no way to say yes makes those features unplayable (user, 2026-08-05). Asking privately and
+    answering publicly is what keeps the override usable without making it abusable.
+  - **Effects grant slots via flags, not via code changes here:** `flags.noodlr.extraAction`,
+    `extraBonus`, `extraReaction` (AE mode Add) and `flags.noodlr.attacksPerAction` (Override).
+  - `execute.ts` asks the ledger *before* attempting, because a hook veto cancels without throwing and
+    the attempt loop would otherwise report a swing that never happened.
+  - Diagnostics: `api.surveyEconomy()`.
+
 ## Open decisions / risks
 
 - **OPEN BUG — melee-only hostiles still move oddly (reported 2026-08-05, v0.4.36 test).** The user saw

@@ -110,6 +110,17 @@
     </label>
     <p class="notes">{{localize "NOODLR.Combat.Stealth.Hint"}}</p>
 
+    {{! Applies to players only. Creatures Noodlr runs are always held to the rules exactly. }}
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Combat.Economy.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Combat.Economy.Hint"}}</p>
+      <select name="combatEconomy">
+        <option value="off" {{#if economy.isOff}}selected{{/if}}>{{localize "NOODLR.Combat.Economy.Off"}}</option>
+        <option value="warn" {{#if economy.isWarn}}selected{{/if}}>{{localize "NOODLR.Combat.Economy.Warn"}}</option>
+        <option value="block" {{#if economy.isBlock}}selected{{/if}}>{{localize "NOODLR.Combat.Economy.Block"}}</option>
+      </select>
+    </div>
+
     <label class="noodlr-inline">
       <input type="checkbox" name="npcBanter" {{#if npcBanter}}checked{{/if}} />
       {{localize "NOODLR.Combat.Banter.Name"}}

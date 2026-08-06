@@ -22,6 +22,7 @@ import {
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
 import {
   getCombatAutomation,
+  getEconomyMode,
   getEngageRadius,
   getMoveSpeed,
   getTurnPaceSeconds,
@@ -80,6 +81,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
     const p = "NOODLR.Feature.Chat";
     const choice = String(game.settings.get(MODULE_ID, SETTINGS.rulesetChoice) ?? RULESET_DEFAULT);
     const automation = getCombatAutomation();
+    const economy = getEconomyMode();
     return {
       moduleTitle: MODULE_TITLE,
       version: game.modules.get(MODULE_ID)?.version ?? "",
@@ -120,6 +122,11 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       autoEngage: isAutoEngageEnabled(),
       engageRadius: getEngageRadius(),
       stealthContest: isStealthEnabled(),
+      economy: {
+        isOff: economy === "off",
+        isWarn: economy === "warn",
+        isBlock: economy === "block",
+      },
       distanceUnits: String((canvas as any)?.scene?.grid?.units ?? "ft"),
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
@@ -185,6 +192,11 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
     const radius = Number(o.combatEngageRadius);
     await set(COMBAT_SETTINGS.engageRadius, Number.isFinite(radius) && radius >= 0 ? radius : 30);
     await set(COMBAT_SETTINGS.stealth, Boolean(o.combatStealth));
+    const economy = String(o.combatEconomy ?? "warn");
+    await set(
+      COMBAT_SETTINGS.economy,
+      ["off", "warn", "block"].includes(economy) ? economy : "warn",
+    );
 
     await this.savePromptFields(form);
 
