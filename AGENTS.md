@@ -1982,6 +1982,14 @@ lorebook/author's-note/post-history injection.
     asked, which is a deliberate call — it is a legal choice between two resources rather than a rule
     violation, the bonus action is right in nearly every case, and a dialog every time a rogue runs would
     be worse than an occasional undo.
+  - **Two Dashes in one turn is legal and supported.** A rogue may spend its full movement, its bonus
+    action on Cunning Action, and its action on a second Dash, for three times its Speed (user,
+    2026-08-06). `chargeDash` therefore LOOPS, re-reading the budget after each charge so the allowance
+    grows as the debt settles — charging once per move event would leave the second Dash unpaid when both
+    are crossed in a single drag. The drag itself is only ever offered ONE Dash of headroom at a time,
+    though: triple Speed stays reachable across successive drags, but a mis-drag cannot spend both slots
+    before the player notices. `takeDash` takes the slot from its caller so the ledger stays agnostic
+    about which resource a given system thinks Dash costs.
   - **Subclass `CONFIG.Token.objectClass` at `setup`, not `init`** — dnd5e installs `Token5e` at `init`, and
     extending whatever is there keeps its `ignoreTokens` handling. Registered from `init` on **every**
     client, not from the GM-only `ready` block: the person being constrained is the player.
