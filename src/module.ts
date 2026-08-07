@@ -45,6 +45,7 @@ import { registerStealthWatch } from "./combat/auto/stealth";
 import { registerReactionHooks } from "./combat/auto/reactions";
 import { registerForcedMovement, surveyForced } from "./combat/auto/forced";
 import { registerForceAction, shove, undoForcedMovement } from "./combat/auto/shove";
+import { registerConditionHooks, surveyConditions } from "./combat/auto/conditions";
 import { registerEconomyHooks } from "./combat/economy/enforce";
 import { registerMovementCap, surveyMovement } from "./combat/economy/movement";
 import { surveyEconomy } from "./combat/economy/survey";
@@ -94,6 +95,7 @@ export interface NoodlrApi {
   surveyEconomy(): Record<string, unknown>;
   surveyMovement(): unknown;
   surveyForced(): unknown;
+  surveyConditions(): unknown;
   push(feet?: number): Promise<unknown>;
   pull(feet?: number): Promise<unknown>;
   undoForcedMovement(): Promise<number>;
@@ -186,6 +188,8 @@ const api: NoodlrApi = {
   surveyMovement: () => surveyMovement(),
   /** Which push/pull rules Noodlr recognises on the selected creature, and whether the layer is live. */
   surveyForced: () => surveyForced(),
+  /** What condition combat math would apply for the controlled token vs its current target. */
+  surveyConditions: () => surveyConditions(),
   /** Shove every targeted creature away from the selected one, respecting walls and occupied spaces. */
   push: (feet = 10) => shoveTargets(feet, "away"),
   pull: (feet = 10) => shoveTargets(feet, "toward"),
@@ -263,6 +267,12 @@ Hooks.once("ready", () => {
   // Floating push-to-log button (bottom-center) — only when transcription is enabled.
   refreshPushToLogButton();
 
+  // Action economy + condition combat math. These hooks fire on the ROLLING client — often a player —
+  // so they must not live inside the GM-only block below. A latent bug: economy used to register only
+  // for GMs, which meant players were never held to the budget on their own browser.
+  registerEconomyHooks();
+  registerConditionHooks();
+
   // Ensure the media output folder exists (GM only — creating dirs needs upload permission).
   if (game.user?.isGM) {
     void ensureMediaFolder();
@@ -287,8 +297,6 @@ Hooks.once("ready", () => {
     registerReactionHooks();
     // Pushes, pulls and shoves actually moving the creature they land on, which nothing else does.
     registerForcedMovement();
-    // One action, one bonus action, one reaction — which neither Foundry nor dnd5e counts.
-    registerEconomyHooks();
     // Watches whether the party is still swinging, which is what mercy hangs on.
     registerEncounterTracking();
     // Parsed once; a missing file just means silent monsters.

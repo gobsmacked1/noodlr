@@ -103,6 +103,8 @@ export const COMBAT_SETTINGS = {
   autoEnd: "combat.autoEnd",
   /** Whether pushes, pulls and shoves actually move the token they land on. */
   forced: "combat.forced",
+  /** Whether condition combat math (adv/disadv, auto-fail, crit-on-hit, incapacitated) is applied. */
+  conditions: "combat.conditions",
 } as const;
 
 /**

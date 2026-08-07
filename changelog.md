@@ -2,6 +2,23 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.41
+
+- **Condition combat math is applied, not just painted on the token.** Stock D&D 5e applies statuses and
+  never reads most of them when a roll is built. Poisoned is listed under attack disadvantage and ignored;
+  advantage against Blinded, Paralyzed, Petrified, Restrained, Stunned or Unconscious targets; melee
+  advantage (and ranged disadvantage) against a Prone target; disadvantage when the attacker is Blinded,
+  Poisoned or Frightened; auto-fail Strength and Dexterity saves while Paralyzed, Stunned, Petrified or
+  Unconscious; and a hit within 5 feet of a Paralyzed or Unconscious creature becoming a critical — all of
+  that lived only as journal prose. Those rules now land on the roll itself.
+- **Incapacitated means you cannot start the action.** Nested statuses already apply Incapacitated for
+  Paralyzed, Stunned, Unconscious and Petrified; nothing consulted it. An Incapacitated creature can no
+  longer begin an action, bonus action or reaction.
+- Switchable under Text Generation. `api.surveyConditions()` reports what would apply for the controlled
+  token against its current target — the first thing to check if a roll looks wrong.
+- Also fixed: action-economy enforcement now registers on every client, not only the GM's. Player browsers
+  were previously never held to the budget on their own machine.
+
 ## 0.4.40
 
 - **Pushes and pulls now actually move people.** Nothing in the stack has ever done this. The D&D 5e system
