@@ -110,6 +110,18 @@
     </label>
     <p class="notes">{{localize "NOODLR.Combat.Stealth.Hint"}}</p>
 
+    <label class="noodlr-inline">
+      <input type="checkbox" name="combatSurprise" {{#if surprise}}checked{{/if}} />
+      {{localize "NOODLR.Combat.Surprise.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Combat.Surprise.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="combatInvisBreak" {{#if invisBreak}}checked{{/if}} />
+      {{localize "NOODLR.Combat.InvisBreak.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Combat.InvisBreak.Hint"}}</p>
+
     {{! Applies to players only. Creatures Noodlr runs are always held to the rules exactly. }}
     <div class="noodlr-field">
       <label>{{localize "NOODLR.Combat.Economy.Name"}}</label>

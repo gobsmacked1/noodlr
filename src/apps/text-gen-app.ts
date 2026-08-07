@@ -34,6 +34,8 @@ import {
   isForcedMovementEnabled,
   isMovementCapEnabled,
   isStealthEnabled,
+  isSurpriseEnabled,
+  isInvisibilityBreakEnabled,
   isNpcBanterEnabled,
 } from "../combat/config";
 import {
@@ -128,6 +130,8 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       autoEngage: isAutoEngageEnabled(),
       engageRadius: getEngageRadius(),
       stealthContest: isStealthEnabled(),
+      surprise: isSurpriseEnabled(),
+      invisBreak: isInvisibilityBreakEnabled(),
       movementCap: isMovementCapEnabled(),
       forcedMovement: isForcedMovementEnabled(),
       conditionAutomation: isConditionAutomationEnabled(),
@@ -204,6 +208,8 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
     const radius = Number(o.combatEngageRadius);
     await set(COMBAT_SETTINGS.engageRadius, Number.isFinite(radius) && radius >= 0 ? radius : 30);
     await set(COMBAT_SETTINGS.stealth, Boolean(o.combatStealth));
+    await set(COMBAT_SETTINGS.surprise, Boolean(o.combatSurprise));
+    await set(COMBAT_SETTINGS.invisBreak, Boolean(o.combatInvisBreak));
     await set(COMBAT_SETTINGS.movement, Boolean(o.combatMovement));
     await set(COMBAT_SETTINGS.forced, Boolean(o.combatForced));
     await set(COMBAT_SETTINGS.conditions, Boolean(o.combatConditions));

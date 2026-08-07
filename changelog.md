@@ -2,6 +2,38 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.43
+
+- **Fixed: rolling Stealth no longer made you permanently invisible.** Any Stealth check at all — for a
+  skill contest, for initiative, for anything — used to make a creature hidden, with no Hide action, no
+  cover and no expiry. Hostiles then never noticed that character, never started a fight, and could be
+  killed one at a time without ever reacting. Taking the **Hide action** is now what makes you hidden; a
+  Stealth roll only supplies the number others must beat. If you are not hiding, you are seen.
+- **Fixed: attacking from hiding did not reveal you when midi-qol was installed.** Noodlr was watching for
+  an attack message that midi never posts. It now reads the attack roll itself, so it works with midi,
+  without it, and from any sheet.
+- **Fixed: a creature attacked out of combat did nothing.** Damage only ever pulled a creature into a fight
+  that was already running, so an ambush on a camp with no encounter open went entirely unnoticed. Being
+  hurt now starts the fight.
+- **A Hide button, because D&D 5e ships none.** Rogues have one inside Cunning Action and a few monsters
+  have their own; everyone else had no way to declare they were sneaking. The dragon toolbar now has one
+  for every player. It enforces the 2024 rules — you must be heavily obscured or behind three-quarters or
+  total cover and out of every enemy's line of sight, and beat DC 15 — and tells you plainly when you
+  cannot. Under 2014 rules the prerequisites are left to the GM, as that edition intends.
+- **Skulker works.** A missed attack normally gives your position away; Skulker's Sniper benefit means it
+  does not, and its Fog of War gives advantage on Hide during combat. Both are now honoured, so the feat
+  does what the book says instead of nothing.
+- **Hiding ends when it should**: on an attack roll, on casting a spell out loud, when an enemy finds you,
+  and when the fight is over. Removing the Hiding condition by hand ends it too.
+- **Creatures caught unawares are marked Surprised**, which under 2024 rules the system already turns into
+  disadvantage on initiative — it just never decided who deserved it. Players are never marked
+  automatically; ambushing the party stays your call.
+- **The Invisibility spell ends when its target attacks, deals damage, or casts.** Greater Invisibility is
+  deliberately left alone, which is the whole reason it costs a fourth-level slot. (midi ends both under
+  one setting.) Potions and innate invisibility are untouched.
+- All three new behaviours are switchable under Text Generation. `api.surveyHide()` explains why the
+  selected token can or cannot hide, and what each watcher can see.
+
 ## 0.4.42
 
 - **Dropping to 0 hit points now means something.** Stock D&D 5e floors hit points at zero and never

@@ -42,6 +42,8 @@ import { registerAutomationCleanup } from "./combat/auto/registry";
 import { registerAutomationTurnHook } from "./combat/auto/hooks";
 import { registerPerceptionWatch, surveyPerception } from "./combat/auto/perception";
 import { registerStealthWatch } from "./combat/auto/stealth";
+import { hideSelected, surveyHide } from "./combat/auto/hide";
+import { registerInvisibilityHooks } from "./combat/auto/invisibility";
 import { registerReactionHooks } from "./combat/auto/reactions";
 import { registerForcedMovement, surveyForced } from "./combat/auto/forced";
 import { registerForceAction, shove, undoForcedMovement } from "./combat/auto/shove";
@@ -98,6 +100,8 @@ export interface NoodlrApi {
   surveyForced(): unknown;
   surveyConditions(): unknown;
   surveyDying(): unknown;
+  surveyHide(): unknown;
+  hide(opts?: { force?: boolean }): Promise<void>;
   push(feet?: number): Promise<unknown>;
   pull(feet?: number): Promise<unknown>;
   undoForcedMovement(): Promise<number>;
@@ -195,6 +199,10 @@ const api: NoodlrApi = {
   surveyConditions: () => surveyConditions(),
   /** Whether the selected creature would get death saves or die at 0, and current dying state. */
   surveyDying: () => surveyDying(),
+  /** Whether the selected token may take the Hide action right now, and what each watcher can see. */
+  surveyHide: () => surveyHide(),
+  /** Take the Hide action with every selected token. `{force: true}` skips the cover prerequisites. */
+  hide: (opts) => hideSelected(opts),
   /** Shove every targeted creature away from the selected one, respecting walls and occupied spaces. */
   push: (feet = 10) => shoveTargets(feet, "away"),
   pull: (feet = 10) => shoveTargets(feet, "toward"),
@@ -281,6 +289,12 @@ Hooks.once("ready", () => {
   registerConditionHooks();
   // Drop-to-0 Unconscious/Dead and damage-at-0 death failures. Writes on the updating client.
   registerDyingHooks();
+  // Hiding: the declaration and the roll are read by the primary GM (gated inside), but the REVEAL comes
+  // off `dnd5e.rollAttack`, which fires only on the client that rolled — usually a player's browser. This
+  // sat in the GM-only block until v0.4.43, which is half of why a rogue could attack and stay hidden.
+  registerStealthWatch();
+  // Same reasoning: the Invisibility spell ends on the caster's own client.
+  registerInvisibilityHooks();
 
   // Ensure the media output folder exists (GM only — creating dirs needs upload permission).
   if (game.user?.isGM) {
@@ -300,8 +314,6 @@ Hooks.once("ready", () => {
     registerAutomationTurnHook();
     // Hostile creatures noticing the party and starting the fight without a GM's clicks.
     registerPerceptionWatch();
-    // Records Stealth rolls, so a creature that hid stays hidden until it gives itself away.
-    registerStealthWatch();
     // Off-turn reactions: opportunity attacks and hitting back when hurt.
     registerReactionHooks();
     // Pushes, pulls and shoves actually moving the creature they land on, which nothing else does.
@@ -417,10 +429,22 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
         visible: !isGM,
         onChange: () => api.openPlayerChat(),
       },
+      // Visible to everyone, and players are the ones who need it: dnd5e ships no Hide action outside
+      // Cunning Action and its cousins, so without this button most of the party has no way to declare
+      // that they are sneaking, and since v0.4.43 the declaration is what makes hiding real.
+      hide: {
+        name: "hide",
+        title: "NOODLR.Combat.Hide.Tool",
+        icon: "fa-solid fa-user-ninja",
+        order: 3,
+        button: true,
+        visible: true,
+        onChange: () => void hideSelected(),
+      },
     };
     if (isGM) {
       // One button per image generator (scene art, portrait, token, map), each with its icon.
-      let order = 3;
+      let order = 4;
       for (const kind of IMAGE_KINDS) {
         const meta = IMAGE_KIND_META[kind];
         tools[`image-${kind}`] = {

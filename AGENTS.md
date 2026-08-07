@@ -2015,6 +2015,62 @@ lorebook/author's-note/post-history injection.
   in full view of the table (v0.4.16). Hidden turns are badged **GM ONLY** and use local `speak()`, never
   `speakShared()`, because broadcast audio lands at a predictable unauthenticated URL.
 
+- **The declaration is the status; a Stealth roll is only a number (v0.4.43, 2026-08-07).** Reported from
+ play: a rogue who never took the Hide action was never spotted by anything, never triggered an encounter,
+ and killed hostiles one at a time while they stood oblivious. Root cause was the trigger, not the contest —
+ `stealth.ts` banked a hidden state on ANY `ste` roll appearing in chat, with no prerequisite and no expiry,
+ and the flag persisted in the world save. **The bug was inherited:** Stealthy's README says outright
+ *"Rolling a Stealth skill check will apply the Hidden effect"*, Perceptive does the same on
+ `flags.dnd5e.roll.skillId === "ste"`, and neither clears on an attack. They survive it because midi's
+ `removeHiddenInvis` (default ON, `Workflow.ts:2239`, `utils.ts:4389`) toggles the `hidden`/`hiding`
+ statuses off after every attack roll — and it had never heard of `flags.noodlr.stealth`. Only Chris's
+ Premades gates on the Hide action. Full comparison: `_research\_audit\stealth-modules-comparison.md`;
+ rules audit: `_research\_audit\stealth-hide-raw.md`.
+ - **`hidingState()` must not read our banked flag unless the `hiding` status is present.** That single
+ ordering is what makes a stale flag structurally incapable of hiding anyone, and it means every way of
+ removing the status — token HUD, midi, an effect expiring, our own reveal — ends the state without
+ knowing we exist. Do not "optimise" it by reading the flag first.
+ - **Reveal off `dnd5e.rollAttack`, never a chat message.** Midi merges the attack into its own card and
+ posts no separate attack message, so the old `createChatMessage` listener waited for something that
+ never came. The system hook fires inside midi's flow (midi itself registers
+ `Hooks.once("dnd5e.rollAttack")` at `AttackActivity.ts:446` to catch the ammo update). It fires only on
+ the rolling client, which is fine and is the point: a creature giving itself away is always acted by
+ someone who owns it, so that client can always write. Consequence — **`registerStealthWatch()` must be
+ registered on every client, not inside the GM-only block.** Note `enrichers.mjs:281` fires the same hook
+ with `subject: null` for a bare `[[/attack]]`, and both `rollAttack` and `rollAttackV2` fire, so listen
+ to one and guard the subject.
+ - **A missed attack DOES reveal you, in both editions** — the hit-only rule the user remembered is
+ **Skulker's Sniper** benefit (2024 PHB p. 208), not a house rule, so it is a feat lookup rather than a
+ setting. Skulker ships in NO dnd5e compendium (PHB, not SRD), so there is no authored identifier to
+ trust: `dnd5e-stealth.ts` tries `flags.noodlr.sniper`, then `system.identifier`, then the item name.
+ Its Fog of War (advantage on Hide in combat) is honoured too; its Blindsight 10 needs nothing, because
+ `sheetSenses` already reads the range off the sheet.
+ - Sniper is the only reason we ever need hit-or-miss, and `attackConnected()` is deliberately NOT
+ `forced.ts`'s `hitTargets`: an empty target list means "nobody" there and "no idea" here. **Unknown
+ reveals.** Crit and fumble are answered before the AC loop, or a single unreadable AC would discard the
+ one fact the die already settled.
+ - **We do NOT apply the `invisible` condition for mundane hiding**, even though 2024 Hide grants the
+ Invisible condition. Perceptive does, and it makes hiding indistinguishable from magical invisibility to
+ every sense-aware module; dnd5e's own content shares our instinct and stamps only `hiding`.
+ - **`auto/hide.ts` exists because dnd5e ships no Hide action** outside Cunning Action, Nimble Escape and
+ Shadow Stealth. With the status as the declaration, no button would mean most of the party can never
+ hide. Cover is estimated by counting blocked corner rays (3 of 4 = three-quarters); that is an
+ approximation of a rule 5e states as a fraction of the target obscured, it is what every cover module
+ does, and it is stated in the file so nobody mistakes it for exact. Prerequisites are evaluated
+ per-watcher, because every term in the rule is relative to an observer.
+ - **Invisibility's break is separate from the hiding clear, deliberately.** Midi couples them under one
+ rule and therefore deletes Greater Invisibility on the first attack — the entire difference between a
+ second-level spell and a fourth-level one. `auto/invisibility.ts` skips concentration effects
+ (`actor.concentration.effects.has(effect)`, not the localised "Concentrating:" prefix) so a wizard who
+ made someone else invisible does not lose their own spell by swinging.
+ - **Surprise was free capability.** dnd5e already lists `surprised` in
+ `CONFIG.DND5E.conditionEffects.initiativeDisadvantage` and reads it during initiative prep; it just never
+ decides who is surprised. We do, using the literal test (a joining hostile that cannot perceive one
+ party member), applied before `rollNPC()` since it modifies the roll. Players are never marked —
+ perception is one-way by design, so we have no honest basis for it.
+ - The damage-starts-a-fight path shares the sweep's `sweeping` guard: `engage()` holds for up to 60 s
+ waiting on initiative, so without it a second casualty during that wait creates a second Combat.
+
 - **Nobody counts actions, so we do (v0.4.38, 2026-08-05).** Verified in dnd5e 5.3.3 source, not assumed:
   `CONFIG.DND5E.activityActivationTypes` gives each activation type an optional `consume` property naming
   an actor resource pool, and exactly three declare one — `legendary`, `mythic` and `crew`. `action`,

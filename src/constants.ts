@@ -109,6 +109,10 @@ export const COMBAT_SETTINGS = {
   dying: "combat.dying",
   /** Whether NPCs flagged Important get death saves like PCs instead of dying at 0. */
   importantNpcSaves: "combat.importantNpcSaves",
+  /** Whether creatures caught unawares are marked Surprised when a fight starts. */
+  surprise: "combat.surprise",
+  /** Whether the Invisibility spell ends itself on attacking, damaging or casting. */
+  invisBreak: "combat.invisBreak",
 } as const;
 
 /**
