@@ -209,7 +209,7 @@ const api: NoodlrApi = {
   surveyConcentration: () => surveyConcentration(),
   /** Whether the selected token may take the Hide action right now, and what each watcher can see. */
   surveyHide: () => surveyHide(),
-  /** Take the Hide action with every selected token. `{force: true}` skips the cover prerequisites. */
+  /** Take the Hide action with every selected token. `{force: true}` skips the prerequisites and cost. */
   hide: (opts) => hideSelected(opts),
   /** Shove every targeted creature away from the selected one, respecting walls and occupied spaces. */
   push: (feet = 10) => shoveTargets(feet, "away"),

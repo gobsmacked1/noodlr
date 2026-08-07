@@ -2229,8 +2229,32 @@ lorebook/author's-note/post-history injection.
   - **Subclass `CONFIG.Token.objectClass` at `setup`, not `init`** — dnd5e installs `Token5e` at `init`, and
     extending whatever is there keeps its `ignoreTokens` handling. Registered from `init` on **every**
     client, not from the GM-only `ready` block: the person being constrained is the player.
+  - **Dash exists TWICE and both halves must charge through one ledger entry (v0.4.48, 2026-08-07).**
+    Measured, not reasoned: the census of the user's own world found all four characters carrying a `Dash`
+    feature with `system.identifier === "dash"` claiming a real Action, plus `Cunning Action → Dash`
+    claiming a bonus — the 2024 PHB action items, which Argon puts straight on the action bar. So a Dash is
+    both an inference from movement AND a pressable activity, and `spend()` recorded only the slot while
+    `budgetFor()` reads `dashesTaken`. Pressing the button therefore bought no extra Speed, and the movement
+    it was bought for charged a SECOND slot: a rogue's Cunning Action took its bonus action and then its
+    whole Action. Every charge site in `enforce.ts` now goes through `charge()`, which routes a Dash to
+    `takeDash` instead. **The general lesson is the same one Sneak Attack taught:** whenever a layer infers
+    a resource spend from behaviour, check whether the world also has a button for it, because a world with
+    the PHB items installed has a button for nearly everything.
+  - `isDashActivity` checks the ACTIVITY name first and the item identifier second, and the order is
+    load-bearing. midi renames activities whose names were left at the default, so the standalone `Dash`
+    item's activity reads "Midi Use" (identifier route), while a multi-purpose feature keeps its activities
+    named — "Cunning Action" holds Dash, Disengage and Hide (name route). Neither route alone covers both.
   - Exempt: the GM (staging is not cheating), Noodlr's own automation (it budgets before it steps), and
     anyone moving outside their own turn. Diagnostics: `api.surveyMovement()`.
+  - **The Hide button charges a slot too, and refuses rather than asks (v0.4.48).** Same census, same cause:
+    a `Hide` feature claiming an Action existed beside our free button, so the cost depended on which one
+    the player pressed. `auto/hide.ts` now bills an Action, or a bonus action when `bonusHideSource` finds
+    Cunning Action, Nimble Escape or Shadow Stealth. It deliberately does NOT reproduce `enforce.ts`'s
+    over-budget dialog: that dialog exists for features which legitimately break the general rule, and the
+    ones that matter (Haste and relatives) already work by raising the allowance via
+    `flags.noodlr.extraAction`, so they never reach a refusal. `force` is the override, and it now skips the
+    cost as well as the cover prerequisites. Charged after the roll so a cancelled dialog is free, but
+    charged whether or not the check beat the DC — spending the action is the rule.
 
 - **Ammunition is not a consumption type (fixed v0.4.39).** `activityAvailable` looked for a consumption
   target of `type: "ammunition"`, which does not exist: dnd5e 5.3.3 has exactly six consumption types
@@ -2477,7 +2501,23 @@ reported again.
   `maxCost: budget` constraint, which silently refuses a path that costs more than the creature's speed
   rather than moving it as far as it can. **New evidence (2026-08-05):** `maxCost` did not exist before
   core 14.357, so on a v13 host that constraint was being silently ignored and the creature had no budget
-  at all — worth confirming the host version before chasing anything subtler.
+  at all — worth confirming the host version before chasing anything subtler. **That theory is now dead
+  (census, 2026-08-07): the host is 14.365, so `maxCost` does exist there.** The same census settles the
+  other half — all four movement-veto modules this file names as prime suspects are active in that world:
+  `NotYourTurn@4.0.0`, `tokenwarp@14.365.2`, `Rideable@5.0.17` and `monks-active-tiles@14.01`. NotYourTurn
+  is the one to disable first, since it hooks `preMoveToken` without checking `movement.method` and so
+  treats an API move as a player drag.
+- **UNVERIFIED CONFLICT — `wm5e` (Weapon Mastery 5e) versus our Push mastery.** Active in the user's world at
+  14.533.6, a version scheme matching AC5e's, so probably the same author. `dnd5e-forced-movement.ts`
+  implements Push natively (`trigger: "mastery"`, read from `flags.dnd5e.roll.mastery`) and
+  `forced.ts::alreadyAutomated()` stands aside only for Chris's Premades and Gambit's — it has never heard
+  of wm5e. If wm5e moves the target, a Pike or Warhammer hit pushes twice. **Not confirmed:** wm5e is not in
+  `C:\Project\_research` and none of its code has been read. Clone it before either adding a stand-aside or
+  dismissing the risk.
+- **`attacksPerAction` probably misses Thirsting Blade** — inference, not observed, since the census's only
+  warlock took Pact of the Chain. `ledger.ts` reads `extra-attack`/`two-extra-attacks`/`three-extra-attacks`,
+  right for fighters, rangers, paladins, barbarians and monks, but a Pact of the Blade warlock's second
+  attack comes from the `thirsting-blade` invocation and would read as 1. One identifier to add.
 - Lorebook storage shape (world-scoped JournalEntry vs module setting vs flat file in world data) — decide in Phase 3.
 - Multi-GM/assistant-GM permissions model for Chronicle review and silo resets.
 - `noodlr.app` domain not yet acquired/configured; git + releases now hosted on `github.com/gobsmacked1` (see Phase 6 status). Revisit if a self-hosted forge / custom domain is preferred.

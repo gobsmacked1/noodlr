@@ -2,6 +2,24 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.48
+
+- **Dashing no longer costs twice.** If your world has the 2024 Player's Handbook action items — and with
+  Argon's action bar you almost certainly press them — then Dash is a real button as well as something
+  Noodlr works out from how far you moved, and both were charging you. A rogue who correctly spent a bonus
+  action on Cunning Action's Dash and then ran was charged their whole Action for the same Dash, quietly
+  ending their turn. Pressing a Dash now records the Dash itself, so the extra Speed it bought is already
+  paid for by the time you move. Anything Noodlr does not recognise as a Dash can be marked with
+  `flags.noodlr.dashActivity` on the item.
+- **The Hide button now costs an action, or a bonus action** for anything with Cunning Action, Nimble Escape
+  or Shadow Stealth. It was free, which was unfair in both directions: the Handbook's own Hide feature
+  charges an Action, so whichever button you happened to press decided what hiding cost you. A creature with
+  nothing left to spend is told so instead of hiding; a GM can still overrule with
+  `game.modules.get("noodlr").api.hide({force: true})`, which skips the cover prerequisites and the cost
+  together.
+- The action-economy override card is now signed by the creature that used the ability, portrait and all,
+  rather than by a bare name.
+
 ## 0.4.47
 
 - **The sheet survey now covers player characters.** `api.surveyActions()` existed to learn monster sheets
