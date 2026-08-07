@@ -460,6 +460,121 @@ Reservations and known gaps:
 - Windows host gotcha: the file-Write tool intermittently emits new files as UTF-16LE — after creating any file, verify the first bytes are UTF-8 and convert if needed. Watch CRLF/LF (.gitattributes) since Foundry servers are often Linux.
 - Never store secrets in this file or in module settings defaults.
 
+## Research method: the corpus, subagents, and not losing the work
+
+Every "nobody automates this" finding in this file came from reading source, never from asking a model
+what it remembered. That is only affordable because the sources are already on disk.
+
+- **The corpus lives at `C:\Project\_research\`** (outside all three workspace roots, so tools must be
+  pointed at it explicitly and a plain workspace search will not find it):
+  - `dnd5e\` — dnd5e **5.3.3** system source. `module\*.mjs`, `module\config.mjs`, `lang\en.json`, and
+    crucially `packs\_source\` — the unpacked authored CONTENT, which is where the "it's only prose"
+    verdicts are actually decided. `dnd5e533\` is a duplicate of the same version; ignore it.
+  - `fvtt13\foundryvtt\` — a full Foundry v13 install with **readable client source** under
+    `resources\app\`. This is what makes claims like "`#initializeMovementActions` overwrites the cost
+    function" checkable rather than plausible.
+  - `ftypes14\` — Foundry **v14** API type definitions, carrying the doc comments. The only way to answer
+    "does this API exist in 14 but not 13", which has bitten us (`maxCost` arrived in 14.357).
+  - `midi-v14\`, `midi-qol\`, `gambits\`, `cpr\`, `vision5e\`, `perceptive\`, `patrol\`, `talia\` — the
+    modules we compare against and deliberately stand down for.
+  - `gh_*.py`, `gh_issues_found.json`, `milestones.json` — helpers used to search dnd5e issues and releases
+    when the question is "did they ever intend to build this".
+  - `_audit\` — completed audit reports (see below).
+- **`rg` (ripgrep) over the corpus is the primary instrument.** Absence of evidence is the finding in most
+  of these investigations, so searches must be exhaustive and the negative result stated with the pattern
+  that produced it.
+- **PowerShell output is unreliable in the agent shell (observed 2026-08-06).** `Get-ChildItem` and
+  `Select-String` have silently returned empty output where the paths plainly existed. `cmd /c dir` and the
+  file-reading tools were unaffected. Do not conclude a file is missing from a bare PowerShell listing.
+
+**Subagent protocol (adopted 2026-08-06, after losing a batch — twice).** Six research subagents were
+launched as blocking calls in one message. All five that started **finished their work within about a
+minute each and wrote a complete final report**; the batch was then killed 77 minutes later because the
+handoff back to the parent hung. The work was never slow, and it was never lost — but the *delivery* was
+all-or-nothing and there was no copy on disk, because the briefs said "report back" and "modify nothing".
+
+1. **The file is the deliverable, the reply is expendable.** Every research brief names an output path
+   under `_research\_audit\` and instructs the agent to create the file *before* researching and rewrite it
+   after each section. An interrupted run then still leaves a usable artifact.
+2. **Background them** (`run_in_background: true`). A blocking call looks identical whether it is working
+   or hung, which is precisely how 77 minutes went by.
+3. **Cap the fan-out at two or three.** A blocking batch is only as fast as its worst member and the blast
+   radius of one stall is the whole batch.
+4. **Bound the effort** in the brief ("finish within ~60 tool calls; a complete-but-partial file beats an
+   exhaustive one that never gets written").
+
+**Recovery drill — a vanished subagent's work is usually still on disk.** Transcripts persist at
+`C:\Users\Superuser\.cursor\projects\c-Project-noodlr-memory\agent-transcripts\<chat-id>\subagents\<agent-id>.jsonl`,
+one JSON event per line with `role` and `message.content[]`. **The final report is the `text` block of the
+last `role: "assistant"` event**; tool calls appear as `tool_use` entries but their results are stripped, so
+the report is all that is recoverable — which is exactly the part worth having. Sort the folder by write
+time to find the batch. A transcript containing only the opening `user` event is an agent that never
+started. Five reports (~68k characters, fully cited) were recovered this way on 2026-08-06 and now sit in
+`_research\_audit\`: conditions/exhaustion, cover/visibility/surprise, damage/death/hazards, movement rules
+beyond Speed, and spellcasting/resources.
+
+## How to tell whether dnd5e enforces a rule (audited 2026-08-06)
+
+Three times now we have built something after discovering the system does not do it (actions v0.4.38,
+Speed v0.4.39, forced movement v0.4.40). This is the generalised detection method, so the fourth time is
+a five-minute check instead of a five-hour audit. Full report and the citations behind every number:
+`_research\_audit\documentation-signals.md`.
+
+- **There is no warning word. The tell is structural: look at where the rule's number lives.** If the
+  quantity the rule turns on — a distance, a count of actions, a number of feet — appears only in
+  `description.value`, in `chatFlavor`, or in a journal page, and **no schema field could hold it**, then
+  nothing enforces it and nothing will until the schema changes. Quantified: 57 content files state a
+  forced-movement distance in prose, 52 of them have `effects: []`, and no YAML key in any of the 4,674
+  content files can express displacement (every `distance:` is `range.distance`). The orphaned number is
+  the signal; `effects: []` on its own is weak evidence, since plenty of pure-damage items have none.
+- **`CONFIG.DND5E.rules` (`config.mjs:4673`) is the index of the prose surface.** Its own JSDoc: *"List of
+  rules that can be referenced from enrichers."* ~170 entries, every value a bare UUID — `shoving`,
+  `hiding`, `speed`, `bonusaction`, `dash`, `opportunityattacks`, `cover`. **The test only works in one
+  direction:** presence proves nothing (`difficultterrain` is listed *and* implemented), but a rules-table
+  key that appears nowhere in `module/**.mjs` outside the config files is prose-only.
+- **`&Reference[...]` documents; `[[/...]]` does dice.** `enrichReference` returns a content link and a
+  tooltip. The one exception is `&Reference[condition=x]`, which adds a hand-operated "apply status"
+  button. The `[[/attack|damage|save|check|...]]` family produces real rolls — but only rolls: nothing
+  compares the result to anything or applies a consequence. `[[/award]]` is the only enricher that changes
+  actor state on its own. `@Embed[...]` is core, and purely presentational.
+- **A config entry that is only `{label, reference}` exists to be linked to.** `weaponMasteries` is the
+  archetype and the only table in `config.mjs` that is purely that shape throughout. The refined test is
+  the absence of any sibling key beyond `label`/`icon`/`abbreviation`/`fullKey`, and it works *within* a
+  table too: a `conditionTypes` entry carrying `special` is wired into core's `specialStatusEffects`; one
+  carrying only `name`/`icon`/`reference` is not.
+- **A non-empty `chatFlavor` is the content team's to-do list.** Only 129 of 4,674 files have one, it has
+  exactly one consumer (`documents/activity/mixin.mjs:704`, which makes it a chat-card subtitle), and when
+  filled in it reads like a stage direction: *"On Hit: Target pushed 15 feet away."* (fire giant), *"On
+  Failure: Target is pushed 20 feet back."* (air elemental).
+- **Ask which Activity type could express the rule.** The closed list is Attack, Cast, Check, Damage,
+  Enchant, Forward, Heal, Save, Summon, Transform, Utility. None of those verbs moves a target. The wiki's
+  gloss on the last one is the system naming the concept itself: *"Utility: make an arbitrary roll or just
+  indicate something happened."*
+- **The schema JSDoc is more honest than the prose docs.** `documents/activity/_types.mjs:35`:
+  *"`consume.action` — Should action economy be tracked? Currently only handles legendary actions."* That
+  is the system stating the v0.4.38 gap outright, in a doc comment, where nobody would look.
+- **The 5.0.0 release notes' "What's Next" is the only place gaps are published.** It lists "Action
+  tracking", "Range, reach, & cover", and "Ruler integration with movement rules" — all three of the
+  things we have since built — prefaced with *"neither can we promise any firm timelines"*. A roadmap item
+  is a confession. Check the newest release's equivalent section before starting anything.
+- **Two traps.** `movementAutomation` is the only setting whose display name contains "Automation" and it
+  governs terrain cost and token blocking, never Speed. And the gap is usually *not* "automation exists
+  but defaults off" — the enforcement toggles mostly ship ON; the real problem is that the automation is
+  narrower than its name. The genuine off-by-default exceptions worth knowing: `encumbrance` (`"none"`)
+  and `autoRecharge` (`"no"`).
+- **Disproved, so don't bother:** `lang/en.json` contains essentially no "we will not do this" vocabulary
+  (the closest is one "at your DM's discretion" about optional class features), and no limitations or
+  "what is automated" page was found on the dnd5e wiki. Core states its position only in the positive, in
+  developer docs: rules are a system's job, so a rule the system never modelled as data is a rule nobody
+  enforces.
+- **Core adjudicates six statuses and paints the rest.** `CONFIG.statusEffects` entries are `{id, name,
+  img}`; only `CONFIG.specialStatusEffects` (`dead`, `invisible`, `blind`, `burrow`, `hover`, `fly`) is
+  consumed by core, for defeat, vision and elevation.
+
+Five further audits from the same 2026-08-06 batch sit beside that report and have **not** yet been acted
+on: conditions/exhaustion, cover/visibility/surprise, damage/death/hazards, movement rules beyond Speed,
+and spellcasting/resources. Read them before planning the next feature — they are the standing gap list.
+
 ## Phase 0 status (completed 2026-07-22)
 
 Installable skeleton exists and builds clean. Decisions locked this phase:
