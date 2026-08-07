@@ -105,6 +105,10 @@ export const COMBAT_SETTINGS = {
   forced: "combat.forced",
   /** Whether condition combat math (adv/disadv, auto-fail, crit-on-hit, incapacitated) is applied. */
   conditions: "combat.conditions",
+  /** Whether dropping to 0 HP applies Unconscious/Dead and damage-at-0 death failures. */
+  dying: "combat.dying",
+  /** Whether NPCs flagged Important get death saves like PCs instead of dying at 0. */
+  importantNpcSaves: "combat.importantNpcSaves",
 } as const;
 
 /**

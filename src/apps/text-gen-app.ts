@@ -29,6 +29,8 @@ import {
   isAutoEndEnabled,
   isAutoEngageEnabled,
   isConditionAutomationEnabled,
+  isDyingAutomationEnabled,
+  honorImportantNpcDeathSaves,
   isForcedMovementEnabled,
   isMovementCapEnabled,
   isStealthEnabled,
@@ -129,6 +131,8 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       movementCap: isMovementCapEnabled(),
       forcedMovement: isForcedMovementEnabled(),
       conditionAutomation: isConditionAutomationEnabled(),
+      dyingAutomation: isDyingAutomationEnabled(),
+      importantNpcSaves: honorImportantNpcDeathSaves(),
       autoEnd: isAutoEndEnabled(),
       economy: {
         isOff: economy === "off",
@@ -203,6 +207,8 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
     await set(COMBAT_SETTINGS.movement, Boolean(o.combatMovement));
     await set(COMBAT_SETTINGS.forced, Boolean(o.combatForced));
     await set(COMBAT_SETTINGS.conditions, Boolean(o.combatConditions));
+    await set(COMBAT_SETTINGS.dying, Boolean(o.combatDying));
+    await set(COMBAT_SETTINGS.importantNpcSaves, Boolean(o.combatImportantNpcSaves));
     await set(COMBAT_SETTINGS.autoEnd, Boolean(o.combatAutoEnd));
     const economy = String(o.combatEconomy ?? "warn");
     await set(

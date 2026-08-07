@@ -140,6 +140,18 @@
     <p class="notes">{{localize "NOODLR.Combat.Conditions.Hint"}}</p>
 
     <label class="noodlr-inline">
+      <input type="checkbox" name="combatDying" {{#if dyingAutomation}}checked{{/if}} />
+      {{localize "NOODLR.Combat.Dying.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Combat.Dying.Hint"}}</p>
+
+    <label class="noodlr-inline">
+      <input type="checkbox" name="combatImportantNpcSaves" {{#if importantNpcSaves}}checked{{/if}} />
+      {{localize "NOODLR.Combat.Dying.Important.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Combat.Dying.Important.Hint"}}</p>
+
+    <label class="noodlr-inline">
       <input type="checkbox" name="combatAutoEnd" {{#if autoEnd}}checked{{/if}} />
       {{localize "NOODLR.Combat.AutoEnd.Name"}}
     </label>

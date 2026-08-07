@@ -2,6 +2,19 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.42
+
+- **Dropping to 0 hit points now means something.** Stock D&D 5e floors hit points at zero and never
+  applies Unconscious, Dead, or death-save failures from damage — instant death when leftover damage
+  meets your hit point maximum is journal prose only. Characters (and Important NPCs) now fall
+  Unconscious and start dying; ordinary NPCs are marked Dead and defeated on the tracker.
+- **Damage while dying ticks death saves.** Each hit at 0 adds a failure (two on a critical). Three
+  failures, or a single hit whose leftover damage meets max HP, kills outright. Three successful death
+  saves mark Stable. Healing above 0 clears the marks (stock already resets the counters).
+- Switchable under Text Generation, with a separate toggle for whether Important NPCs get death saves.
+  Stands aside when midi-qol's Add Dead is enabled. Every card carries an undo.
+  `api.surveyDying()` reports what would happen for the selected token.
+
 ## 0.4.41
 
 - **Condition combat math is applied, not just painted on the token.** Stock D&D 5e applies statuses and

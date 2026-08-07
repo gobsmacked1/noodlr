@@ -46,6 +46,7 @@ import { registerReactionHooks } from "./combat/auto/reactions";
 import { registerForcedMovement, surveyForced } from "./combat/auto/forced";
 import { registerForceAction, shove, undoForcedMovement } from "./combat/auto/shove";
 import { registerConditionHooks, surveyConditions } from "./combat/auto/conditions";
+import { registerDyingHooks, surveyDying, undoDying } from "./combat/auto/dying";
 import { registerEconomyHooks } from "./combat/economy/enforce";
 import { registerMovementCap, surveyMovement } from "./combat/economy/movement";
 import { surveyEconomy } from "./combat/economy/survey";
@@ -96,9 +97,11 @@ export interface NoodlrApi {
   surveyMovement(): unknown;
   surveyForced(): unknown;
   surveyConditions(): unknown;
+  surveyDying(): unknown;
   push(feet?: number): Promise<unknown>;
   pull(feet?: number): Promise<unknown>;
   undoForcedMovement(): Promise<number>;
+  undoDying(): Promise<number>;
   flattenElevation(): Promise<number>;
   restoreElevation(): Promise<number>;
 }
@@ -190,11 +193,15 @@ const api: NoodlrApi = {
   surveyForced: () => surveyForced(),
   /** What condition combat math would apply for the controlled token vs its current target. */
   surveyConditions: () => surveyConditions(),
+  /** Whether the selected creature would get death saves or die at 0, and current dying state. */
+  surveyDying: () => surveyDying(),
   /** Shove every targeted creature away from the selected one, respecting walls and occupied spaces. */
   push: (feet = 10) => shoveTargets(feet, "away"),
   pull: (feet = 10) => shoveTargets(feet, "toward"),
   /** Put every creature Noodlr has displaced this fight back where it was. */
   undoForcedMovement: () => undoForcedMovement(),
+  /** Reverse the last dying/death status change Noodlr applied. */
+  undoDying: () => undoDying(),
   /** Set every token in this scene to elevation 0, reversibly. */
   flattenElevation: () => flattenElevation(),
   restoreElevation: () => restoreElevation(),
@@ -272,6 +279,8 @@ Hooks.once("ready", () => {
   // for GMs, which meant players were never held to the budget on their own browser.
   registerEconomyHooks();
   registerConditionHooks();
+  // Drop-to-0 Unconscious/Dead and damage-at-0 death failures. Writes on the updating client.
+  registerDyingHooks();
 
   // Ensure the media output folder exists (GM only — creating dirs needs upload permission).
   if (game.user?.isGM) {
