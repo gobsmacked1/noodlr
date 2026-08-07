@@ -28,6 +28,7 @@ import {
   getTurnPaceSeconds,
   isAutoEndEnabled,
   isAutoEngageEnabled,
+  isForcedMovementEnabled,
   isMovementCapEnabled,
   isStealthEnabled,
   isNpcBanterEnabled,
@@ -125,6 +126,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       engageRadius: getEngageRadius(),
       stealthContest: isStealthEnabled(),
       movementCap: isMovementCapEnabled(),
+      forcedMovement: isForcedMovementEnabled(),
       autoEnd: isAutoEndEnabled(),
       economy: {
         isOff: economy === "off",
@@ -197,6 +199,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
     await set(COMBAT_SETTINGS.engageRadius, Number.isFinite(radius) && radius >= 0 ? radius : 30);
     await set(COMBAT_SETTINGS.stealth, Boolean(o.combatStealth));
     await set(COMBAT_SETTINGS.movement, Boolean(o.combatMovement));
+    await set(COMBAT_SETTINGS.forced, Boolean(o.combatForced));
     await set(COMBAT_SETTINGS.autoEnd, Boolean(o.combatAutoEnd));
     const economy = String(o.combatEconomy ?? "warn");
     await set(

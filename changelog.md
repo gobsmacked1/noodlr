@@ -2,6 +2,34 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.40
+
+- **Pushes and pulls now actually move people.** Nothing in the stack has ever done this. The D&D 5e system
+  automates no forced movement whatsoever — no activity type even has a field that could hold a distance,
+  the Push weapon mastery is a tooltip, and every distance in the published content sits in description
+  prose. Repelling Blast ships as an enchantment whose entire mechanical content is adding ", Repelling" to
+  the cantrip's name as a reminder for you. A shove, a Push-mastery hit, Thunderwave, Thorn Whip, Lightning
+  Lure, Gust of Wind, Pulse Wave, Telekinesis, Crusher, Charger, Shield Master, Tavern Brawler, Repelling
+  Blast, Grasp of Hadar, Open Hand Technique, Pushing Attack, Thunderbolt Strike, Bigby's Forceful Hand and
+  Reverse Gravity now move the creature they land on.
+- **Being pushed into things works properly.** Walls stop a shoved creature where it hits them, so do
+  occupied spaces and the edge of the map, and the chat line says how far it actually went rather than how
+  far it was meant to go. If it lands in something harmful the card names it — nobody else's implementation
+  checks that, and a creature shoved into Spike Growth ought to notice.
+- **Shoves cost the victim nothing and provoke nothing**, which is what the 2024 rules say and what makes
+  this safe to run alongside the Speed limit added last release. A pushed creature keeps its whole move, and
+  nobody gets a free swing at it on the way past.
+- **Every push carries an undo.** These rules mostly say you *can* push, not that you must, so rather than
+  interrupt with a confirmation on every hit the movement simply happens and the card offers "Put it back".
+  `api.undoForcedMovement()` reverses everything from the current fight at once.
+- **Grapplers drag their captives.** Walk away holding somebody and they come with you.
+- **You can push by hand too.** Select the creature doing it, target the ones being moved, and call
+  `api.push(15)` or `api.pull(10)` — the same engine, with you choosing the distance. Useful for the rules
+  the table adjudicates itself. `api.surveyForced()` says which of your character's features were
+  recognised, which is the first thing to check when a feat did not fire.
+- Switchable under Text Generation, and it stands down automatically on any item Gambit's Premades or
+  Chris's Premades already automates, so nobody gets pushed twice.
+
 ## 0.4.39
 
 - **Speed is now a limit.** Nothing in Foundry has ever enforced it: the system colours the drag ruler red

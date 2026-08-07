@@ -2017,18 +2017,125 @@ lorebook/author's-note/post-history injection.
   looks broken. Gated on the new tier-2 `understandsHazards`, so mindless things still burn where they
   stand.
 
+- **Nobody implements forced movement at all (v0.4.40, 2026-08-06).** The third finding of this shape, and
+  the starkest. Verified against dnd5e 5.3.3, core v13.351, midi-qol v14, Gambit's Premades and Chris's
+  Premades before a line was written.
+  - **dnd5e automates none of it.** No occurrence of `shove|knockback|displace|forced movement` anywhere in
+    the 421 files under `module/`, and every one of the ~60 hits for `push` is `Array.prototype.push`. **No
+    activity type has a schema field that could express "move the target N feet"** — the concept is absent,
+    so no amount of content authoring could represent one. The only code in the system that moves a token
+    is a Region Behavior that rotates a scene area for carousel rooms, and the system registers no movement
+    hook listeners.
+  - **Weapon Mastery is presentational.** `CONFIG.DND5E.weaponMasteries` is eight `{label, reference}`
+    pairs; each key as a whole word appears nowhere outside the config files. The diagnostic case is
+    Topple, which could trivially have been an AE applying `prone` — that machinery demonstrably works
+    elsewhere in the same content — and the quarterstaff YAML contains zero occurrences of "prone".
+    Correction to a common list: **Push weapons are Pike, Warhammer, Heavy Crossbow and Greatclub**; the
+    Greatsword is Graze.
+  - **In the content, every distance is prose,** and the pattern is consistent: when a rule pushes *and*
+    imposes a condition, the condition gets a real Active Effect and the push is left in the English.
+    Open Hand Technique is the specimen — three sibling activities, Addle and Topple with real effects,
+    Push with `effects: []` and no distance anywhere, and an authoring note that lists the two and omits
+    the third. Unarmed Strike models the Shove *save* correctly (`ability: [str, dex]`,
+    `dc.calculation: str` → 8 + Str + proficiency) and the knock-prone branch; the 5 feet does not exist.
+    The closest thing to a modelled distance in the whole set is Bigby's `[[5 + 5 * @flags.dnd5e.summon.mod]]`,
+    inside `description.chatFlavor` — a display string.
+  - **Nor does anything else.** midi ships `MidiQOL.moveToken` / `moveTokenAwayFromPoint` and calls them
+    from nothing — macro API only, no game mechanic. Gambit's covers ~10 items (Shield Master 2024 the only
+    mainstream one) with a real helper that iterates `canvas.grid.measurePath` for diagonal correctness and
+    marches a ray in tenth-of-a-square steps on wall contact. Chris's covers two, both delegating to the
+    separate `cat` module. Custom D&D 5e ships a Move *activity* — good, but an authoring tool: hand-built
+    per item, human picks the destination, no rules knowledge. **Nobody handles a hazardous landing**
+    (Gambit's prints a chat line asking the GM to fix it), scene edges, or elevation.
+  - **Core standardised the concept even though nothing uses it.** v12's `forced` flag was replaced 1:1 by
+    `action: "displace"` — core's own deprecation shim returns `action === "displace"` for the old
+    property. So displacement is the platform's official "involuntary".
+  - **The architecture that follows: ask with `walk`, move with a zero-cost action.** `displace` cannot be
+    softened — `#initializeMovementActions` (`client/game.mjs:840-852`) *validates* that it teleports,
+    is unmeasured, has `walls: null`, then **overwrites** its animation and cost functions — so a shove
+    executed as `displace` would go through walls and snap instantly. Instead `constrainMovementPath` is
+    asked where a *walked* path would stop (pure, writes nothing) and the move is committed to that
+    already-legal point as `noodlrForce`. Same split CAT arrived at.
+  - **Registering a movement action: `init` only, and only `label` + `icon` are required.**
+    `#initializeMovementActions` defaults every other field (including `deriveTerrainDifficulty = null`
+    and `getCostFunction`) and then **deep-freezes the registry inside `setupGame()`, before the `setup`
+    hook** — so registering at `setup` is a silent no-op, not an error. It throws on a missing label or
+    icon. `registerForceAction()` therefore runs from `init` on every client and everything downstream
+    feature-detects the key, falling back to `displace`. The custom key travels on the wire and core's
+    animation path looks it up without a fallback, which is safe only because Foundry activates modules
+    world-wide rather than per client.
+  - **Coordinate systems are the live bug risk.** `constrainMovementPath` takes and returns **top-left**
+    waypoints; every measurement in `auto/` is from the **centre**. `shove.ts` converts at that boundary
+    (`toCorner`/`toCentre`) — conflating them puts a medium creature half a square out and a Huge one two
+    squares out, and it is invisible in a code review. An empty returned path means "cannot leave the
+    square", which must not be confused with the unreadable-API case that retries with our own ray.
+  - **Two checks are deliberately repeated after core answers:** core's boundary test uses the PADDED
+    canvas rather than the visible map, and creature blocking belongs to the *system* — dnd5e implements it
+    properly in its `constrainMovementPath` override (correct multi-space footprints and elevation) but
+    **disables itself unless `game.settings.get("dnd5e", "movementAutomation") === "full"`**, so on many
+    tables it never runs.
+  - **Detection has to come off chat messages, not roll hooks.** `dnd5e.rollAttack` / `rollSavingThrow` are
+    ordinary local hooks that fire only on the rolling client, so a player's attack is invisible to the GM
+    through them. The GM-side readings, verified in source: attack = `flags.dnd5e.roll.type === "attack"`
+    with `flags.dnd5e.targets` (`{name, img, uuid, ac}`) and `rolls[0]` a `D20Roll` whose `options.target`,
+    `isCritical` and `isFumble` all survive deserialisation; hit/miss is **stored nowhere** and must be
+    recomputed as dnd5e's renderer does. Save = `roll.type === "save"` with `roll.ability`, DC at
+    `rolls[0].options.target`, and — crucially — `flags.dnd5e.originatingMessage`, the usage card's id,
+    which is the ONLY link back to the activity that demanded the save. Under midi read
+    `flags["midi-qol"].hitTargetUuids` / `.failedSaveUuids` off `updateChatMessage` instead: those are
+    **token** uuids (better than dnd5e's actor uuids), written unconditionally by `displayAttackRoll` /
+    `displaySaves` and not subject to midi's `SaveToChatCard` setting. Select the path by **presence of the
+    flags, not presence of the module** — midi can have its automation switched off.
+  - **Known-heuristic list, logged rather than asserted:** a null recorded AC conflates total cover with an
+    unreadable sheet and is skipped (dnd5e's own formula scores it as a *hit*, via `total < null` coercing
+    to `total < 0` — we deliberately diverge); anything rolled from a sheet has no `originatingMessage` and
+    is unattributable; `flags.dnd5e.targets` keys by actor uuid, so two linked tokens of one actor
+    **collapse into a single entry** before we see it; `BasicRoll#isFailure` returns `false` when there is
+    no DC, so absence must be tested first; concentration saves are byte-identical to ordinary saves.
+  - **Shove is automatable only because the conditions disambiguate it after the fact.** 2024 folds grapple
+    and shove into one save activity, so a failed save cannot say which the attacker chose — but `grappled`
+    means grapple, `prone` means the knockdown branch, and neither means the 5-foot push. Hence
+    `unlessStatus` and a 700 ms settle before reading.
+  - **Applied automatically with an undo, not by prompting** (user, 2026-08-06). Most of these rules are
+    permissive ("you *can* push"), so a confirmation on every hit would cost more table time than the
+    occasional reversal; every card carries "Put it back" and `api.undoForcedMovement()` reverses the fight.
+    **One rule per event only** — mastery, then on-hit, then damage-type — because stacking two is a rules
+    interpretation rather than an automation. Push beats pull when a warlock owns both invocations.
+  - The application ledger is keyed on the **activation** (message id), not the turn: a card midi revises
+    several times cannot push twice for one hit, while a spell cast twice in a turn still pushes twice, and
+    a GM testing out of combat is not permanently blocked. Once-per-turn riders are simply not enforced
+    outside combat, since there are no turns.
+  - Exempt from opportunity attacks and from the Speed budget by construction: `isForcedMovement()` in
+    `shove.ts` is the single predicate both `reactions.ts` and the movement cap consult, and it recognises
+    `displace` as well as our own action so a shove from *any* module using core's idiom is covered.
+  - Stands down on `activity.flags.cat.macros` (Chris's) or `item.flags["gambits-premades"].gpsUuid`
+    (Gambit's) when those modules are active. Diagnostics: `api.surveyForced()`; manual use:
+    `api.push(feet)` / `api.pull(feet)`.
+  - **Not implemented, deliberately:** rules that only knock prone (Destructive Wave, Tidal Wave, the Topple
+    mastery) are conditions rather than movement; Vortex Warp needs a human-chosen destination; Antilife
+    Shell pushes continuously as its caster walks; the grappler's own halved Speed belongs to the movement
+    budget. Core has no concept of falling, so what happens when Reverse Gravity ends is the table's call.
+
 ## Configuration, not code: what to tell a GM
 
 Three reported problems were world configuration rather than module bugs. Recorded because they will be
 reported again.
 
-- **Reactions, concentration and saves all prompting the GM** is midi's `playerForActor()`. It matches an
-  active user against an **explicit** `actor.ownership[userId] === 3` entry, and Foundry's ownership dialog
-  *deletes* the entry for any user left on "Default" — so a character shared via "Default: Owner" has no
-  explicit entry, matches nothing, and falls through to `preferredActiveGM()`. Assistant GMs never match at
-  all, because every lookup searches `game.users.players`, which excludes GMs by definition. Fix: give each
-  player an explicit Owner row on their own character. Separately, midi's `doConcentrationCheck` defaults to
-  `"chat"`, which **auto-rolls** the save rather than offering it; `"chatOnly"` hands it back to the player.
+- **Reactions, concentration and saves all prompting the GM** is midi's `playerForActor()`, and the cause is
+  narrower than "wrong ownership level". Core resolves ownership through the default row —
+  `getUserLevel` is `ownership[user.id] ?? ownership.default ?? NONE` (`common/abstract/document.mjs:383-392`)
+  — so **"All Players: Owner" genuinely does grant every player Owner rights, and is not a broken setting.**
+  midi simply cannot read it: `playerForActor` does raw `ownership[userId] === 3` lookups and never consults
+  `default`, and Foundry's ownership dialog *deletes* the per-user entry for anyone left on "Default"
+  (`client/applications/apps/document-ownership.mjs:150-155`) rather than writing `-1`, so there is nothing
+  to match and it falls through to `preferredActiveGM()`. **Two things satisfy it, either alone:** an
+  explicit Owner row for that player, or the character being assigned to the user in User Configuration
+  (`user.character`), which midi checks first. A world with "All Players: Owner" and no character assignments
+  hits neither, which is exactly what the GM had. Assistant GMs never match at all, because every lookup
+  searches `game.users.players`, which excludes GMs by definition. Note also that midi's second check finds
+  the *first* active player holding an explicit Owner row, so each character should have exactly one.
+  Separately, midi's `doConcentrationCheck` defaults to `"chat"`, which **auto-rolls** the save rather than
+  offering it; `"chatOnly"` hands it back to the player.
 - **Eldritch Blast beams stuck on a corpse.** dnd5e 5.3.3 does not model beams at all — the SRD item is one
   attack activity with one 1d10 part and `target.affects.count: 1`; multiple beams exist only in the prose,
   and the expectation is one press per beam. The lock-on is midi's `untargetDeadTokens`, which reads

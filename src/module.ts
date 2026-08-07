@@ -43,6 +43,8 @@ import { registerAutomationTurnHook } from "./combat/auto/hooks";
 import { registerPerceptionWatch, surveyPerception } from "./combat/auto/perception";
 import { registerStealthWatch } from "./combat/auto/stealth";
 import { registerReactionHooks } from "./combat/auto/reactions";
+import { registerForcedMovement, surveyForced } from "./combat/auto/forced";
+import { registerForceAction, shove, undoForcedMovement } from "./combat/auto/shove";
 import { registerEconomyHooks } from "./combat/economy/enforce";
 import { registerMovementCap, surveyMovement } from "./combat/economy/movement";
 import { surveyEconomy } from "./combat/economy/survey";
@@ -91,8 +93,38 @@ export interface NoodlrApi {
   surveyPerception(): Promise<Record<string, unknown>>;
   surveyEconomy(): Record<string, unknown>;
   surveyMovement(): unknown;
+  surveyForced(): unknown;
+  push(feet?: number): Promise<unknown>;
+  pull(feet?: number): Promise<unknown>;
+  undoForcedMovement(): Promise<number>;
   flattenElevation(): Promise<number>;
   restoreElevation(): Promise<number>;
+}
+
+/**
+ * Push or pull whatever is targeted, away from or toward the selected token.
+ *
+ * The manual half of forced movement: every rule Noodlr recognises runs through the same engine, and
+ * this is that engine with a human choosing the distance instead of a table. Useful for the rules the
+ * table adjudicates itself, and for the ones no name table will ever match.
+ */
+async function shoveTargets(feet: number, direction: "away" | "toward"): Promise<unknown> {
+  const by: any = (canvas as any)?.tokens?.controlled?.[0];
+  const targets = Array.from((game.user?.targets ?? []) as Set<any>);
+  if (!by || targets.length === 0) {
+    return { error: "select the creature doing the pushing and target the ones being moved" };
+  }
+  const results: Record<string, unknown> = {};
+  for (const target of targets) {
+    results[String(target?.document?.name ?? target?.name ?? "?")] = await shove({
+      token: target,
+      by,
+      direction,
+      distance: feet,
+      label: game.i18n.localize("NOODLR.Combat.Forced.ByHand"),
+    });
+  }
+  return results;
 }
 
 const api: NoodlrApi = {
@@ -152,6 +184,13 @@ const api: NoodlrApi = {
   surveyEconomy: () => surveyEconomy(),
   /** How far the selected token may still move this turn, and what that number is built from. */
   surveyMovement: () => surveyMovement(),
+  /** Which push/pull rules Noodlr recognises on the selected creature, and whether the layer is live. */
+  surveyForced: () => surveyForced(),
+  /** Shove every targeted creature away from the selected one, respecting walls and occupied spaces. */
+  push: (feet = 10) => shoveTargets(feet, "away"),
+  pull: (feet = 10) => shoveTargets(feet, "toward"),
+  /** Put every creature Noodlr has displaced this fight back where it was. */
+  undoForcedMovement: () => undoForcedMovement(),
   /** Set every token in this scene to elevation 0, reversibly. */
   flattenElevation: () => flattenElevation(),
   restoreElevation: () => restoreElevation(),
@@ -171,6 +210,11 @@ Hooks.once("init", () => {
   // has already passed by the time `ready` runs, and it has to be on the PLAYERS' clients, since a
   // player dragging their own token is the only thing it constrains.
   registerMovementCap();
+
+  // A zero-cost, wall-respecting movement action for pushes and pulls. Must be here: core deep-freezes
+  // the action registry inside `setupGame()`, before the `setup` hook, and writing to a frozen object is
+  // a silent no-op rather than an error. Everything downstream feature-detects the key regardless.
+  registerForceAction();
 
   // Expose the API on the module entry so it's reachable as
   // game.modules.get("noodlr").api during development.
@@ -241,6 +285,8 @@ Hooks.once("ready", () => {
     registerStealthWatch();
     // Off-turn reactions: opportunity attacks and hitting back when hurt.
     registerReactionHooks();
+    // Pushes, pulls and shoves actually moving the creature they land on, which nothing else does.
+    registerForcedMovement();
     // One action, one bonus action, one reaction — which neither Foundry nor dnd5e counts.
     registerEconomyHooks();
     // Watches whether the party is still swinging, which is what mercy hangs on.

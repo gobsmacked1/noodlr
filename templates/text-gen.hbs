@@ -128,6 +128,12 @@
     <p class="notes">{{localize "NOODLR.Combat.Movement.Hint"}}</p>
 
     <label class="noodlr-inline">
+      <input type="checkbox" name="combatForced" {{#if forcedMovement}}checked{{/if}} />
+      {{localize "NOODLR.Combat.Forced.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Combat.Forced.Hint"}}</p>
+
+    <label class="noodlr-inline">
       <input type="checkbox" name="combatAutoEnd" {{#if autoEnd}}checked{{/if}} />
       {{localize "NOODLR.Combat.AutoEnd.Name"}}
     </label>

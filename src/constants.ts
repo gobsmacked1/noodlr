@@ -101,6 +101,8 @@ export const COMBAT_SETTINGS = {
   movement: "combat.movement",
   /** Whether the tracker clears itself once nothing hostile is left standing. */
   autoEnd: "combat.autoEnd",
+  /** Whether pushes, pulls and shoves actually move the token they land on. */
+  forced: "combat.forced",
 } as const;
 
 /**
