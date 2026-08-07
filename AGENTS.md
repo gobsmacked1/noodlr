@@ -2287,6 +2287,58 @@ lorebook/author's-note/post-history injection.
     Shell pushes continuously as its caster walks; the grappler's own halved Speed belongs to the movement
     budget. Core has no concept of falling, so what happens when Reverse Gravity ends is the table's call.
 
+- **Concentration: the system does everything except finish the sentence (v0.4.44, 2026-08-07).** The
+ fourth finding of this shape and the narrowest, because unlike actions, Speed and forced movement the
+ mechanic is *almost* implemented. Verified in dnd5e 5.3.3 source. It tracks concentration properly
+ (`actor.concentration`, effect created at `activity/mixin.mjs:470`, casting a second one ends the first
+ at `mixin.mjs:251`); it detects damage and computes the correct DC (`attributes.mjs:548-552` →
+ `getConcentrationDC` at `actor.mjs:471`, `clamp(floor(dmg/2), 10, modern ? 30 : Infinity)` — cap and
+ edition both right); and `rollConcentration` (`actor.mjs:1709`) builds the save correctly, reading the
+ ability, the save bonus and `roll.mode`, which is how War Caster already reaches the roll. **Then it
+ stops.** `challengeConcentration` posts a whispered button; `rollConcentration` fires two hooks and
+ returns. `endConcentration` has exactly five callers — item deleted, effect deleted, two context menus,
+ and starting a new concentration — and **not one of them is a saving throw**. The card renders the
+ failure in red and the spell stays up. So the two missing pieces are the two ends: nobody presses the
+ button, and nobody reads the verdict. A third clause, *"Your Concentration ends if you have the
+ Incapacitated condition or you die"* (2024 PHB; 2014 says the same), is enforced nowhere at all.
+ Load-bearing details in `combat/auto/concentration.ts`:
+ - **The roll is routed, not centralised.** `rollConcentration` returns null unless `this.isOwner`, and a
+ character's Constitution save is a roll the player expects to make — the same argument as `rollNPC`
+ versus `rollAll` for initiative. `dnd5e.damageActor` fires on **every** client (the `Hooks.callAll` at
+ `attributes.mjs:564` sits outside the `userId === game.userId` guard, and `options.dnd5e.hp` is set in
+ `_preUpdate` so it travels with the update), which is what makes routing possible: each client asks
+ `isRollerFor(actor)` and exactly one says yes.
+ - **`rollerForActor()` in `util/gm.ts` is three passes, most specific first, and the order matters.**
+ Assigned character (`user.character`), then an explicit Owner row, then `testUserPermission`. The last
+ is the test midi's `playerForActor` lacks — Foundry resolves ownership as
+ `ownership[id] ?? ownership.default ?? NONE` and its dialog *deletes* the row for anyone left on
+ Default — but it must stay last, because in a world whose default permission is Owner it would
+ otherwise hand every character's save to whichever player sorts first. Sorted by id within each pass
+ so all clients agree.
+ - **Suppress the stock prompt with the system's own switch**, `options.dnd5e.concentrationCheck = false`
+ in `preUpdateActor`, and only when the election names somebody — a button is better than nothing.
+ Leaving the card up would let a player produce a second save from a stale prompt. If the dialog is
+ cancelled the prompt is re-posted rather than the save vanishing silently.
+ - **Register `dnd5e.rollConcentration` only.** `rollConcentration` calls it *and* `...V2` with the same
+ rolls (`actor.mjs:1758-1759`), so listening to both judges every save twice. Same trap as
+ `rollSkill`/`rollSkillV2`.
+ - **Ask hit points, not just the status, for "already broken".** `damageActor` fires from inside
+ `Actor#update`, which resolves before `applyDamage` returns — so the Unconscious our dying layer
+ applies has NOT landed yet, but `hp.value` has. Reading only the status puts a save dialog in front of
+ a character who is already on the floor.
+ - **No undo, deliberately, unlike the dying layer.** `endConcentration` deletes an Active Effect and core
+ cascades that to everything registered dependent on it — the Wall of Fire's template, the effects Bless
+ put on four other actors. The one effect is restorable; the cascade is not, and a half-restored spell is
+ worse than an honestly ended one. Legibility is the mitigation instead: public roll, a card naming the
+ spell and the reason, and an off switch.
+ - **Stand aside from midi wholesale, on ordering grounds rather than politeness.** midi's
+ `doConcentrationCheck` defaults to `"chat"` and its own `dnd5e.rollConcentration` listener
+ (`Hooks.ts:1964`) ends concentration on a failure when `removeConcentration` is on — so midi owns the
+ verdict, and does not press the button either. But midi *also* writes `options.dnd5e.concentrationCheck`
+ from its own `preUpdateActor` (`Hooks.ts:237`), so suppression becomes a hook-registration-order race.
+ Setting midi's concentration handling to "None" hands the whole job to Noodlr. Diagnostics:
+ `api.surveyConcentration()`.
+
 ## Configuration, not code: what to tell a GM
 
 Three reported problems were world configuration rather than module bugs. Recorded because they will be

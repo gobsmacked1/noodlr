@@ -49,6 +49,7 @@ import { registerForcedMovement, surveyForced } from "./combat/auto/forced";
 import { registerForceAction, shove, undoForcedMovement } from "./combat/auto/shove";
 import { registerConditionHooks, surveyConditions } from "./combat/auto/conditions";
 import { registerDyingHooks, surveyDying, undoDying } from "./combat/auto/dying";
+import { registerConcentrationHooks, surveyConcentration } from "./combat/auto/concentration";
 import { registerEconomyHooks } from "./combat/economy/enforce";
 import { registerMovementCap, surveyMovement } from "./combat/economy/movement";
 import { surveyEconomy } from "./combat/economy/survey";
@@ -100,6 +101,7 @@ export interface NoodlrApi {
   surveyForced(): unknown;
   surveyConditions(): unknown;
   surveyDying(): unknown;
+  surveyConcentration(): unknown;
   surveyHide(): unknown;
   hide(opts?: { force?: boolean }): Promise<void>;
   push(feet?: number): Promise<unknown>;
@@ -199,6 +201,8 @@ const api: NoodlrApi = {
   surveyConditions: () => surveyConditions(),
   /** Whether the selected creature would get death saves or die at 0, and current dying state. */
   surveyDying: () => surveyDying(),
+  /** What the selected creature is concentrating on, who would roll its save, and at what DC. */
+  surveyConcentration: () => surveyConcentration(),
   /** Whether the selected token may take the Hide action right now, and what each watcher can see. */
   surveyHide: () => surveyHide(),
   /** Take the Hide action with every selected token. `{force: true}` skips the cover prerequisites. */
@@ -289,6 +293,9 @@ Hooks.once("ready", () => {
   registerConditionHooks();
   // Drop-to-0 Unconscious/Dead and damage-at-0 death failures. Writes on the updating client.
   registerDyingHooks();
+  // Concentration saves. Deliberately not GM-only: the whole point is that a character's save is
+  // rolled on the player's own client, which is also the only client allowed to roll it.
+  registerConcentrationHooks();
   // Hiding: the declaration and the roll are read by the primary GM (gated inside), but the REVEAL comes
   // off `dnd5e.rollAttack`, which fires only on the client that rolled — usually a player's browser. This
   // sat in the GM-only block until v0.4.43, which is half of why a rogue could attack and stay hidden.

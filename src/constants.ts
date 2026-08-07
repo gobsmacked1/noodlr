@@ -109,6 +109,8 @@ export const COMBAT_SETTINGS = {
   dying: "combat.dying",
   /** Whether NPCs flagged Important get death saves like PCs instead of dying at 0. */
   importantNpcSaves: "combat.importantNpcSaves",
+  /** Whether damage rolls a real concentration save, and a failure actually ends the spell. */
+  concentration: "combat.concentration",
   /** Whether creatures caught unawares are marked Surprised when a fight starts. */
   surprise: "combat.surprise",
   /** Whether the Invisibility spell ends itself on attacking, damaging or casting. */

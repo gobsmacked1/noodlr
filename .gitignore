@@ -19,3 +19,6 @@ Thumbs.db
 
 # Foundry packaging artifacts
 *.zip
+
+# Scratch notes handed to `gh release create --notes-file`; the real record is changelog.md
+release-notes-*.md

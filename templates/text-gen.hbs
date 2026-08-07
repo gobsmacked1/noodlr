@@ -164,6 +164,12 @@
     <p class="notes">{{localize "NOODLR.Combat.Dying.Important.Hint"}}</p>
 
     <label class="noodlr-inline">
+      <input type="checkbox" name="combatConcentration" {{#if concentrationAutomation}}checked{{/if}} />
+      {{localize "NOODLR.Combat.Concentration.Name"}}
+    </label>
+    <p class="notes">{{localize "NOODLR.Combat.Concentration.Hint"}}</p>
+
+    <label class="noodlr-inline">
       <input type="checkbox" name="combatAutoEnd" {{#if autoEnd}}checked{{/if}} />
       {{localize "NOODLR.Combat.AutoEnd.Name"}}
     </label>

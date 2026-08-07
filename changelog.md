@@ -2,6 +2,30 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.44
+
+- **Concentration saves are rolled, and failing one actually ends the spell.** D&D 5e already works out
+  the right DC when a concentrating creature takes damage and whispers a button to whoever owns it — and
+  then nothing reads the answer. Nowhere in the system does a failed concentration save end anything: the
+  card shows the failure in red and the Wall of Fire stays up. Both halves are now closed. The save is
+  rolled the moment the damage lands, and losing it drops the spell with a line in chat saying what was
+  lost and why.
+- **The save is rolled on the right person's screen.** A character's Constitution save is still their own
+  roll, with the usual dialog for Bless or Inspiration; a monster's is rolled quietly by the GM. Noodlr
+  works out who owns the creature and asks only that one client, so nobody rolls twice and nothing waits
+  on a button the table never noticed. The old prompt is suppressed so there is no stale one left behind —
+  and if you close the dialog without rolling, the prompt comes back rather than the save vanishing.
+- **Being Incapacitated, dying, or dropping to 0 hit points ends concentration outright**, with no save.
+  That sentence is in the rules in both editions and was enforced by nothing at all, so a Held or
+  Unconscious caster kept their spell running. There is also no longer a pointless save prompt in front of
+  a character who has just been knocked out — at 0 hit points the spell is already over.
+- Turn it off in **Text Generation** if you would rather keep the old prompt. It also stands aside on its
+  own when midi-qol's concentration handling is set to anything other than None, so the two never both
+  act. There is deliberately no undo on this one: ending concentration also removes whatever the spell had
+  placed on the battlefield, and that cannot be faithfully put back.
+- New diagnostic: `game.modules.get("noodlr").api.surveyConcentration()` reports what the selected
+  creature is concentrating on, who would roll its save, and at what DC.
+
 ## 0.4.43
 
 - **Fixed: rolling Stealth no longer made you permanently invisible.** Any Stealth check at all — for a
