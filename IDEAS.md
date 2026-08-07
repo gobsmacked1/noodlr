@@ -53,6 +53,33 @@ Parked tangents — one line each. Promote to the roadmap in AGENTS.md when pick
   the spell allows only Attack (one attack), Dash, Disengage, Hide or Utilize. Enforcing the subset needs
   per-effect action whitelists; until then a hasted caster could take two spell actions and the public
   override log is what catches it.
+- **Ranged attack range is enforced by nobody, and the data paths are now known.** Long-range
+  disadvantage, the nearby-foe penalty for shooting in melee, and the out-of-range refusal are all
+  unmodelled by dnd5e. Recorded from AC5e's `ac5e-systemRules.mjs` so this is a coding job rather than a
+  research one: read `activity.range` unless `range.override === false`, in which case the item's
+  `system.range` wins (the same trap that broke reach in v0.4.23); `value` is short, `long` is long,
+  `reach` is melee; classify with `activity.getActionType(attackMode)` into `mwak`/`msak`/`rwak`/`rsak`.
+  Their distance helper measures perimeter-to-perimeter across both token footprints rather than
+  centre-to-centre and folds elevation in as grid steps — which is strictly better than our current
+  `hypot(horizontal, rise)` and worth lifting wholesale if we build this.
+- **Cover for attack rolls is a delegation problem, and nobody solved it natively.** AC5e computes no
+  cover at all; it adapts to Simple Cover 5e's `api.getCoverForTargets()` and no-ops when that module is
+  absent. Their representation is worth stealing even if the source is not: half and three-quarters map to
+  an AC bonus read from `CONFIG.DND5E.statusEffects.*.coverBonus`, and total cover becomes AC 999 plus
+  `criticalSuccess: 21` so even a natural 20 cannot land. We already cast rays for stealth screens and
+  positioning, so the geometry is in hand; what is missing is the decision to own it.
+- **An environment snapshot for bug reports.** Our `survey*()` family reports features; none reports the
+  world. AC5e's troubleshooter captures the fields that actually make their bug class reproducible, and
+  every one of them applies to us: the dnd5e rules version (2014 vs 2024), grid type, distance, units and
+  crucially the **diagonals** setting, scene token vision and global light, and the versions of the
+  sibling modules we stand down for. One `api.surveyEnvironment()` returning that plus our own settings
+  dump would replace most of the back-and-forth on a report.
+- **Spellcasting prerequisites (Silenced, armour, Rage).** `dnd5e.preUseActivity` returning false is the
+  cancel point, the same hook our action-economy veto already uses. Signals: a verbal component is
+  `item.system.properties.has("vocal")` against `actor.statuses.has("silenced")`; armour non-proficiency is
+  `actor.armor`/`actor.shield` with `!system.proficient && !system.prof.multiplier`. Rage is only findable
+  by effect name, which is fragile, so it would want a stable identifier or a flag escape hatch. Tri-state
+  off/warn/enforce, matching the ask-then-log shape we chose for the player action economy.
 - **Third-party lore importers (World Anvil / Dungeon Alchemist / etc.).** Deferred as low ROI:
   most of these either export to JSON/CSV — already covered by the generic structured import
   (rc5) — or produce maps/scenes (Dungeon Alchemist → images/UVTT), which is scene/map territory,

@@ -2,6 +2,24 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.45
+
+- **Automated Conditions 5e can stay switched on.** If you run AC5e, Noodlr now hands it the whole
+  condition-rules job rather than doing the same work twice. That is not Noodlr giving up something you
+  had: AC5e covers every rule Noodlr's condition automation covers and several it does not, including
+  disadvantage for attacking while Prone or Restrained, Invisible, Grappled, and Blinded rules that
+  account for what a creature can actually see. Both modules running was not simply harmless duplication
+  — they reach the same rulings by different routes, so which one you got depended on load order.
+- **One piece stays with Noodlr: a creature that is Incapacitated, Stunned, Paralyzed or Unconscious
+  still cannot take an action.** AC5e has that rule too, but its setting for it ships switched off, so
+  leaving it to them would mean nobody enforced it. If you turn AC5e's "casting spells checks" setting to
+  Warn or Enforce, Noodlr steps aside from that as well.
+- **Fixed: an automatically failed save could be cancelled with the feature turned off.** Switching off
+  condition automation in Text Generation stopped the explanation appearing but did not stop the save
+  being cancelled, so a Paralyzed character's Strength save vanished with nothing said about it. The
+  switch now does what it says.
+- `game.modules.get("noodlr").api.surveyConditions()` reports whether AC5e has taken over.
+
 ## 0.4.44
 
 - **Concentration saves are rolled, and failing one actually ends the spell.** D&D 5e already works out

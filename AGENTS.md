@@ -2339,6 +2339,39 @@ lorebook/author's-note/post-history injection.
  Setting midi's concentration handling to "None" hands the whole job to Noodlr. Diagnostics:
  `api.surveyConcentration()`.
 
+- **Automated Conditions 5e is a superset of the condition rules, so we defer to it (2026-08-07).** Read
+ from its source, which is cloned at `C:\Project\_research\ac5e`; two audits sit in `_research\_audit\`
+ (`ac5e-coexistence.md`, `ac5e-techniques.md`). Its `automateStatuses` setting (default **ON**) drives a
+ table hooked to the same `preRollAttack` and `preRollSavingThrow` we use, covering everything in
+ `dnd5e-conditions.ts` plus attacker Prone and Restrained disadvantage, Invisible, Grappled,
+ visibility-aware Blinded and legacy Exhaustion. `ac5eOwnsConditions()` therefore switches our whole
+ condition layer off when it is present and enabled — the same shape as the midi stand-asides, and the
+ same thing AC5e itself does when midi owns range.
+ - **The overlap is not benign just because advantage does not stack.** The two agree on the rule and
+ disagree on the mechanism, which is what makes dual enablement a silent race: we cancel an auto-failed
+ save with `return false`, AC5e rolls it against a forced DC of 999 with `criticalSuccess` pushed to 21
+ (there is no `-99` anywhere in its source, despite the README); we force a critical on `rollAttack`
+ after confirming the hit, AC5e sets `criticalSuccess = 1` on the damage roll up front. Whichever hook
+ registers first wins, differently each time.
+ - **The exception that must not be "tidied" into the same gate:** AC5e's refusal to let an Incapacitated
+ creature use an activity is behind `autoArmorSpellUse`, which ships `"off"`. At stock settings it
+ blocks nothing, so `enforce.ts` keeps ours and consults `ac5eOwnsIncapacitatedUse()` separately.
+ - **Do not reach for their override API.** `ac5e.statusEffectsOverrides.register()` is real, documented
+ and fires from a one-shot `ac5e.statusEffectsReady` hook carrying `{tables, overrides}` — an `apply`
+ returning `""` clears a rule and `undefined` leaves it. It would let us suppress their rules one status
+ at a time, and using it would make us the module that reaches into another's internals to win a fight
+ neither of us needs. Recorded because it is genuinely well built, not because we should call it.
+ - **Their README is not a specification.** It documents a `dnd5e.preRollConcentration` hook that does not
+ exist in the source, and describes range and cover without mentioning that both stand down when midi is
+ present. Verify against `scripts/**/*.mjs` before believing anything about this module.
+ - Concentration is safe: `endConcentration`, `challengeConcentration` and `rollConcentration` appear
+ nowhere in AC5e. It only shapes the save (War Caster advantage, encumbrance and legacy exhaustion
+ disadvantage) once something else calls for one, which is exactly the division of labour we want.
+ - Found while wiring this: the save hooks were cancelling an auto-failed save **before** consulting
+ `enabled()` — the gate lived only in the async announcement — so a paralysed creature's Strength save
+ died silently with condition automation switched off. Fixed in the same change. A synchronous
+ `return false` needs its own gate; a check in the async half guards the message, not the cancellation.
+
 ## Configuration, not code: what to tell a GM
 
 Three reported problems were world configuration rather than module bugs. Recorded because they will be
