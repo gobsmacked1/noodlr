@@ -1998,12 +1998,30 @@ lorebook/author's-note/post-history injection.
     selected token one square, escalating walls-enforced → walls-ignored → `displace` → `noHook`, reports
     core's answer at each stage, and restores the position. Whichever attempt first succeeds names the
     cause without any inference.
-- **Observe the world, don't infer it.** `api.surveyActions({ saveToFile: true })` censuses every NPC
-  sheet in the world — activity types, activation types, range units, flag namespaces, spell methods,
-  language shapes, and one worked example per activity type. When a data shape is in question, run it
-  before writing code against a guess. Both v0.4.22 and v0.4.23 shipped bugs that this would have caught
-  in seconds (user's suggestion, 2026-08-03: "we can map whatever you need dynamically from within the
-  running world itself").
+- **Observe the world, don't infer it.** `api.surveyActions({ saveToFile: true })` censuses every sheet in
+  the world — activity types, activation types, range units, flag namespaces, spell methods, language
+  shapes, and one worked example per activity type. When a data shape is in question, run it before writing
+  code against a guess. Both v0.4.22 and v0.4.23 shipped bugs that this would have caught in seconds
+  (user's suggestion, 2026-08-03: "we can map whatever you need dynamically from within the running world
+  itself"). Written to `<mediaFolder>/survey/noodlr-sheet-survey.json`, i.e.
+  `assets/noodlr-out/survey/` by default; `asText: true` prints one selectable block instead, for a GM
+  whose Foundry is on another host.
+  - **The instrument has to be aimed at the current question before asking for a run** (2026-08-07). It
+    skipped player characters by design — the planner drives monsters — and that quietly made it useless
+    for everything the action economy raises, since action slots, attacks-per-action and bonus-action Dash
+    are all character problems. v0.4.47 added a `characters` arm (separate from the creature tallies, so
+    older runs stay comparable) plus a world-wide `claims` section listing every FEATURE that would be
+    charged a slot and is not exempted as a damage rider. Before asking the user to re-run this, check
+    that it actually measures what is currently in doubt.
+  - `attacksPerAction` is the one value in the economy that is detected rather than counted, so
+    `explainAttacksPerAction()` in `economy/ledger.ts` returns its source alongside the number and
+    `attacksPerAction()` is a thin caller — the two can never disagree, which a separate reimplementation
+    in the survey would eventually have done.
+  - `economy/claims.ts` is shared by the census and by `api.surveyEconomy()` for the same reason. It
+    deliberately depends on no settings: a census must be askable with every automation switched off.
+  - `notable()` filters on the ITEM being a feature rather than on the activity being damage-typed. The
+    narrower test was tried first and would have missed the Sneak Attack that prompted all this, because
+    nothing guarantees an importer typed it as damage.
 - **Probe Foundry globals lazily, one at a time.** Building an array of fallback candidates evaluates
   every entry, and merely *touching* a deprecated global (`ClockwiseSweepPolygon`) emits a console
   warning even when the modern namespace already answered. `src/combat/auto/positioning.ts` stores

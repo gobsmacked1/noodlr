@@ -2,6 +2,22 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.47
+
+- **The sheet survey now covers player characters.** `api.surveyActions()` existed to learn monster sheets
+  and skipped characters on purpose, which meant it could not see any of the things that go wrong on a
+  character: what claims an action slot, how many attacks one Action buys, and what lets a rogue Dash for a
+  bonus action. Characters are reported as their own section, so the monster counts stay comparable with
+  earlier runs.
+- **It also lists every feature in the world that would be charged an action slot and is not exempted as
+  extra damage.** Most entries are legitimate — a handful of D&D 5e's own features really do cost an action
+  to deal damage — but this is where a mis-authored ability hides, and it is what turned a rogue's Sneak
+  Attack into a spent action. If you hit that class of problem again, this list is the first place to look.
+- **Attacks-per-action now reports where it got the number from** in both surveys: a class feature's
+  identifier, a monster's Multiattack prose, an unparseable Multiattack that fell back to two, or your own
+  override. Of everything the action economy uses, that value is the one that is detected rather than
+  counted, so a refused-but-legal swing is usually explained here.
+
 ## 0.4.46
 
 - **Sneak Attack is no longer charged as an action.** A rogue who hit, was offered its Sneak Attack and was
