@@ -53,6 +53,7 @@ import { registerConcentrationHooks, surveyConcentration } from "./combat/auto/c
 import { registerEconomyHooks } from "./combat/economy/enforce";
 import { registerMovementCap, surveyMovement } from "./combat/economy/movement";
 import { surveyEconomy } from "./combat/economy/survey";
+import { surveyPlayed } from "./util/played-survey";
 import { registerEncounterTracking } from "./combat/auto/encounter";
 import { explainTurn } from "./combat/auto/explain";
 import { flattenElevation, restoreElevation, testMove } from "./combat/auto/diagnose";
@@ -97,6 +98,7 @@ export interface NoodlrApi {
   testMove(): Promise<Record<string, unknown> | undefined>;
   surveyPerception(): Promise<Record<string, unknown>>;
   surveyEconomy(): Record<string, unknown>;
+  surveyPlayed(): Record<string, unknown>;
   surveyMovement(): unknown;
   surveyForced(): unknown;
   surveyConditions(): unknown;
@@ -193,6 +195,8 @@ const api: NoodlrApi = {
   surveyPerception: () => surveyPerception(),
   /** What every combatant has left this turn, and how many attacks one action buys them. */
   surveyEconomy: () => surveyEconomy(),
+  /** Which character each connected user is actually playing, versus the one Foundry falls back to. */
+  surveyPlayed: () => surveyPlayed(),
   /** How far the selected token may still move this turn, and what that number is built from. */
   surveyMovement: () => surveyMovement(),
   /** Which push/pull rules Noodlr recognises on the selected creature, and whether the layer is live. */

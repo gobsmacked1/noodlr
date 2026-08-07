@@ -2113,7 +2113,54 @@ lorebook/author's-note/post-history injection.
     `extraBonus`, `extraReaction` (AE mode Add) and `flags.noodlr.attacksPerAction` (Override).
   - `execute.ts` asks the ledger *before* attempting, because a hook veto cancels without throwing and
     the attempt loop would otherwise report a swing that never happened.
-  - Diagnostics: `api.surveyEconomy()`.
+  - **Extra damage is not an action, and the test has to be a name table (v0.4.46, 2026-08-07).** Reported
+    from play: a rogue hit, was offered its Sneak Attack, and was told it had already used its action.
+    `systems/dnd5e-riders.ts` is the quarantined table; `enforce.ts` consults it *first*, before even the
+    Incapacitated refusal, because a rider is never used on its own — if the attack it rides on was legal
+    then so is it. `actions.ts` drops rider items from the planner's options entirely, since a planner that
+    can pick one will occasionally pick it and that turn does nothing.
+    - **The obvious structural rule is wrong, and it was measured rather than argued.**
+      `scripts/census-damage-activities.mjs` over dnd5e 5.3.3's `packs/_source` (3,246 activities in 3,199
+      items) finds **62 `damage`-type activities that legitimately claim a real slot** — 57 action, 4 bonus,
+      1 reaction: Holy Nimbus, every flask of oil, Divine Eminence, Heat Metal, Storm's Thunder. So
+      "a damage activity never costs a slot" would make all of those free. Do not reintroduce it.
+    - **Stock content was never the bug.** The same census shows dnd5e models riders correctly: 92 damage
+      activities carry an empty activation and 13 carry `special`, both of which `slotFor` already declines
+      to police. What needs the table is everything downstream — ddb-importer, premade libraries,
+      hand-edited sheets — one of which had given Sneak Attack a real activation.
+    - **Divine Smite is deliberately absent.** Free in 2014 and a bonus-action SPELL in 2024, sharing the
+      identifier `divine-smite`. Listing it would hand 2024 paladins a free bonus action and buys nothing in
+      2014, where the legacy feature already carries `special`.
+    - Recognition order is flag (`flags.noodlr.damageRider`), then `system.identifier`, then the item name —
+      and the name is only consulted when there is NO identifier, so a world that deliberately
+      re-identified a feature is not overruled by what it happens to be called.
+  - Diagnostics: `api.surveyEconomy()`, whose `claims` list names every activity that would be charged a
+    slot. The Sneak Attack report was undiagnosable from the tally alone: the count was right and the thing
+    being counted was wrong.
+
+- **A chat card that names no speaker is signed with the author's assigned character (v0.4.46, 2026-08-07).**
+  Reported as an attribution bug of ours and it was core filling in a blank: a player owning four characters
+  saw Noodlr's cards signed with a different one, which was not even on the scene. Two getters in
+  `client/documents/chat-message.mjs` do it —
+  `get speakerActor() { return getSpeakerActor(this.speaker) ?? this.author?.character ?? null }` and
+  `get alias() { return speakerAlias ?? this.speakerActor?.name ?? authorName }`. So the fallback is
+  `user.character` from User Configuration, regardless of what is selected or even present on the scene.
+  `ChatMessage.getSpeaker()` with no arguments has the same hole one step earlier, in its CASE 5.
+  - **An empty alias string is no better than no speaker**, because `this.speaker.alias || null` discards it
+    and falls through identically. Several of our cards were building `{ alias: String(x?.name ?? "") }`.
+  - The same fallback feeds `getRollData()` and the portrait, so an unsigned card containing an inline roll
+    would be evaluated against the wrong sheet.
+  - Rule: **every card goes through `util/speaker.ts`.** `speakerFor(subject)` for a card about one
+    creature, `narrator()` for the module's own voice (announcements about the fight, GM diagnostics).
+    Never `ChatMessage.create({content})` with no speaker, and never a bare alias that could be empty.
+  - `playedTokens(user)` is the single answer to "which characters is this person playing", **plural on
+    purpose** — a player may legitimately drive two at once, and the old single-answer resolution is what
+    made a four-character player look like whichever one sorted first. Order: selection (only readable for
+    `isSelf`; another client's control state is not replicated), then the assigned character's token, then
+    anything else owned here. Ownership is tested with `testUserPermission`, not `ownership[id] === 3`, for
+    the same reason `rollerForActor` does: Foundry resolves through the default row and its ownership dialog
+    *deletes* the per-user entry for anyone left on Default, so "All Players: Owner" matches nothing raw.
+    Diagnostics: `api.surveyPlayed()`.
 
 - **Nobody enforces Speed either (v0.4.39, 2026-08-05).** Same shape of finding as the action economy, and
   verified the same way. Core Foundry v13+ *does* have a real movement model — `TokenDocument#movementHistory`

@@ -19,6 +19,7 @@
 // actually see (line of sight / senses) rather than everything unhidden on the map (T3).
 
 import { log } from "../constants";
+import { playedTokens } from "../util/speaker";
 import { readHp, hpTier } from "../combat/tracker";
 
 /** Who requested the briefing. Drives the header line and (from T3) the visibility filter. */
@@ -258,39 +259,16 @@ function describeAudio(scene: any): string {
 }
 
 /**
- * Best-effort "which token is this user speaking as": their controlled token first (what they just
- * clicked is the strongest signal of intent), then their assigned character's token on this scene.
+ * Which token this user is speaking as: their selection first (what they just clicked is the strongest
+ * signal of intent), then their assigned character's token on this scene, then anything else they own here.
  * Returns undefined for a GM who has nothing selected — the briefing is still useful scene-wide.
+ *
+ * The ordering lives in `util/speaker.ts`'s `playedTokens`, which returns the whole list because a player
+ * may legitimately be driving two characters at once. A briefing is written from one point of view, so
+ * this takes the head; T3's per-token perception filter should read the whole list.
  */
 export function resolvePerspectiveToken(user: any): any {
-  try {
-    const tokens = (canvas as any)?.tokens;
-    if (!tokens) return undefined;
-
-    if (user?.isSelf) {
-      const controlled = tokens.controlled?.[0];
-      if (controlled) return controlled.document ?? controlled;
-    }
-
-    const actorId = user?.character?.id;
-    if (actorId) {
-      const placeables: any[] = tokens.placeables ?? [];
-      const own = placeables.find((t: any) => t?.actor?.id === actorId);
-      if (own) return own.document ?? own;
-    }
-
-    // Fall back to any token this user owns on the current scene (covers players without an
-    // assigned character, e.g. running a one-off or a summon).
-    const userId = user?.id;
-    if (userId) {
-      const placeables: any[] = tokens.placeables ?? [];
-      const owned = placeables.find((t: any) => t?.actor?.ownership?.[userId] === 3);
-      if (owned) return owned.document ?? owned;
-    }
-  } catch (err) {
-    log("tipster: perspective token unresolved", err);
-  }
-  return undefined;
+  return playedTokens(user)[0];
 }
 
 /** The "Token/Object Speaking:" line. T2 will extend this with position, senses, and vitals. */

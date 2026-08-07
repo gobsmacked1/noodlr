@@ -143,7 +143,13 @@ class PushToLogController {
       const content = `<span class="noodlr-transcript"><strong>${foundry.utils.escapeHTML(
         p.speaker,
       )}:</strong> ${foundry.utils.escapeHTML(p.text)}</span>`;
-      await ChatMessage.create({ content, flags: { [MODULE_ID]: { transcript: true } } });
+      // Named after whoever spoke. Left unsigned, a transcript relayed through the GM's client was
+      // stamped with the GM's assigned character instead.
+      await ChatMessage.create({
+        content,
+        speaker: { alias: p.speaker },
+        flags: { [MODULE_ID]: { transcript: true } },
+      });
     } catch (err) {
       log("could not post transcript to chat:", err);
     }

@@ -14,6 +14,7 @@ import {
   type ArtifactInput,
 } from "../output/artifacts";
 import { bumpStats } from "../util/stats";
+import { narrator } from "../util/speaker";
 
 /** Resolve the v13 ImagePopout class (namespaced), falling back to the legacy global. */
 function imagePopout(): any {
@@ -82,7 +83,7 @@ export async function postMediaCard(
           : `<img src="${safePath}" alt="${safeTitle}" style="width:100%;border-radius:4px;margin-top:4px" />`;
     const content = `<div class="noodlr-scene-art"><strong>${safeTitle}</strong>${media}</div>`;
     const flags = artifact ? artifactFlags(artifact) : { [MODULE_ID]: { sceneArt: true } };
-    const data: Record<string, unknown> = { content, flags };
+    const data: Record<string, unknown> = { content, flags, speaker: narrator() };
     // "Hidden" output whispers to GMs only, so players never see the prep card.
     if (opts.whisperGM) {
       data.whisper = ChatMessage.getWhisperRecipients("GM").map((u: any) => u.id);

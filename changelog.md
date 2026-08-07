@@ -2,6 +2,31 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.4.46
+
+- **Sneak Attack is no longer charged as an action.** A rogue who hit, was offered its Sneak Attack and was
+  then told it had already used its action for the turn. Sneak Attack is extra damage on a hit that has
+  already happened — never a second action — and the same is now true of every feature of that shape:
+  Cunning Strike, Colossus Slayer, Divine Strike, Potent Spellcasting, Primal Strike, Brutal Strike,
+  Frenzy, Lifedrinker, Eldritch Smite, Empowered Evocation, Overchannel, Elemental Affinity, Foe Slayer and
+  Hurl Through Hell. Stock D&D 5e marks these correctly and was never the problem; imported and premade
+  sheets sometimes do not, and now it no longer matters which. For anything not on that list, set
+  `flags.noodlr.damageRider` on the item. Automated monsters also stop treating riders as things they could
+  choose to do on their turn.
+- **Chat cards name the right character.** If you own several characters, Noodlr's cards were sometimes
+  signed with the wrong one — typically the character assigned to you in User Configuration, even when it
+  was not on the scene and you were plainly playing somebody else. Foundry stamps any card that names no
+  speaker with your assigned character, and a dozen of Noodlr's cards were leaving it blank. Every card now
+  says who it is from: the creature it is about, or Noodlr itself for announcements about the fight.
+- **Noodlr works out which characters you are actually playing, and accepts that it may be more than one.**
+  The token you have selected comes first, then your assigned character, then anything else you own on the
+  scene. Ownership granted through "All Players: Owner" is now recognised, where before only an explicit
+  per-player Owner row was.
+- "Put it back" on the undo buttons now reads "Undo".
+- `api.surveyPlayed()` shows who each connected user is playing versus the character Foundry falls back to,
+  and `api.surveyEconomy()` now lists every activity that would be charged a slot, so a feature carrying an
+  activation it should not have is visible at a glance.
+
 ## 0.4.45
 
 - **Automated Conditions 5e can stay switched on.** If you run AC5e, Noodlr now hands it the whole
