@@ -53,6 +53,11 @@ rules. What replaced the rest:
 midi-qol. With no rules module installed, noodlr is a chatbot and media generator with no NPC
 management, and it says so in the settings window rather than failing quietly.
 
+Shipped as **noodlr v0.5.0** (minor bump, not a patch: features were removed, and a GM who upgrades
+without installing the companion loses sixteen settings) and **noodlr-hooks-55e v0.1.0**, both with
+`module.json` + `module.zip` attached and both `releases/latest/download/module.json` URLs verified to
+resolve to the right version with a reachable download.
+
 ## Workspace layout (multi-root)
 
 - `C:\Project\noodlr-main\` — **this project**: the AI game master. Own git repo on GitHub.
