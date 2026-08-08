@@ -251,7 +251,7 @@
   "NOODLR.Dev.ExportButton": "Export selected",
   "NOODLR.Dev.ExportNoPacks": "Tick at least one compendium to export.",
   "NOODLR.Dev.ExportStart": "Exporting {count} compendium(s)…",
-  "NOODLR.Dev.ExportDone": "Exported {packs} compendium(s), {documents} documents, {size} MB → {folder}",
+  "NOODLR.Dev.ExportDone": "Exported {packs} compendium(s): {documents} documents → {records} records, {size} MB → {folder}",
   "NOODLR.Rag.NoFile": "Choose a file first.",
   "NOODLR.Settings.ContextLegend": "Context & injections",
   "NOODLR.Prompt.AuthorNote.Name": "Author's note (session anchor)",

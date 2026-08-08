@@ -274,11 +274,15 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
       });
 
       const documents = results.reduce((sum, r) => sum + r.documents, 0);
+      // Records outnumber documents wherever a creature carries features: each trait, action,
+      // reaction and legendary action is its own mining unit, because that is what holds one rule.
+      const records = results.reduce((sum, r) => sum + r.records, 0);
       const megabytes = (results.reduce((sum, r) => sum + r.bytes, 0) / 1_048_576).toFixed(1);
       say(
         game.i18n.format("NOODLR.Dev.ExportDone", {
           packs: results.length,
           documents,
+          records,
           size: megabytes,
           folder: corpusFolderPath(),
         }),

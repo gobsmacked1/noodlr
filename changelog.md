@@ -2,6 +2,30 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.5.1
+
+**Developer tools: the compendium export now includes creature abilities.** This only affects GMs who
+have turned Developer mode on and are exporting compendiums for offline rules analysis; everything
+else in Noodlr is unchanged.
+
+A monster's traits, actions, bonus actions, reactions, legendary actions and known spells are stored
+as separate documents attached to the creature, not as part of the creature's own record. The first
+version of the export only wrote the creature's own record, so every one of those abilities was
+silently dropped — a monster came out as a name, a challenge rating, some numbers and a paragraph of
+description. Measured against the 436 creatures in the base game system, the export went from 200
+records to 4,861.
+
+Each ability is now exported in its own right, carrying the creature it belongs to (size, challenge
+rating, speed, senses, immunities) so the ability still makes sense on its own. Alongside that:
+
+- Each record notes which book it came from, so a later analysis can tell a revised rule from a
+  reprinted one, and so rules from a book you do not own can be left out entirely.
+- Whether something is an Action, Bonus Action, Reaction or Legendary Action is now recorded from the
+  game system's own data instead of being guessed from the wording.
+- Identical wording is fingerprinted, so a trait shared by hundreds of creatures is analysed once.
+- Two description fields that the game system moved in a recent version are now read correctly; the
+  export had been looking for them in the old place and finding nothing.
+
 ## 0.5.0
 
 **The D&D rules automation has moved into its own module.** Everything Noodlr had learned to enforce
