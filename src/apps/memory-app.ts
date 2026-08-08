@@ -4,7 +4,7 @@
 // Opened from the Memory & Knowledge window's "Manage Memory" button.
 
 import { MODULE_ID, isDeveloperMode } from "../constants";
-import { corpusFolderPath, exportPacks } from "../dev/pack-export";
+import { exportPacks } from "../dev/pack-export";
 import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
 import { IMPORTANCE, withImportance } from "../rag/importance";
 import { RagClientError } from "../rag/client";
@@ -88,7 +88,6 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
       siloOptions,
       packs,
       developer: isDeveloperMode(),
-      corpusFolder: corpusFolderPath(),
     };
   }
 
@@ -284,7 +283,6 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
           documents,
           records,
           size: megabytes,
-          folder: corpusFolderPath(),
         }),
       );
       for (const failure of failures) {

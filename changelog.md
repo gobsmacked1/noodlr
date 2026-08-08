@@ -2,6 +2,24 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.5.2
+
+**Fixes the compendium export, which could not write a single file in 0.5.1.** Developer tools only;
+nothing else is affected.
+
+The export wrote its files into Foundry's media folder, and Foundry only accepts uploads whose file
+extension is on a fixed list — images, audio, video, and a handful of text formats. `.jsonl` is not on
+that list, so every pack was refused with "has a disallowed extension".
+
+Renaming the files would have papered over it and left a worse problem behind: uploads are stored on
+the machine running Foundry, which for a hosted server is not the machine you run the analysis on, so
+you would have had to fetch every file back down again. The export now downloads directly to the
+browser you are sitting at instead. Nothing is written to the game server, which also keeps a few
+hundred megabytes of derived data off it.
+
+Exporting several compendiums at once downloads one file each and may ask your browser for permission
+to save multiple files.
+
 ## 0.5.1
 
 **Developer tools: the compendium export now includes creature abilities.** This only affects GMs who

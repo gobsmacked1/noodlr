@@ -10,13 +10,11 @@
 // nothing summarized and nothing cut off. A truncated `system` would make the miner report enforced
 // rules as unenforced, which is the one error that would waste the most time downstream.
 //
-// Output is one JSON object per line under `<mediaFolder>/rules-corpus/<pack>.jsonl`. Nothing is
-// sent anywhere: the GM downloads the files and runs the miner outside Foundry.
+// Output is one JSON object per line, downloaded straight to the GM's browser as `<pack>.jsonl`.
+// Nothing is sent anywhere and nothing is written to the game server: the GM keeps the files and
+// runs the miner outside Foundry.
 
 import { MODULE_ID, log } from "../constants";
-import { getMediaFolder, ensureMediaFolder } from "../media/storage";
-
-const SUBFOLDER = "rules-corpus";
 
 export interface ExportProgress {
   pack: string;
@@ -28,7 +26,7 @@ export interface ExportResult {
   packId: string;
   documents: number;
   records: number;
-  path: string;
+  file: string;
   bytes: number;
 }
 
@@ -303,24 +301,43 @@ function toCorpusRecords(doc: any, ctx: RecordContext): Array<Record<string, unk
   return records;
 }
 
-function filePickerClass(): any {
-  return (
-    (foundry as any)?.applications?.apps?.FilePicker?.implementation ??
-    (globalThis as any).FilePicker
-  );
-}
-
-function corpusFolder(): string {
-  return `${getMediaFolder()}/${SUBFOLDER}`;
-}
-
 /** Filesystem-safe name for a pack id like `dnd-players-handbook.spells`. */
 function fileNameFor(packId: string): string {
   return `${packId.replace(/[^A-Za-z0-9._-]+/g, "_")}.jsonl`;
 }
 
 /**
- * Export one pack to a JSONL file. Returns null when the pack yields no prose-bearing documents.
+ * Hand the file to the browser rather than to Foundry's file store.
+ *
+ * Two independent reasons, either of which would be enough. Foundry validates uploads against a
+ * whitelist of extensions (images, audio, video, and the text formats json/md/txt/csv/yml), and
+ * `.jsonl` is not on it — v0.5.1 tried to upload one and was refused outright. And uploads land on
+ * the Foundry HOST, which for any remotely hosted server is the wrong machine entirely: the miner
+ * runs wherever the corpus repository is, so an upload would have to be fetched back down again.
+ *
+ * A blob download has no whitelist, writes to the machine the GM is sitting at, and leaves a
+ * multi-hundred-megabyte pile of derived data off the game server. The blob is built from an array
+ * of parts rather than one joined string, because a joined export of the Monster Manual is large
+ * enough that concatenating it is a real allocation.
+ */
+function downloadFile(name: string, parts: string[]): number {
+  const blob = new Blob(parts, { type: "application/x-ndjson" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = name;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  // Revoking straight away cancels an in-flight download in some browsers; the file is large and
+  // the write is not instant, so the handle is held well past the point the browser needs it.
+  setTimeout(() => URL.revokeObjectURL(url), 120_000);
+  return blob.size;
+}
+
+/**
+ * Export one pack. Returns null when the pack yields no prose-bearing documents.
  */
 export async function exportPack(
   packId: string,
@@ -329,9 +346,6 @@ export async function exportPack(
   const pack = game.packs?.get(packId);
   if (!pack) throw new Error(`Compendium not found: ${packId}`);
 
-  const fp = filePickerClass();
-  if (!fp?.upload) throw new Error("FilePicker.upload unavailable (need GM upload permission).");
-
   const ctx: RecordContext = {
     packId,
     packLabel: pack.metadata?.label ?? packId,
@@ -339,32 +353,22 @@ export async function exportPack(
   };
   const docs: any[] = await pack.getDocuments();
 
-  const lines: string[] = [];
+  const parts: string[] = [];
   let processed = 0;
   for (const doc of docs) {
-    for (const record of toCorpusRecords(doc, ctx)) lines.push(JSON.stringify(record));
+    for (const record of toCorpusRecords(doc, ctx)) parts.push(`${JSON.stringify(record)}\n`);
     processed++;
     if (processed % 100 === 0) onProgress?.({ pack: ctx.packLabel, processed, total: docs.length });
   }
   onProgress?.({ pack: ctx.packLabel, processed, total: docs.length });
 
-  if (lines.length === 0) return null;
+  if (parts.length === 0) return null;
 
-  const folder = corpusFolder();
-  await ensureMediaFolder(folder);
-  const body = `${lines.join("\n")}\n`;
   const name = fileNameFor(packId);
-  const file = new File([body], name, { type: "application/x-ndjson" });
-  await fp.upload("data", folder, file, {}, { notify: false });
+  const bytes = downloadFile(name, parts);
 
-  log(`rules-corpus: exported ${lines.length} records from ${docs.length} documents in ${packId}`);
-  return {
-    packId,
-    documents: docs.length,
-    records: lines.length,
-    path: `${folder}/${name}`,
-    bytes: body.length,
-  };
+  log(`rules-corpus: exported ${parts.length} records from ${docs.length} documents in ${packId}`);
+  return { packId, documents: docs.length, records: parts.length, file: name, bytes };
 }
 
 /** Export several packs in sequence. Individual failures are reported and do not stop the run. */
@@ -379,16 +383,15 @@ export async function exportPacks(
     try {
       const result = await exportPack(packId, onProgress);
       if (result) results.push(result);
+      // Browsers throttle rapid programmatic downloads and will quietly drop some of a burst.
+      // Firefox in particular asks once for permission to download multiple files and then needs a
+      // moment between saves; a pack takes seconds to serialize anyway, so this costs nothing.
+      if (packIds.length > 1) await new Promise((resolve) => setTimeout(resolve, 900));
     } catch (err) {
       failures.push({ packId, error: err instanceof Error ? err.message : String(err) });
     }
   }
   return { results, failures };
-}
-
-/** Console entry point: `game.modules.get("noodlr").api.exportPacks([...])`. */
-export function corpusFolderPath(): string {
-  return corpusFolder();
 }
 
 export const _internal = {
