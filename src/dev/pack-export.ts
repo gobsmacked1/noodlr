@@ -106,16 +106,7 @@ function collectProse(doc: any): string {
     if (flavor) parts.push(`Chat flavor: ${flavor}`);
   }
 
-  // JournalEntry pages: the rules glossary lives here, and it is where the prose-only rules are.
-  const pages = doc?.pages;
-  if (pages && typeof pages.forEach === "function") {
-    pages.forEach((page: any) => {
-      const content = stripHtml(String(page?.text?.content ?? ""));
-      if (!content) return;
-      parts.push(page?.name ? `## ${page.name}\n${content}` : content);
-    });
-  }
-
+  // Journal pages are deliberately absent here; each is its own record. See toCorpusRecords.
   return parts.join("\n\n").trim();
 }
 
@@ -224,6 +215,21 @@ function holderContext(doc: any, system: any): Record<string, unknown> {
   };
 }
 
+/**
+ * The chapter a rule page was printed in.
+ *
+ * Much thinner than a creature's context because a rule stands alone in a way a trait does not, but
+ * the entry name is still the difference between "Hide" the action and "Hide" the hit-point sack:
+ * one is a page of "Actions", the other of "Monsters A to Z".
+ */
+function journalHolderContext(doc: any): Record<string, unknown> {
+  return {
+    uuid: doc?.uuid ?? null,
+    name: doc?.name ?? "",
+    documentType: "JournalEntry",
+  };
+}
+
 interface RecordContext {
   packId: string;
   packLabel: string;
@@ -245,7 +251,9 @@ function baseRecord(
     ...sourceOf(system, ctx.packageName),
     name: source?.name ?? "",
     type: source?.type ?? doc?.documentName ?? "",
-    subtype: system?.type?.value ?? null,
+    // An item states its subtype as `{value}`; a dnd5e rule page states it as a bare string, and it
+    // is the field that separates a condition page from an ordinary rule page.
+    subtype: (typeof system?.type === "string" ? system.type : system?.type?.value) ?? null,
     identifier: system?.identifier ?? null,
     // Where this copy came from, when it is a copy. A monster's Pack Tactics points back at the
     // Monster Manual's feature; an adventure module's reprint of a spell points back at the book it
@@ -284,6 +292,28 @@ function toCorpusRecords(doc: any, ctx: RecordContext): Array<Record<string, unk
   // schema. Skipping the holder does not skip its items: most statblocks carry no biography at all.
   const prose = collectProse(doc);
   if (prose) records.push(baseRecord(doc, source, system, prose, ctx));
+
+  // Journal pages, on exactly the same principle as a creature's items and for a source that matters
+  // more: the 2024 Rules Glossary is ONE JournalEntry holding a page per condition, and "Actions" is
+  // one holding a page per action. Concatenating them produced a single record named "Rules Glossary"
+  // — Concentration, Incapacitated and Opportunity Attack were all in the corpus and none of them was
+  // findable, citable, or small enough to survive a data budget. This is the most valuable prose in
+  // the whole corpus, because it is the rules text itself rather than a creature's use of it.
+  const pages: any[] = typeof doc?.pages?.forEach === "function" ? [...doc.pages] : [];
+  if (pages.length > 0) {
+    const entry = journalHolderContext(doc);
+    for (const page of pages) {
+      const pageSource = typeof page?.toObject === "function" ? page.toObject() : page;
+      const pageProse = stripHtml(String(pageSource?.text?.content ?? ""));
+      if (!pageProse) continue;
+      const pageSystem = pageSource?.system ?? {};
+      records.push({
+        ...baseRecord(page, pageSource, pageSystem, pageProse, ctx),
+        uuid: page?.uuid ?? `${doc?.uuid ?? ctx.packId}.JournalEntryPage.${pageSource?._id ?? ""}`,
+        holder: entry,
+      });
+    }
+  }
 
   const embedded: any[] = typeof doc?.items?.forEach === "function" ? [...doc.items] : [];
   if (embedded.length === 0) return records;

@@ -2,6 +2,24 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.5.4
+
+**The compendium export was flattening whole rulebooks into single entries.** Developer tools only.
+
+A journal in Foundry is a book and its pages are the chapters, and the export was gluing every page
+of a book into one giant blob of text. The 2024 Rules Glossary is one journal holding a separate page
+for each condition, so Concentration, Incapacitated, Paralyzed, Prone and every other rule came out
+as one unnamed lump called "Rules Glossary" — present in the file, but impossible to look up, cite,
+or work with individually. The chapter of actions had the same problem, taking Opportunity Attack and
+the Hide action with it.
+
+Each page is now its own entry, carrying the name of the book it was printed in. This is the same fix
+0.5.1 made for creatures, whose abilities were being swallowed by the statblock, and it matters more:
+these pages are the rules text itself rather than one monster's use of it.
+
+If you already exported, re-export any compendium of journals — the ones ending in `content`, `book`
+or `adventures`. Statblocks, spells and equipment are unaffected.
+
 ## 0.5.3
 
 **Fixes the compendium export again: 0.5.2 saved only the first compendium you ticked, under a
