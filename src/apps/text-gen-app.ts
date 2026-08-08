@@ -5,7 +5,7 @@
 // plus the injection slots. The scalars and toggles here used to sit in Foundry's own settings list,
 // where they were separated from the prompts they modify.
 
-import { MODULE_ID, MODULE_TITLE, SETTINGS, COMBAT_SETTINGS } from "../constants";
+import { MODULE_ID, MODULE_TITLE, SETTINGS, BEHAVIOR_SETTINGS } from "../constants";
 import { promptFieldView } from "../prompts/fields";
 import { ASSISTANT_NAME_MAX_LENGTH, getAssistantName } from "../chat/assistant";
 import { sanitizeUserText } from "../util/sanitize";
@@ -20,32 +20,17 @@ import {
   isTipsterEnabled,
 } from "../prompt/settings";
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
-import {
-  getCombatAutomation,
-  getEconomyMode,
-  getEngageRadius,
-  getMoveSpeed,
-  getTurnPaceSeconds,
-  isAutoEndEnabled,
-  isAutoEngageEnabled,
-  isConditionAutomationEnabled,
-  isConcentrationAutomationEnabled,
-  isDyingAutomationEnabled,
-  honorImportantNpcDeathSaves,
-  isForcedMovementEnabled,
-  isMovementCapEnabled,
-  isStealthEnabled,
-  isSurpriseEnabled,
-  isInvisibilityBreakEnabled,
-  isNpcBanterEnabled,
-} from "../combat/config";
+import { isBehaviorEnabled, isNpcBanterEnabled } from "../behavior/config";
+import { detectHooksModules } from "../integration/hooks-modules";
 import {
   detectedSystemLabel,
   getRulesetName,
+  hooksRulesetOptions,
   RULESET_AUTO,
   RULESET_CHOICES,
   RULESET_CUSTOM,
   RULESET_DEFAULT,
+  RULESET_HOOKS_PREFIX,
   RULESET_NAME_MAX_LENGTH,
 } from "../system/ruleset";
 
@@ -89,8 +74,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
   async _prepareContext(): Promise<Record<string, unknown>> {
     const p = "NOODLR.Feature.Chat";
     const choice = String(game.settings.get(MODULE_ID, SETTINGS.rulesetChoice) ?? RULESET_DEFAULT);
-    const automation = getCombatAutomation();
-    const economy = getEconomyMode();
+    const hooksModules = detectHooksModules();
     return {
       moduleTitle: MODULE_TITLE,
       version: game.modules.get(MODULE_ID)?.version ?? "",
@@ -114,38 +98,28 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
         customMax: RULESET_NAME_MAX_LENGTH,
         detected: detectedSystemLabel(),
         resolved: getRulesetName(),
+        // A rules module states the revision it automates, which detection never can, so those come
+        // first. The curated list stays below for a table running Noodlr with no hooks module.
+        hooks: hooksRulesetOptions(choice),
         // Marked so the picker can pre-select without a Handlebars equality helper.
         options: RULESET_CHOICES.map((name) => ({ name, selected: name === choice })),
         isAuto: choice === RULESET_AUTO,
         isCustom: choice === RULESET_CUSTOM,
       },
 
-      automation: {
-        isFull: automation === "full",
-        isPartial: automation === "partial",
-        isOff: automation === "off",
+      // Everything that automates a game system's rules now lives in a `noodlr-hooks-*` module. With
+      // none installed the integration controls are inert, so they render greyed with a line saying
+      // why rather than silently doing nothing when switched on.
+      hooks: {
+        any: hooksModules.length > 0,
+        list: hooksModules.map((m) => ({
+          title: m.title,
+          version: m.version,
+          capabilities: (m.capabilities ?? []).join(", "),
+        })),
       },
+      behavior: isBehaviorEnabled(),
       npcBanter: isNpcBanterEnabled(),
-      turnPace: getTurnPaceSeconds(),
-      moveSpeed: getMoveSpeed(),
-      autoEngage: isAutoEngageEnabled(),
-      engageRadius: getEngageRadius(),
-      stealthContest: isStealthEnabled(),
-      surprise: isSurpriseEnabled(),
-      invisBreak: isInvisibilityBreakEnabled(),
-      movementCap: isMovementCapEnabled(),
-      forcedMovement: isForcedMovementEnabled(),
-      conditionAutomation: isConditionAutomationEnabled(),
-      dyingAutomation: isDyingAutomationEnabled(),
-      importantNpcSaves: honorImportantNpcDeathSaves(),
-      concentrationAutomation: isConcentrationAutomationEnabled(),
-      autoEnd: isAutoEndEnabled(),
-      economy: {
-        isOff: economy === "off",
-        isWarn: economy === "warn",
-        isBlock: economy === "block",
-      },
-      distanceUnits: String((canvas as any)?.scene?.grid?.units ?? "ft"),
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
       playersPrompt: promptFieldView(SETTINGS.playersSystemPrompt),
@@ -153,7 +127,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       authorNote: promptFieldView(SETTINGS.authorNote),
       postHistory: promptFieldView(SETTINGS.postHistory),
       combatReminder: promptFieldView(SETTINGS.combatReminder),
-      combatPrompt: promptFieldView(COMBAT_SETTINGS.systemPrompt),
+      behaviorPrompt: promptFieldView(BEHAVIOR_SETTINGS.systemPrompt),
 
       authorNoteDepth: getAuthorNoteDepth(),
       contextTokenBudget: getContextBudget(),
@@ -184,7 +158,11 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
 
     const choice = String(o.rulesetChoice ?? RULESET_DEFAULT);
     const known: string[] = [RULESET_AUTO, RULESET_CUSTOM, ...RULESET_CHOICES];
-    await set(SETTINGS.rulesetChoice, known.includes(choice) ? choice : RULESET_DEFAULT);
+    // A `hooks:` choice is accepted on its prefix rather than checked against the detected list: a
+    // module can be disabled between rendering the form and saving it, and throwing the GM's choice
+    // away for that would be worse than keeping a selection that falls back to detection.
+    const validChoice = known.includes(choice) || choice.startsWith(RULESET_HOOKS_PREFIX);
+    await set(SETTINGS.rulesetChoice, validChoice ? choice : RULESET_DEFAULT);
     await set(
       SETTINGS.rulesetCustom,
       sanitizeUserText(o.rulesetCustom, {
@@ -193,37 +171,8 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       }).replace(/[^\x20-\x7e]/g, ""),
     );
 
-    const mode = String(o.combatAutomation ?? "full");
-    await set(COMBAT_SETTINGS.automation, mode === "partial" || mode === "off" ? mode : "full");
-    await set(COMBAT_SETTINGS.banter, Boolean(o.npcBanter));
-    const pace = Number(o.combatTurnPace);
-    await set(
-      COMBAT_SETTINGS.turnPace,
-      Number.isFinite(pace) ? Math.min(60, Math.max(0, pace)) : 6,
-    );
-    const moveSpeed = Number(o.combatMoveSpeed);
-    await set(
-      COMBAT_SETTINGS.moveSpeed,
-      Number.isFinite(moveSpeed) ? Math.min(20, Math.max(0, moveSpeed)) : 0,
-    );
-    await set(COMBAT_SETTINGS.autoEngage, Boolean(o.combatAutoEngage));
-    const radius = Number(o.combatEngageRadius);
-    await set(COMBAT_SETTINGS.engageRadius, Number.isFinite(radius) && radius >= 0 ? radius : 30);
-    await set(COMBAT_SETTINGS.stealth, Boolean(o.combatStealth));
-    await set(COMBAT_SETTINGS.surprise, Boolean(o.combatSurprise));
-    await set(COMBAT_SETTINGS.invisBreak, Boolean(o.combatInvisBreak));
-    await set(COMBAT_SETTINGS.movement, Boolean(o.combatMovement));
-    await set(COMBAT_SETTINGS.forced, Boolean(o.combatForced));
-    await set(COMBAT_SETTINGS.conditions, Boolean(o.combatConditions));
-    await set(COMBAT_SETTINGS.dying, Boolean(o.combatDying));
-    await set(COMBAT_SETTINGS.importantNpcSaves, Boolean(o.combatImportantNpcSaves));
-    await set(COMBAT_SETTINGS.concentration, Boolean(o.combatConcentration));
-    await set(COMBAT_SETTINGS.autoEnd, Boolean(o.combatAutoEnd));
-    const economy = String(o.combatEconomy ?? "warn");
-    await set(
-      COMBAT_SETTINGS.economy,
-      ["off", "warn", "block"].includes(economy) ? economy : "warn",
-    );
+    await set(BEHAVIOR_SETTINGS.enabled, Boolean(o.behavior));
+    await set(BEHAVIOR_SETTINGS.banter, Boolean(o.npcBanter));
 
     await this.savePromptFields(form);
 

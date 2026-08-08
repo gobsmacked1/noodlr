@@ -14,7 +14,7 @@ import { MODULE_ID, SETTINGS, warn } from "../constants";
 import { isPrimaryGM } from "../util/gm";
 import {
   DM_SYSTEM_PROMPT,
-  DEFAULT_COMBAT_PROMPT,
+  DEFAULT_BEHAVIOR_PROMPT,
   DEFAULT_COMBAT_REMINDER,
   PLAYERS_SYSTEM_PROMPT,
   GM_ADJUDICATION_PROMPT,
@@ -126,10 +126,10 @@ const TEXT_FIELDS: PromptFieldDef[] = [
     maxLength: SYSTEM_PROMPT_MAX_LENGTH,
   },
   {
-    key: "combat.systemPrompt",
-    label: "NOODLR.Combat.PromptName",
-    hint: "NOODLR.Combat.PromptHint",
-    default: DEFAULT_COMBAT_PROMPT,
+    key: "behavior.systemPrompt",
+    label: "NOODLR.Behavior.PromptName",
+    hint: "NOODLR.Behavior.PromptHint",
+    default: DEFAULT_BEHAVIOR_PROMPT,
     rows: 5,
     maxLength: SYSTEM_PROMPT_MAX_LENGTH,
   },

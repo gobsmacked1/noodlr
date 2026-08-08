@@ -19,6 +19,7 @@ import { assemblePrompt } from "../prompt/assembler";
 import { parseDirectives } from "../players/directives";
 import { applyMemoryDirectives } from "../rag/memory-writes";
 import { buildCombatStateBlock } from "../combat/tracker";
+import { buildRulingsBlock, clearRulings } from "../behavior/awareness";
 import { buildTipsterBlock, resolvePerspectiveToken } from "../tipster/scene";
 import { bumpStats, noteContextEst } from "../util/stats";
 import { estimateMessagesTokens } from "../util/tokens";
@@ -48,6 +49,10 @@ export class Conversation {
 
   reset(): void {
     this.messages.length = 0;
+    // The ruling stream is context for THIS conversation, so clearing the transcript clears it too:
+    // a GM who wipes the history and finds the model still discussing last fight's failed saves has
+    // not actually cleared anything.
+    clearRulings();
   }
 
   /**
@@ -105,9 +110,14 @@ export class Conversation {
           token: resolvePerspectiveToken(game.user),
         })
       : null;
-    const foundryState = [combatState, tipster].filter(Boolean).join("\n\n") || null;
+    // What the rules module has applied since the last turn. Without it the AI GM narrates a fight
+    // whose mechanics it cannot see — the same gap the tracker block closes for state, closed for
+    // events. Null when nothing has fired, which is always the case with no hooks module installed.
+    const rulings = buildRulingsBlock();
+    const foundryState = [combatState, rulings, tipster].filter(Boolean).join("\n\n") || null;
     debug("gm-bot state blocks", {
       combat: Boolean(combatState),
+      rulings: Boolean(rulings),
       tipster: Boolean(tipster),
       tipsterEnabled: isTipsterEnabled("gm"),
       ragQueried: rag.queried,

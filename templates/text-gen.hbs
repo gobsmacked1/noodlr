@@ -49,14 +49,26 @@
       <label>{{localize "NOODLR.Settings.Ruleset.Name"}}</label>
       <p class="notes">{{localize "NOODLR.Settings.Ruleset.Hint"}}</p>
       <select name="rulesetChoice" data-role="ruleset-choice">
-        <option value="auto" {{#if ruleset.isAuto}}selected{{/if}}>
-          {{localize "NOODLR.Settings.Ruleset.Auto"}}{{#if ruleset.detected}} — {{ruleset.detected}}{{/if}}
-        </option>
-        {{#each ruleset.options}}
-          <option value="{{this.name}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
-        {{/each}}
-        <option value="custom" {{#if ruleset.isCustom}}selected{{/if}}>{{localize "NOODLR.Settings.Ruleset.Custom"}}</option>
+        {{#if ruleset.hooks.length}}
+          <optgroup label="{{localize 'NOODLR.Settings.Ruleset.HooksGroup'}}">
+            {{#each ruleset.hooks}}
+              <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </optgroup>
+        {{/if}}
+        <optgroup label="{{localize 'NOODLR.Settings.Ruleset.ManualGroup'}}">
+          <option value="auto" {{#if ruleset.isAuto}}selected{{/if}}>
+            {{localize "NOODLR.Settings.Ruleset.Auto"}}{{#if ruleset.detected}} — {{ruleset.detected}}{{/if}}
+          </option>
+          {{#each ruleset.options}}
+            <option value="{{this.name}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
+          {{/each}}
+          <option value="custom" {{#if ruleset.isCustom}}selected{{/if}}>{{localize "NOODLR.Settings.Ruleset.Custom"}}</option>
+        </optgroup>
       </select>
+      {{#each ruleset.hooks}}
+        {{#if this.warning}}<p class="notes warning">{{this.warning}}</p>{{/if}}
+      {{/each}}
       <div data-role="ruleset-custom">
         <input type="text" name="rulesetCustom" value="{{ruleset.custom}}"
           maxlength="{{ruleset.customMax}}" autocomplete="off"
@@ -68,122 +80,43 @@
       </p>
     </div>
 
-    {{! How much of a hostile creature's turn Noodlr runs, and whether it speaks while doing it. }}
-    <div class="noodlr-field">
-      <label>{{localize "NOODLR.Combat.Automation.Name"}}</label>
-      <p class="notes">{{localize "NOODLR.Combat.Automation.Hint"}}</p>
-      <select name="combatAutomation">
-        <option value="full" {{#if automation.isFull}}selected{{/if}}>{{localize "NOODLR.Combat.Automation.Full"}}</option>
-        <option value="partial" {{#if automation.isPartial}}selected{{/if}}>{{localize "NOODLR.Combat.Automation.Partial"}}</option>
-        <option value="off" {{#if automation.isOff}}selected{{/if}}>{{localize "NOODLR.Combat.Automation.Off"}}</option>
-      </select>
+    {{! Rules enforcement lives in a noodlr-hooks-* module. What Noodlr owns is the voice: when a
+        creature decides to run, yield, or talk its way out, this is what plays that out. }}
+    <div class="noodlr-integration {{#unless hooks.any}}noodlr-integration--inactive{{/unless}}">
+      {{#if hooks.any}}
+        <p class="notes">
+          <i class="fa-solid fa-plug-circle-check"></i>
+          {{localize "NOODLR.Settings.Hooks.Detected"}}
+          {{#each hooks.list}}
+            <br /><strong>{{this.title}}</strong> {{this.version}}{{#if this.capabilities}} — {{this.capabilities}}{{/if}}
+          {{/each}}
+        </p>
+      {{else}}
+        <p class="notes">
+          <i class="fa-solid fa-plug-circle-xmark"></i>
+          {{localize "NOODLR.Settings.Hooks.None"}}
+        </p>
+      {{/if}}
+
+      {{! Greyed, never `disabled`: a disabled checkbox submits nothing, so saving this form with no
+          hooks module installed would quietly turn both of these off. Same reasoning as the
+          backend-graying in the Memory window. }}
+      <label class="noodlr-inline">
+        <input type="checkbox" name="behavior" {{#if behavior}}checked{{/if}} />
+        {{localize "NOODLR.Behavior.Enabled.Name"}}
+      </label>
+      <p class="notes">{{localize "NOODLR.Behavior.Enabled.Hint"}}</p>
+
+      <label class="noodlr-inline">
+        <input type="checkbox" name="npcBanter" {{#if npcBanter}}checked{{/if}} />
+        {{localize "NOODLR.Behavior.Banter.Name"}}
+      </label>
+      <p class="notes">{{localize "NOODLR.Behavior.Banter.Hint"}}</p>
     </div>
-
-    <div class="noodlr-field">
-      <label>{{localize "NOODLR.Combat.Pace.Name"}}</label>
-      <p class="notes">{{localize "NOODLR.Combat.Pace.Hint"}}</p>
-  <input type="number" name="combatTurnPace" value="{{turnPace}}" min="0" max="60" step="1" />
-</div>
-
-    <div class="noodlr-field">
-      <label>{{localize "NOODLR.Combat.MoveSpeed.Name"}}</label>
-      <p class="notes">{{localize "NOODLR.Combat.MoveSpeed.Hint"}}</p>
-      <input type="number" name="combatMoveSpeed" value="{{moveSpeed}}" min="0" max="20" step="1" />
-    </div>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatAutoEngage" {{#if autoEngage}}checked{{/if}} />
-      {{localize "NOODLR.Combat.AutoEngage.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.AutoEngage.Hint"}}</p>
-
-    <div class="noodlr-field">
-      <label>{{localize "NOODLR.Combat.EngageRadius.Name"}}</label>
-      <p class="notes">{{localize "NOODLR.Combat.EngageRadius.Hint"}}</p>
-      <input type="number" name="combatEngageRadius" value="{{engageRadius}}" min="0" step="5" />
-      <span class="units">{{distanceUnits}}</span>
-    </div>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatStealth" {{#if stealthContest}}checked{{/if}} />
-      {{localize "NOODLR.Combat.Stealth.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.Stealth.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatSurprise" {{#if surprise}}checked{{/if}} />
-      {{localize "NOODLR.Combat.Surprise.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.Surprise.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatInvisBreak" {{#if invisBreak}}checked{{/if}} />
-      {{localize "NOODLR.Combat.InvisBreak.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.InvisBreak.Hint"}}</p>
-
-    {{! Applies to players only. Creatures Noodlr runs are always held to the rules exactly. }}
-    <div class="noodlr-field">
-      <label>{{localize "NOODLR.Combat.Economy.Name"}}</label>
-      <p class="notes">{{localize "NOODLR.Combat.Economy.Hint"}}</p>
-      <select name="combatEconomy">
-        <option value="off" {{#if economy.isOff}}selected{{/if}}>{{localize "NOODLR.Combat.Economy.Off"}}</option>
-        <option value="warn" {{#if economy.isWarn}}selected{{/if}}>{{localize "NOODLR.Combat.Economy.Warn"}}</option>
-        <option value="block" {{#if economy.isBlock}}selected{{/if}}>{{localize "NOODLR.Combat.Economy.Block"}}</option>
-      </select>
-    </div>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatMovement" {{#if movementCap}}checked{{/if}} />
-      {{localize "NOODLR.Combat.Movement.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.Movement.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatForced" {{#if forcedMovement}}checked{{/if}} />
-      {{localize "NOODLR.Combat.Forced.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.Forced.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatConditions" {{#if conditionAutomation}}checked{{/if}} />
-      {{localize "NOODLR.Combat.Conditions.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.Conditions.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatDying" {{#if dyingAutomation}}checked{{/if}} />
-      {{localize "NOODLR.Combat.Dying.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.Dying.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatImportantNpcSaves" {{#if importantNpcSaves}}checked{{/if}} />
-      {{localize "NOODLR.Combat.Dying.Important.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.Dying.Important.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatConcentration" {{#if concentrationAutomation}}checked{{/if}} />
-      {{localize "NOODLR.Combat.Concentration.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.Concentration.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="combatAutoEnd" {{#if autoEnd}}checked{{/if}} />
-      {{localize "NOODLR.Combat.AutoEnd.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.AutoEnd.Hint"}}</p>
-
-    <label class="noodlr-inline">
-      <input type="checkbox" name="npcBanter" {{#if npcBanter}}checked{{/if}} />
-      {{localize "NOODLR.Combat.Banter.Name"}}
-    </label>
-    <p class="notes">{{localize "NOODLR.Combat.Banter.Hint"}}</p>
 
     {{> noodlrPromptField playersPrompt}}
     {{> noodlrPromptField adjudicationPrompt}}
-    {{> noodlrPromptField combatPrompt}}
+    {{> noodlrPromptField behaviorPrompt}}
   </fieldset>
 
   {{! ---- Context & injections ---- }}

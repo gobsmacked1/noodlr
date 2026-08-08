@@ -14,10 +14,10 @@
 //      it applies to that line and to the ones after it until another race word appears. Same for the
 //      handful of lines that only work said to a man or to a woman.
 //
-// Nothing here is scored or chosen — see `speak.ts`. This module only answers "what is this line
+// Nothing here is scored or chosen — see `banter.ts`. This module only answers "what is this line
 // about", so that a bad match (calling a dwarf an elf) is impossible rather than unlikely.
 
-import { log } from "../../constants";
+import { log } from "../constants";
 
 export interface BanterLine {
   text: string;

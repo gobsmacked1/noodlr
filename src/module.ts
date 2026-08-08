@@ -35,32 +35,10 @@ import { refreshPushToLogButton, pushToLog, type TranscriptPayload } from "./med
 import { registerArtifactHooks, handleArtifactSocket } from "./output/artifacts";
 import { initChatSniffer } from "./log/chat-sniffer";
 import { initAdjudicationCapture } from "./players/adjudication";
-import { registerDossierCleanup } from "./combat/dossier";
-import { getCombatAutomation } from "./combat/config";
-import { toggleSelectedCombatantAutomation } from "./combat/auto/control";
-import { registerAutomationCleanup } from "./combat/auto/registry";
-import { registerAutomationTurnHook } from "./combat/auto/hooks";
-import { registerPerceptionWatch, surveyPerception } from "./combat/auto/perception";
-import { registerStealthWatch } from "./combat/auto/stealth";
-import { hideSelected, surveyHide } from "./combat/auto/hide";
-import { registerInvisibilityHooks } from "./combat/auto/invisibility";
-import { registerReactionHooks } from "./combat/auto/reactions";
-import { registerForcedMovement, surveyForced } from "./combat/auto/forced";
-import { registerForceAction, shove, undoForcedMovement } from "./combat/auto/shove";
-import { registerConditionHooks, surveyConditions } from "./combat/auto/conditions";
-import { registerDyingHooks, surveyDying, undoDying } from "./combat/auto/dying";
-import { registerConcentrationHooks, surveyConcentration } from "./combat/auto/concentration";
-import { registerEconomyHooks } from "./combat/economy/enforce";
-import { registerMovementCap, surveyMovement } from "./combat/economy/movement";
-import { surveyEconomy } from "./combat/economy/survey";
 import { surveyPlayed } from "./util/played-survey";
-import { registerEncounterTracking } from "./combat/auto/encounter";
-import { explainTurn } from "./combat/auto/explain";
-import { flattenElevation, restoreElevation, testMove } from "./combat/auto/diagnose";
-import { surveyActions } from "./combat/survey";
-import { restoreForfeited } from "./combat/systems/dnd5e-rewards";
-import { loadBanter } from "./combat/banter/library";
-import { runCurrentNpcTurn } from "./combat/npc-turn";
+import { loadBanter } from "./behavior/banter-library";
+import { registerBehaviorHooks } from "./behavior/listen";
+import { detectHooksModules } from "./integration/hooks-modules";
 import {
   PLAYER_ASK,
   PLAYER_ACK,
@@ -91,53 +69,9 @@ export interface NoodlrApi {
   generateMusic(description: string): Promise<void>;
   generateVideo(description: string): Promise<void>;
   togglePushToLog(): void;
-  runNpcTurn(): Promise<void>;
-  restoreForfeitedGear(): Promise<number>;
-  explainTurn(): Promise<void>;
-  surveyActions(opts?: { saveToFile?: boolean; max?: number; asText?: boolean }): Promise<unknown>;
-  testMove(): Promise<Record<string, unknown> | undefined>;
-  surveyPerception(): Promise<Record<string, unknown>>;
-  surveyEconomy(): Record<string, unknown>;
   surveyPlayed(): Record<string, unknown>;
-  surveyMovement(): unknown;
-  surveyForced(): unknown;
-  surveyConditions(): unknown;
-  surveyDying(): unknown;
-  surveyConcentration(): unknown;
-  surveyHide(): unknown;
-  hide(opts?: { force?: boolean }): Promise<void>;
-  push(feet?: number): Promise<unknown>;
-  pull(feet?: number): Promise<unknown>;
-  undoForcedMovement(): Promise<number>;
-  undoDying(): Promise<number>;
-  flattenElevation(): Promise<number>;
-  restoreElevation(): Promise<number>;
-}
-
-/**
- * Push or pull whatever is targeted, away from or toward the selected token.
- *
- * The manual half of forced movement: every rule Noodlr recognises runs through the same engine, and
- * this is that engine with a human choosing the distance instead of a table. Useful for the rules the
- * table adjudicates itself, and for the ones no name table will ever match.
- */
-async function shoveTargets(feet: number, direction: "away" | "toward"): Promise<unknown> {
-  const by: any = (canvas as any)?.tokens?.controlled?.[0];
-  const targets = Array.from((game.user?.targets ?? []) as Set<any>);
-  if (!by || targets.length === 0) {
-    return { error: "select the creature doing the pushing and target the ones being moved" };
-  }
-  const results: Record<string, unknown> = {};
-  for (const target of targets) {
-    results[String(target?.document?.name ?? target?.name ?? "?")] = await shove({
-      token: target,
-      by,
-      direction,
-      distance: feet,
-      label: game.i18n.localize("NOODLR.Combat.Forced.ByHand"),
-    });
-  }
-  return results;
+  /** Every active `noodlr-hooks-*` rules module and what it says it enforces. */
+  hooksModules(): unknown;
 }
 
 const api: NoodlrApi = {
@@ -182,45 +116,10 @@ const api: NoodlrApi = {
   generateMusic: (description: string) => createAndPlayMusic({ description }),
   generateVideo: (description: string) => createAndShareVideo({ description }),
   togglePushToLog: () => pushToLog.toggle(),
-  runNpcTurn: () => runCurrentNpcTurn(),
-  /** Undo a mercy forfeiture from the console, if the chat card has scrolled away. */
-  restoreForfeitedGear: () => restoreForfeited(),
-  /** Dump what the planner can read off the selected combatant, and how it scored its options. */
-  explainTurn: () => explainTurn(),
-  /** Census every NPC sheet in the world, so data shapes are observed rather than assumed. */
-  surveyActions: (opts) => surveyActions(opts),
-  /** Move the selected token one square and report what core did at every stage, then put it back. */
-  testMove: () => testMove(),
-  /** Who can see whom on this scene, with the Perception and Stealth numbers behind each verdict. */
-  surveyPerception: () => surveyPerception(),
-  /** What every combatant has left this turn, and how many attacks one action buys them. */
-  surveyEconomy: () => surveyEconomy(),
   /** Which character each connected user is actually playing, versus the one Foundry falls back to. */
   surveyPlayed: () => surveyPlayed(),
-  /** How far the selected token may still move this turn, and what that number is built from. */
-  surveyMovement: () => surveyMovement(),
-  /** Which push/pull rules Noodlr recognises on the selected creature, and whether the layer is live. */
-  surveyForced: () => surveyForced(),
-  /** What condition combat math would apply for the controlled token vs its current target. */
-  surveyConditions: () => surveyConditions(),
-  /** Whether the selected creature would get death saves or die at 0, and current dying state. */
-  surveyDying: () => surveyDying(),
-  /** What the selected creature is concentrating on, who would roll its save, and at what DC. */
-  surveyConcentration: () => surveyConcentration(),
-  /** Whether the selected token may take the Hide action right now, and what each watcher can see. */
-  surveyHide: () => surveyHide(),
-  /** Take the Hide action with every selected token. `{force: true}` skips the prerequisites and cost. */
-  hide: (opts) => hideSelected(opts),
-  /** Shove every targeted creature away from the selected one, respecting walls and occupied spaces. */
-  push: (feet = 10) => shoveTargets(feet, "away"),
-  pull: (feet = 10) => shoveTargets(feet, "toward"),
-  /** Put every creature Noodlr has displaced this fight back where it was. */
-  undoForcedMovement: () => undoForcedMovement(),
-  /** Reverse the last dying/death status change Noodlr applied. */
-  undoDying: () => undoDying(),
-  /** Set every token in this scene to elevation 0, reversibly. */
-  flattenElevation: () => flattenElevation(),
-  restoreElevation: () => restoreElevation(),
+  /** Which rules modules are installed, and what each declares. First stop when rules go unenforced. */
+  hooksModules: () => detectHooksModules(),
 };
 
 Hooks.once("init", () => {
@@ -232,16 +131,10 @@ Hooks.once("init", () => {
   // this has to finish before a window can render — `init` is early enough that it always does.
   void registerNoodlrPartials();
 
-  // Speed as an actual limit, which nothing else in the stack treats as one. Registered here rather
-  // than with the other combat hooks for two reasons: it installs a Token subclass at `setup`, which
-  // has already passed by the time `ready` runs, and it has to be on the PLAYERS' clients, since a
-  // player dragging their own token is the only thing it constrains.
-  registerMovementCap();
-
-  // A zero-cost, wall-respecting movement action for pushes and pulls. Must be here: core deep-freezes
-  // the action registry inside `setupGame()`, before the `setup` hook, and writing to a frozen object is
-  // a silent no-op rather than an error. Everything downstream feature-detects the key regardless.
-  registerForceAction();
+  // Listen for whichever `noodlr-hooks-*` rules module the table has installed. Registered on every
+  // client and at `init`, because a rules module may announce a turn before `ready` on a slow world,
+  // and because the taunt has to be spoken by the client that hears the hook, GM or not.
+  registerBehaviorHooks();
 
   // Expose the API on the module entry so it's reachable as
   // game.modules.get("noodlr").api during development.
@@ -290,23 +183,6 @@ Hooks.once("ready", () => {
   // Floating push-to-log button (bottom-center) — only when transcription is enabled.
   refreshPushToLogButton();
 
-  // Action economy + condition combat math. These hooks fire on the ROLLING client — often a player —
-  // so they must not live inside the GM-only block below. A latent bug: economy used to register only
-  // for GMs, which meant players were never held to the budget on their own browser.
-  registerEconomyHooks();
-  registerConditionHooks();
-  // Drop-to-0 Unconscious/Dead and damage-at-0 death failures. Writes on the updating client.
-  registerDyingHooks();
-  // Concentration saves. Deliberately not GM-only: the whole point is that a character's save is
-  // rolled on the player's own client, which is also the only client allowed to roll it.
-  registerConcentrationHooks();
-  // Hiding: the declaration and the roll are read by the primary GM (gated inside), but the REVEAL comes
-  // off `dnd5e.rollAttack`, which fires only on the client that rolled — usually a player's browser. This
-  // sat in the GM-only block until v0.4.43, which is half of why a rogue could attack and stay hidden.
-  registerStealthWatch();
-  // Same reasoning: the Invisibility spell ends on the caster's own client.
-  registerInvisibilityHooks();
-
   // Ensure the media output folder exists (GM only — creating dirs needs upload permission).
   if (game.user?.isGM) {
     void ensureMediaFolder();
@@ -317,20 +193,6 @@ Hooks.once("ready", () => {
     initChatSniffer();
     // Players-bot adjudication: capture player rolls from chat to resolve pending checks.
     initAdjudicationCapture();
-    // Combat dossiers live only for the skirmish: forget a creature's turn history when it dies
-    // or the fight ends.
-    registerDossierCleanup();
-    // Automation opt-ins are per-encounter too; released when combat ends.
-    registerAutomationCleanup();
-    registerAutomationTurnHook();
-    // Hostile creatures noticing the party and starting the fight without a GM's clicks.
-    registerPerceptionWatch();
-    // Off-turn reactions: opportunity attacks and hitting back when hurt.
-    registerReactionHooks();
-    // Pushes, pulls and shoves actually moving the creature they land on, which nothing else does.
-    registerForcedMovement();
-    // Watches whether the party is still swinging, which is what mercy hangs on.
-    registerEncounterTracking();
     // Parsed once; a missing file just means silent monsters.
     void loadBanter();
   }
@@ -440,22 +302,12 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
         visible: !isGM,
         onChange: () => api.openPlayerChat(),
       },
-      // Visible to everyone, and players are the ones who need it: dnd5e ships no Hide action outside
-      // Cunning Action and its cousins, so without this button most of the party has no way to declare
-      // that they are sneaking, and since v0.4.43 the declaration is what makes hiding real.
-      hide: {
-        name: "hide",
-        title: "NOODLR.Combat.Hide.Tool",
-        icon: "fa-solid fa-user-ninja",
-        order: 3,
-        button: true,
-        visible: true,
-        onChange: () => void hideSelected(),
-      },
+      // The Hide button moved out with the rules: declaring a Hide is a game-system question, so it
+      // belongs to whichever `noodlr-hooks-*` module knows what hiding means in this system.
     };
     if (isGM) {
       // One button per image generator (scene art, portrait, token, map), each with its icon.
-      let order = 4;
+      let order = 3;
       for (const kind of IMAGE_KINDS) {
         const meta = IMAGE_KIND_META[kind];
         tools[`image-${kind}`] = {
@@ -466,19 +318,6 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
           button: true,
           visible: true,
           onChange: () => void promptImage(kind),
-        };
-      }
-      // Only offered in "partial" automation: in "full" every creature is played anyway, and in
-      // "off" the GM has said they want the fight in their own hands.
-      if (getCombatAutomation() === "partial") {
-        tools.npcTurn = {
-          name: "npcTurn",
-          title: "NOODLR.Combat.ToggleAutomation",
-          icon: "fa-solid fa-hand-fist",
-          order: order++,
-          button: true,
-          visible: true,
-          onChange: () => void toggleSelectedCombatantAutomation(),
         };
       }
       if (getMusicConfig().enabled) {

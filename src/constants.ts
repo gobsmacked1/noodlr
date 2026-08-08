@@ -77,44 +77,23 @@ export const MENUS = {
   security: "noodlrSecurity",
 } as const;
 
-// Default combat prompts (DEFAULT_COMBAT_PROMPT / DEFAULT_COMBAT_REMINDER) now live with all
-// other default prompt text in src/prompts/index.ts — the single file the maintainer edits.
+// Default prompt text lives in src/prompts/index.ts — the single file the maintainer edits.
 
-/** Combat feature settings keys. */
-export const COMBAT_SETTINGS = {
-  systemPrompt: "combat.systemPrompt",
-  /** How much of an NPC's turn Noodlr takes over: "full" | "partial" | "off". */
-  automation: "combat.automation",
+/**
+ * Behavioral automation: giving a voice to creatures that decide to talk instead of fight.
+ *
+ * Everything that used to sit under `COMBAT_SETTINGS` moved to `noodlr-hooks-55e` with the rules
+ * engine it configured. Two keys stayed, and both keep their `combat.` prefix on purpose: renaming a
+ * persisted key resets it, and a GM who tuned banter should not lose that to a refactor they never
+ * asked for. The prefix is history, not a statement about where the feature lives.
+ */
+export const BEHAVIOR_SETTINGS = {
+  /** Whether Noodlr answers FLEE / MERCY / SURRENDER and their kin from a hooks module. */
+  enabled: "behavior.enabled",
+  /** How the AI is told to voice one of those moves. */
+  systemPrompt: "behavior.systemPrompt",
   /** Whether automated creatures get a spoken/typed line of flavor with their turn. */
   banter: "combat.banter",
-  /** Seconds an automated turn must last before the tracker advances, so the table can follow it. */
-  turnPace: "combat.turnPace",
-  /** Grid squares per second an automated token slides across the canvas. 0 leaves Foundry's own pace. */
-  moveSpeed: "combat.moveSpeed",
-  /** Whether hostile creatures start the fight themselves on noticing the party. */
-  autoEngage: "combat.autoEngage",
-  engageRadius: "combat.engageRadius",
-  stealth: "combat.stealth",
-  /** How hard the action economy is enforced against players: "off" | "warn" | "block". */
-  economy: "combat.economy",
-  /** Whether a creature's Speed caps how far a player can drag it in a turn. */
-  movement: "combat.movement",
-  /** Whether the tracker clears itself once nothing hostile is left standing. */
-  autoEnd: "combat.autoEnd",
-  /** Whether pushes, pulls and shoves actually move the token they land on. */
-  forced: "combat.forced",
-  /** Whether condition combat math (adv/disadv, auto-fail, crit-on-hit, incapacitated) is applied. */
-  conditions: "combat.conditions",
-  /** Whether dropping to 0 HP applies Unconscious/Dead and damage-at-0 death failures. */
-  dying: "combat.dying",
-  /** Whether NPCs flagged Important get death saves like PCs instead of dying at 0. */
-  importantNpcSaves: "combat.importantNpcSaves",
-  /** Whether damage rolls a real concentration save, and a failure actually ends the spell. */
-  concentration: "combat.concentration",
-  /** Whether creatures caught unawares are marked Surprised when a fight starts. */
-  surprise: "combat.surprise",
-  /** Whether the Invisibility spell ends itself on attacking, damaging or casting. */
-  invisBreak: "combat.invisBreak",
 } as const;
 
 /**
