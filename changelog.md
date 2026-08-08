@@ -2,6 +2,44 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.5.0
+
+**The D&D rules automation has moved into its own module.** Everything Noodlr had learned to enforce
+about D&D 5e (2024) now lives in
+[Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e), installed the same way as this
+one. Install it and you lose nothing; skip it and Noodlr is a chatbot and media generator again.
+
+Why: Noodlr began as a game-system-agnostic AI game master and had quietly become half a D&D rules
+engine. That made it heavy to maintain and impossible to extend to a second game system. Two modules,
+neither depending on the other, fixes both — and a `noodlr-hooks-pf2e` now only has to speak the same
+protocol rather than be squeezed in here.
+
+**What left this module.** Action-economy enforcement, Speed and Dash, conditions, dying and death
+saves, concentration, stealth and hiding, surprise, hostile creatures starting fights on their own,
+pushes and pulls, opportunity attacks, the monster tactics planner and Act as NPC, and the sheet
+surveys. Sixteen settings went with them, along with the **Take the Hide action** toolbar button —
+declare a Hide from the token HUD's *hiding* toggle or your character sheet's Hide action instead, both
+of which the new module already watches.
+
+**What is new here.**
+
+- **Rules-module detection.** Noodlr looks for any active `noodlr-hooks-*` module and lists what it
+  finds at the top of the **game rules system** picker, above the manual list. With none installed the
+  game-system integration controls grey out and say why. `api.hooksModules()` reports what was found.
+- **Behavioral automation** replaces *Combat automation* in Text Generation. This is the social half of
+  a fight: a creature that flees, surrenders or spares the party asks Noodlr to give that moment words,
+  spoken in its own voice if TTS is on. Bribery, parley, intimidation, deception, ambush and
+  distraction are wired and waiting on triggers. On by default, greyed with no rules module installed.
+- **The chatbots now hear the table.** Every ruling the rules module makes is announced to Noodlr, so
+  asking Polly Histor what just happened gets an answer from the last twenty rulings rather than from
+  whatever was in chat.
+- **Monster banter stayed here**, since it is voice rather than rules, and now works from a profile the
+  rules module reads off the sheet.
+
+**Your settings and your Active Effects survive.** The new module copies your tuned combat settings
+across on first load, and reads both flag namespaces — an Active Effect you built against
+`flags.noodlr.extraAction` or any other documented escape hatch keeps working, permanently.
+
 ## 0.4.48
 
 - **Dashing no longer costs twice.** If your world has the 2024 Player's Handbook action items — and with

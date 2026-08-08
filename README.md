@@ -12,15 +12,22 @@ design, with D&D 5e as the first-class test case.
 - a deliberate refusal to AI-ify mechanics that automation modules (Midi QoL, DAE, Chris's Premades,
   Gambit's, …) already handle perfectly.
 
-> **Status: v0.4.x, pre-1.0.** Running and actively tested in a live Foundry world, but not yet at the
+> **Status: v0.5.x, pre-1.0.** Running and actively tested in a live Foundry world, but not yet at the
 > parity bar we've set for 1.0.0. Expect rough edges, and expect settings to move.
+>
+> **0.5.0 removed the D&D 5e rules automation** that had accumulated here — the action economy, Speed,
+> conditions, dying, concentration, stealth, forced movement, reactions and the monster tactics planner
+> — into a separate module, [Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e).
+> Install that alongside this one to get all of it back, plus everything since. Noodlr is once again a
+> game-system-agnostic AI game master, which is what principle 1 always said it was.
 
 ## Design principles
 
 1. **No hardcoded game-system rules.** Rules live in retrieval and in the model's own competence. The
    module ships zero rules logic, so it works for any system whose books you feed it.
 2. **Mechanics belong to mechanics modules.** Noodlr narrates, decides, and adjudicates; it never
-   re-implements what a mundane automation module resolves instantly and for free.
+   re-implements what a mundane automation module resolves instantly and for free. Its own rules
+   automation lives in a separate, optional module for the same reason.
 3. **Two provider shapes only.** OpenRouter (API key) or any hand-entered OpenAI-compatible base URL
    (+ optional key), applied uniformly to chat, embeddings, rerank, TTS, image, music, video, and
    transcription. No per-vendor client zoo, no asking you for six consumer API keys.
@@ -33,6 +40,9 @@ design, with D&D 5e as the first-class test case.
 - **Foundry VTT v13 or newer** (verified against v14).
 - **An OpenRouter API key**, or any OpenAI-compatible endpoint, for chat. Everything else — memory,
   voice, images, music, video, transcription — is optional and configured independently.
+- **A rules module is optional.** Without one, Noodlr plays a game it is told about rather than one it
+  enforces. With [Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e), it also hears
+  every ruling as it happens and speaks for the creatures the planner is running.
 - **Memory is optional to set up.** The default backend runs entirely in your browser with a bundled
   embedding model and needs no server, no key, and no configuration. Point Noodlr at a
   [`noodlr-memory`](https://github.com/gobsmacked1/noodlr-memory) service instead when you want memory
@@ -143,12 +153,32 @@ and post-history instructions last.
 Every generated artifact arrives as a chat card with Retry and Reject for 60 seconds before it commits
 to memory.
 
-### Combat
+### Combat, and the rules modules
 
 A ground-truth state block is rebuilt from Foundry's own combat tracker each turn — initiative, HP
 (tiered for enemies), conditions, and zone positions — and injected as authoritative context, so the
-model narrates from real state instead of copying its own last message. **Run NPC turn** has the model
-decide and narrate the current NPC's action while real dice and your automation modules resolve it.
+model narrates from real state instead of copying its own last message. That much needs nothing else
+installed and works in any system.
+
+Everything beyond it comes from a companion rules module. Noodlr looks for any active module named
+`noodlr-hooks-*`, reads what it declares it enforces, and lists it at the top of the **game rules
+system** picker; with none installed, the game-system integration controls grey out and Noodlr behaves
+as a detached chatbot and media generator. Today that means
+[Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e), which enforces D&D 5e (2024) and
+plays monsters through a deterministic tactical planner with no AI cost.
+
+When one is present, **Behavioral automation** (on by default) gives Noodlr the social half of combat:
+
+- every ruling the rules module makes is announced to Noodlr, so the chatbots know what happened at the
+  table and can adjudicate, undo or overrule it;
+- a creature that decides to flee, surrender or spare the party asks Noodlr to play that scene — in its
+  own voice, aloud, if TTS is on. Bribery, parley, intimidation, deception, ambush and distraction are
+  declared and wired, waiting on triggers;
+- an automated creature's turn is offered to Noodlr before it is announced, which is where monster
+  banter comes from.
+
+Neither module needs the other, and the hook names are generic, so a future `noodlr-hooks-pf2e` would
+be understood without a change here.
 
 ## Chat commands
 
@@ -166,7 +196,7 @@ independently in settings.
 
 ## Where things live
 
-Noodlr's **scene control** holds the chat panels, the four image generators, run-NPC-turn, music and
+Noodlr's **scene control** holds the chat panels, the four image generators, music and
 video, the Lorebook, and the Memory browser. Each role sees exactly one chat button: the GM gets the
 co-pilot, players get **Ask the Table**, and the rest of the tools are GM-only. **Ctrl+Shift+N** opens
 whichever panel suits your role. The push-to-log mic floats at bottom-center whenever transcription is
@@ -177,7 +207,7 @@ Settings live in five windows under **Game Settings**, each opening its own page
 | Window | Holds |
 | --- | --- |
 | **Memory Configuration** | memory backend, retrieval tuning, embeddings, rerank, ingestion, plus Manage Memory and Diagnostics |
-| **Text Generation** | chat provider and model, the assistant's name, the game rules system, every text prompt, author's-note depth, context budget, memory writes, scene awareness |
+| **Text Generation** | chat provider and model, the assistant's name, the game rules system and rules-module integration, every text prompt, author's-note depth, context budget, memory writes, scene awareness |
 | **Audio Generation** | TTS, voices, music, push-to-log transcription |
 | **Image Generation** | the four image generators and video |
 | **Security** | provider API keys |
@@ -209,7 +239,8 @@ noodlr.speak("The tavern door creaks open.");
 await noodlr.generateSceneImage("a rain-lashed harbor at dusk");
 await noodlr.generateMusic("a slow dirge for a funeral procession");
 noodlr.togglePushToLog();
-await noodlr.runNpcTurn();
+noodlr.hooksModules();        // which rules modules are active, and what each declares it enforces
+noodlr.surveyPlayed();        // which character each connected user is actually playing
 ```
 
 ## A note on keys and privacy
