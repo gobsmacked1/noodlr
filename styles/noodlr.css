@@ -396,6 +396,33 @@
   font-size: 0.85em;
 }
 
+/* Finished exports, one clickable link each. The GM must click them; a browser will not save a
+   batch of files without a user gesture behind every one. */
+.noodlr-memory__exportfiles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.noodlr-memory__exportfile {
+  padding: 0.15rem 0.3rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.noodlr-memory__exportfile:hover {
+  background: rgba(120, 90, 200, 0.12);
+}
+
+/* Dimmed once clicked, so a long list stays legible about what is still outstanding. */
+.noodlr-memory__exportfile.is-saved {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
 .noodlr-danger {
   color: #a11;
 }

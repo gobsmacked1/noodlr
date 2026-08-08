@@ -4,7 +4,7 @@
 // Opened from the Memory & Knowledge window's "Manage Memory" button.
 
 import { MODULE_ID, isDeveloperMode } from "../constants";
-import { exportPacks } from "../dev/pack-export";
+import { exportPacks, type ExportResult } from "../dev/pack-export";
 import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
 import { IMPORTANCE, withImportance } from "../rag/importance";
 import { RagClientError } from "../rag/client";
@@ -262,15 +262,21 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     this.#busy = true;
     const status = root?.querySelector<HTMLElement>('[data-role="export-status"]');
+    const list = root?.querySelector<HTMLElement>('[data-role="export-files"]');
     const say = (text: string) => {
       if (status) status.textContent = text;
     };
 
+    this.#releaseExportUrls();
+    if (list) list.replaceChildren();
+
     say(game.i18n.format("NOODLR.Dev.ExportStart", { count: checked.length }));
     try {
-      const { results, failures } = await exportPacks(checked, (p) => {
-        say(`${p.pack}: ${p.processed}/${p.total}`);
-      });
+      const { results, failures } = await exportPacks(
+        checked,
+        (p) => say(`${p.pack}: ${p.processed}/${p.total}`),
+        (result) => this.#addExportLink(list, result),
+      );
 
       const documents = results.reduce((sum, r) => sum + r.documents, 0);
       // Records outnumber documents wherever a creature carries features: each trait, action,
@@ -295,6 +301,54 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
     } finally {
       this.#busy = false;
     }
+  }
+
+  /** Object URLs handed to the export links, released when the window closes or a run restarts. */
+  #exportUrls: string[] = [];
+
+  /**
+   * Hold the blobs until the window closes.
+   *
+   * Revoking on a timer would be simpler and wrong: an export is tens of megabytes per pack and the
+   * GM may work through a dozen links at their own pace, so a link that expired while they were
+   * still saving would fail with nothing to explain it.
+   */
+  _onClose(options?: unknown): void {
+    this.#releaseExportUrls();
+    (super._onClose as ((o?: unknown) => void) | undefined)?.call(this, options);
+  }
+
+  /**
+   * Offer one finished pack as a link the GM clicks.
+   *
+   * A link rather than a scripted download, because a scripted one cannot be made to work: browsers
+   * block a burst of programmatic saves, so only the first arrives, and the rest fail with no error
+   * anywhere. A click on a real anchor carries a user gesture, so every file saves and every file
+   * keeps the name in its `download` attribute.
+   */
+  #addExportLink(list: HTMLElement | null | undefined, result: ExportResult): void {
+    if (!list) return;
+    const url = URL.createObjectURL(result.blob);
+    this.#exportUrls.push(url);
+
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = result.file;
+    anchor.className = "noodlr-memory__exportfile";
+    anchor.append(
+      Object.assign(document.createElement("i"), { className: "fa-solid fa-download" }),
+      document.createTextNode(
+        ` ${result.file} — ${result.records} records, ${(result.bytes / 1_048_576).toFixed(1)} MB`,
+      ),
+    );
+    // A saved link dims, so a long list stays legible about what is still outstanding.
+    anchor.addEventListener("click", () => anchor.classList.add("is-saved"));
+    list.append(anchor);
+  }
+
+  #releaseExportUrls(): void {
+    for (const url of this.#exportUrls) URL.revokeObjectURL(url);
+    this.#exportUrls = [];
   }
 
   /** Tick or untick every pack checkbox at once; 60-odd packs is too many to click through. */

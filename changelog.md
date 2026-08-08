@@ -2,9 +2,26 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.5.3
+
+**Fixes the compendium export again: 0.5.2 saved only the first compendium you ticked, under a
+scrambled name.** Developer tools only; nothing else is affected.
+
+Selecting five compendiums produced one file called something like `2jfYE0kS`, with no extension,
+holding only the first of the five. Both halves of that are the browser refusing to be driven:
+saving a file without you clicking anything is something browsers permit grudgingly and only once,
+so the second and later files were dropped with no error reported anywhere, and the name Noodlr
+asked for was ignored along with them.
+
+No amount of waiting between files fixes that, so the export no longer tries to save anything on
+your behalf. Each compendium now appears as a download link as soon as it is built, and you click
+each one to save it — a real click carries the permission a script does not, so every file arrives
+and every file keeps its proper `<compendium>.jsonl` name. Links dim once used, so you can see what
+is left, and they stay valid until you close the Memory window.
+
 ## 0.5.2
 
-**Fixes the compendium export, which could not write a single file in 0.5.1.** Developer tools only;
+**Fixed the compendium export, which could not write a single file in 0.5.1.** Developer tools only;
 nothing else is affected.
 
 The export wrote its files into Foundry's media folder, and Foundry only accepts uploads whose file
