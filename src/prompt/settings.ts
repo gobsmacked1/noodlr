@@ -49,6 +49,18 @@ export function registerPromptSettings(): void {
     default: false,
   });
 
+  // Developer tools. Client-scoped for the same reason as debugLogging: it changes what one person
+  // sees in a window, costs the table nothing, and the thing it unlocks (compendium export) is
+  // already gated behind GM upload permission.
+  game.settings.register(MODULE_ID, SETTINGS.developerMode, {
+    name: L("DeveloperMode.Name"),
+    hint: L("DeveloperMode.Hint"),
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false,
+  });
+
   // Tipster (live scene briefing) — enabled independently per chatbot, since the GM and the
   // players-only bot have different needs and the GM may want to trial it on one side first.
   // Also rendered in the Text Generation window, alongside the prompts it augments.

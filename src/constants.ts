@@ -55,6 +55,9 @@ export const SETTINGS = {
   /** Verbose console diagnostics for both chatbots (prompt payloads, relay round trip). */
   debugLogging: "debugLogging",
 
+  /** Reveal developer-only tools (compendium export for the offline rules miner). */
+  developerMode: "developerMode",
+
   // --- Tipster: live scene briefing (T1) ---
   /** Inject the live scene briefing into the GM chatbot's prompts. */
   tipsterGm: "tipster.gm",
@@ -236,6 +239,15 @@ export function debug(label: string, ...args: unknown[]): void {
 export function isDebugEnabled(): boolean {
   try {
     return Boolean(game?.settings?.get(MODULE_ID, SETTINGS.debugLogging));
+  } catch {
+    return false;
+  }
+}
+
+/** True when developer-only tools should be shown. Read defensively, like isDebugEnabled. */
+export function isDeveloperMode(): boolean {
+  try {
+    return Boolean(game?.settings?.get(MODULE_ID, SETTINGS.developerMode));
   } catch {
     return false;
   }

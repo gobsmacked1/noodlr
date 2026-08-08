@@ -3,7 +3,8 @@
 // settings live in the Memory & Knowledge window; this window handles the data actions.
 // Opened from the Memory & Knowledge window's "Manage Memory" button.
 
-import { MODULE_ID } from "../constants";
+import { MODULE_ID, isDeveloperMode } from "../constants";
+import { corpusFolderPath, exportPacks } from "../dev/pack-export";
 import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
 import { IMPORTANCE, withImportance } from "../rag/importance";
 import { RagClientError } from "../rag/client";
@@ -27,6 +28,8 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
       resetSilo: NoodlrMemoryApp.#onResetSilo,
       ingestPack: NoodlrMemoryApp.#onIngestPack,
       ingestFile: NoodlrMemoryApp.#onIngestFile,
+      exportPacks: NoodlrMemoryApp.#onExportPacks,
+      selectAllPacks: NoodlrMemoryApp.#onSelectAllPacks,
     },
   };
 
@@ -77,7 +80,16 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
       })
       .sort((a, b) => a.label.localeCompare(b.label));
 
-    return { enabled, online, backend, silos, siloOptions, packs };
+    return {
+      enabled,
+      online,
+      backend,
+      silos,
+      siloOptions,
+      packs,
+      developer: isDeveloperMode(),
+      corpusFolder: corpusFolderPath(),
+    };
   }
 
   static async #onTest(this: NoodlrMemoryApp): Promise<void> {
@@ -226,6 +238,74 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
     } finally {
       this.#busy = false;
     }
+  }
+
+  /**
+   * Export the ticked packs as JSONL for the offline rules miner.
+   *
+   * Separate from ingest on purpose: this writes complete, untruncated documents to disk and sends
+   * nothing anywhere, whereas ingest summarizes and embeds. Sharing a button would eventually mean
+   * sharing an extraction path, and a truncated export silently produces a wrong gap inventory.
+   */
+  static async #onExportPacks(this: NoodlrMemoryApp): Promise<void> {
+    if (this.#busy) return;
+    const root = this.element as HTMLElement | null;
+    const checked = [
+      ...(root?.querySelectorAll<HTMLInputElement>('[data-role="export-pack"]') ?? []),
+    ]
+      .filter((box) => box.checked)
+      .map((box) => box.value);
+
+    if (checked.length === 0) {
+      ui.notifications?.warn(game.i18n.localize("NOODLR.Dev.ExportNoPacks"));
+      return;
+    }
+
+    this.#busy = true;
+    const status = root?.querySelector<HTMLElement>('[data-role="export-status"]');
+    const say = (text: string) => {
+      if (status) status.textContent = text;
+    };
+
+    say(game.i18n.format("NOODLR.Dev.ExportStart", { count: checked.length }));
+    try {
+      const { results, failures } = await exportPacks(checked, (p) => {
+        say(`${p.pack}: ${p.processed}/${p.total}`);
+      });
+
+      const documents = results.reduce((sum, r) => sum + r.documents, 0);
+      const megabytes = (results.reduce((sum, r) => sum + r.bytes, 0) / 1_048_576).toFixed(1);
+      say(
+        game.i18n.format("NOODLR.Dev.ExportDone", {
+          packs: results.length,
+          documents,
+          size: megabytes,
+          folder: corpusFolderPath(),
+        }),
+      );
+      for (const failure of failures) {
+        ui.notifications?.error(`${failure.packId}: ${failure.error}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      say(msg);
+      ui.notifications?.error(msg);
+    } finally {
+      this.#busy = false;
+    }
+  }
+
+  /** Tick or untick every pack checkbox at once; 60-odd packs is too many to click through. */
+  static #onSelectAllPacks(this: NoodlrMemoryApp, _event: Event, target: HTMLElement): void {
+    const root = this.element as HTMLElement | null;
+    const boxes = [
+      ...(root?.querySelectorAll<HTMLInputElement>('[data-role="export-pack"]') ?? []),
+    ];
+    const turnOn = boxes.some((box) => !box.checked);
+    boxes.forEach((box) => (box.checked = turnOn));
+    target.textContent = game.i18n.localize(
+      turnOn ? "NOODLR.Dev.ExportSelectNone" : "NOODLR.Dev.ExportSelectAll",
+    );
   }
 
   #selectedSilo(selectName: string): SiloId | null {

@@ -36,6 +36,7 @@ import { registerArtifactHooks, handleArtifactSocket } from "./output/artifacts"
 import { initChatSniffer } from "./log/chat-sniffer";
 import { initAdjudicationCapture } from "./players/adjudication";
 import { surveyPlayed } from "./util/played-survey";
+import { exportPacks } from "./dev/pack-export";
 import { loadBanter } from "./behavior/banter-library";
 import { registerBehaviorHooks } from "./behavior/listen";
 import { detectHooksModules } from "./integration/hooks-modules";
@@ -72,6 +73,8 @@ export interface NoodlrApi {
   surveyPlayed(): Record<string, unknown>;
   /** Every active `noodlr-hooks-*` rules module and what it says it enforces. */
   hooksModules(): unknown;
+  /** Developer only: write compendiums to disk as JSONL for the offline rules miner. */
+  exportPacks(packIds: string[]): Promise<unknown>;
 }
 
 const api: NoodlrApi = {
@@ -120,6 +123,13 @@ const api: NoodlrApi = {
   surveyPlayed: () => surveyPlayed(),
   /** Which rules modules are installed, and what each declares. First stop when rules go unenforced. */
   hooksModules: () => detectHooksModules(),
+  /**
+   * Bulk export for the rules miner. Ticking sixty checkboxes is worse than one console call, and
+   * this is the path a repeat run will actually use:
+   *   api.exportPacks(game.packs.filter(p => p.metadata.packageName.startsWith("dnd-")).map(p => p.collection))
+   */
+  exportPacks: (packIds: string[]) =>
+    exportPacks(packIds, (p) => log(`${p.pack}: ${p.processed}/${p.total}`)),
 };
 
 Hooks.once("init", () => {

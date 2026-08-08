@@ -86,6 +86,34 @@
     {{/if}}
   </fieldset>
 
+  {{#if developer}}
+    <fieldset class="noodlr-memory__section noodlr-memory__dev">
+      <legend><i class="fa-solid fa-flask"></i> {{localize "NOODLR.Dev.ExportTitle"}}</legend>
+      <p class="notes">{{localize "NOODLR.Dev.ExportHint"}}</p>
+      {{#if packs.length}}
+        <div class="noodlr-memory__toolbar">
+          <button type="button" data-action="selectAllPacks">{{localize "NOODLR.Dev.ExportSelectAll"}}</button>
+          <button type="button" data-action="exportPacks">
+            <i class="fa-solid fa-file-export"></i> {{localize "NOODLR.Dev.ExportButton"}}
+          </button>
+        </div>
+        <p class="notes"><code>{{corpusFolder}}</code></p>
+        <div class="noodlr-memory__packlist">
+          {{#each packs}}
+            <label class="noodlr-memory__packrow">
+              <input type="checkbox" data-role="export-pack" value="{{this.id}}" />
+              <span>{{this.label}}</span>
+              <span class="noodlr-memory__packtype">{{this.type}}</span>
+            </label>
+          {{/each}}
+        </div>
+        <p class="notes" data-role="export-status"></p>
+      {{else}}
+        <p>{{localize "NOODLR.Rag.NoPacks"}}</p>
+      {{/if}}
+    </fieldset>
+  {{/if}}
+
   <fieldset class="noodlr-memory__section">
     <legend>{{localize "NOODLR.Rag.Upload"}}</legend>
     <p class="notes">{{localize "NOODLR.Rag.UploadHint"}}</p>
