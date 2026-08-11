@@ -14,6 +14,7 @@ import { MODULE_ID, SETTINGS, warn } from "../constants";
 import { isPrimaryGM } from "../util/gm";
 import {
   DM_SYSTEM_PROMPT,
+  CAPABILITY_COMPILER_PROMPT,
   DEFAULT_BEHAVIOR_PROMPT,
   DEFAULT_COMBAT_REMINDER,
   PLAYERS_SYSTEM_PROMPT,
@@ -131,6 +132,16 @@ const TEXT_FIELDS: PromptFieldDef[] = [
     hint: "NOODLR.Behavior.PromptHint",
     default: DEFAULT_BEHAVIOR_PROMPT,
     rows: 5,
+    maxLength: SYSTEM_PROMPT_MAX_LENGTH,
+  },
+  {
+    // The doctrine half of the capability compiler's system message. The vocabulary half is
+    // generated from the request and is deliberately not editable — see capability/compile.ts.
+    key: "capability.systemPrompt",
+    label: "NOODLR.Capability.PromptName",
+    hint: "NOODLR.Capability.PromptHint",
+    default: CAPABILITY_COMPILER_PROMPT,
+    rows: 8,
     maxLength: SYSTEM_PROMPT_MAX_LENGTH,
   },
   {

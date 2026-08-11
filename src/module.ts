@@ -39,6 +39,7 @@ import { surveyPlayed } from "./util/played-survey";
 import { exportPacks } from "./dev/pack-export";
 import { loadBanter } from "./behavior/banter-library";
 import { registerBehaviorHooks } from "./behavior/listen";
+import { registerCapabilityCompiler } from "./capability/compile";
 import { detectHooksModules } from "./integration/hooks-modules";
 import {
   PLAYER_ASK,
@@ -145,6 +146,10 @@ Hooks.once("init", () => {
   // client and at `init`, because a rules module may announce a turn before `ready` on a slow world,
   // and because the taunt has to be spoken by the client that hears the hook, GM or not.
   registerBehaviorHooks();
+
+  // The other direction of the same seam: a rules module handing us prose it cannot interpret. The
+  // listener declines on a non-GM client, so registering it everywhere is free.
+  registerCapabilityCompiler();
 
   // Expose the API on the module entry so it's reachable as
   // game.modules.get("noodlr").api during development.

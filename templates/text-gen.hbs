@@ -112,11 +112,33 @@
         {{localize "NOODLR.Behavior.Banter.Name"}}
       </label>
       <p class="notes">{{localize "NOODLR.Behavior.Banter.Hint"}}</p>
+
+      <label class="noodlr-inline">
+        <input type="checkbox" name="capability" {{#if capability.enabled}}checked{{/if}} />
+        {{localize "NOODLR.Capability.Enabled.Name"}}
+      </label>
+      <p class="notes">{{localize "NOODLR.Capability.Enabled.Hint"}}</p>
+
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Capability.Model.Name"}}</label>
+        <p class="notes">{{localize "NOODLR.Capability.Model.Hint"}}</p>
+        <input type="text" name="capabilityModel" value="{{capability.model}}" autocomplete="off"
+          list="noodlr-or-models"
+          placeholder="{{localize 'NOODLR.Capability.Model.Placeholder'}}" />
+      </div>
+
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Capability.Concurrency.Name"}}</label>
+        <p class="notes">{{localize "NOODLR.Capability.Concurrency.Hint"}}</p>
+        <input type="number" name="capabilityConcurrency" value="{{capability.concurrency}}"
+          min="1" max="12" step="1" />
+      </div>
     </div>
 
     {{> noodlrPromptField playersPrompt}}
     {{> noodlrPromptField adjudicationPrompt}}
     {{> noodlrPromptField behaviorPrompt}}
+    {{> noodlrPromptField capabilityPrompt}}
   </fieldset>
 
   {{! ---- Context & injections ---- }}

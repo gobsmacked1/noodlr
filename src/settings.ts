@@ -13,6 +13,7 @@ import { registerRagSettings } from "./rag/config";
 import { registerPromptSettings } from "./prompt/settings";
 import { registerMediaSettings } from "./media/config";
 import { registerBehaviorSettings } from "./behavior/config";
+import { registerCapabilitySettings } from "./capability/config";
 import { registerRulesetSettings } from "./system/ruleset";
 
 export function registerSettings(): void {
@@ -80,6 +81,10 @@ export function registerSettings(): void {
 
   // Behavioral automation: the voice given to a creature that flees, yields, or parleys.
   registerBehaviorSettings();
+
+  // The capability compiler: reading a creature's own written abilities into rules a hooks module
+  // can execute.
+  registerCapabilitySettings();
 
   // Five topic windows, registered in the order they should appear: memory, then the three
   // generation domains, then credentials. Each opens its own page rather than adding another

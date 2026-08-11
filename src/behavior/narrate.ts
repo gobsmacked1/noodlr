@@ -34,12 +34,33 @@ const VERBS: Record<string, string> = {
   DISTRACT: "is trying to pull attention away from something else",
 };
 
+/**
+ * The same verbs read from the receiving end, for a request flagged `incoming`.
+ *
+ * The rules module fires these when somebody leans on a creature and wants to hear its answer — the
+ * Influence action is the producer. The speaker is still the creature named in `actor`, because
+ * noodlr voices NPCs and the party's negotiator must not be handed the microphone; what changes is
+ * who is doing what. Sending the outbound gloss for an inbound request describes the guard captain
+ * as the one doing the persuading, which reads as plausible nonsense rather than as an error.
+ */
+const VERBS_INCOMING: Record<string, string> = {
+  BRIBE: "is being offered something to look the other way",
+  PARLEY: "is being asked to talk terms",
+  INTIMIDATE: "is being threatened into cooperating",
+  PERSUADE: "is being talked round",
+  DECEIVE: "is being lied to, and does not know it",
+  AMBUSH: "has just been ambushed",
+  DISTRACT: "is having its attention pulled elsewhere",
+};
+
 /** Loose by design: the payload is authored by another module, possibly a newer one. */
 interface BehaviorEvent {
   verb?: string;
   actor?: any;
   token?: any;
   target?: any;
+  /** The verb is being done TO `actor`; what is wanted is its answer, still in its own voice. */
+  incoming?: boolean;
   context?: Record<string, unknown>;
   [key: string]: unknown;
 }
@@ -61,12 +82,18 @@ export async function narrateBehavior(event: BehaviorEvent): Promise<void> {
   const subject = event.token ?? event.actor;
   const speakerName = nameOf(subject) || nameOf(event.actor);
   const targetName = nameOf(event.target);
-  const gloss = VERBS[verb] ?? `is taking the ${verb.toLowerCase()} action`;
+  const incoming = Boolean(event.incoming);
+  const gloss = incoming
+    ? (VERBS_INCOMING[verb] ?? `is on the receiving end of the ${verb.toLowerCase()} action`)
+    : (VERBS[verb] ?? `is taking the ${verb.toLowerCase()} action`);
 
   const facts = [
     `Creature: ${speakerName || "an unnamed creature"}`,
-    `What it is doing: it ${gloss}.`,
-    targetName ? `Who it is dealing with: ${targetName}` : "",
+    incoming ? `What is happening to it: it ${gloss}.` : `What it is doing: it ${gloss}.`,
+    targetName
+      ? `${incoming ? "Who is doing it" : "Who it is dealing with"}: ${targetName}`
+      : "",
+    incoming ? "Write its answer, in its own voice." : "",
     describeContext(event.context),
   ]
     .filter(Boolean)

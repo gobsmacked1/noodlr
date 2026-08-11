@@ -10,6 +10,7 @@
     "fetch-model": "node scripts/fetch-model.mjs",
     "package": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1",
     "check": "tsc --noEmit",
+    "test": "node test/run.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

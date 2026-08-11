@@ -4,12 +4,13 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist/", "node_modules/"],
+    ignores: ["dist/", "node_modules/", ".test-build/"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["src/**/*.ts"],
+    // Tests share the source rules: they fake Foundry objects, so `any` is the honest type there too.
+    files: ["src/**/*.ts", "test/**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",

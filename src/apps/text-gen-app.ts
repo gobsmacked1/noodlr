@@ -5,7 +5,13 @@
 // plus the injection slots. The scalars and toggles here used to sit in Foundry's own settings list,
 // where they were separated from the prompts they modify.
 
-import { MODULE_ID, MODULE_TITLE, SETTINGS, BEHAVIOR_SETTINGS } from "../constants";
+import {
+  MODULE_ID,
+  MODULE_TITLE,
+  SETTINGS,
+  BEHAVIOR_SETTINGS,
+  CAPABILITY_SETTINGS,
+} from "../constants";
 import { promptFieldView } from "../prompts/fields";
 import { ASSISTANT_NAME_MAX_LENGTH, getAssistantName } from "../chat/assistant";
 import { sanitizeUserText } from "../util/sanitize";
@@ -21,6 +27,7 @@ import {
 } from "../prompt/settings";
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
 import { isBehaviorEnabled, isNpcBanterEnabled } from "../behavior/config";
+import { getCapabilityConcurrency, isCapabilityCompilerEnabled } from "../capability/config";
 import { detectHooksModules } from "../integration/hooks-modules";
 import {
   detectedSystemLabel,
@@ -120,6 +127,13 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       },
       behavior: isBehaviorEnabled(),
       npcBanter: isNpcBanterEnabled(),
+      capability: {
+        enabled: isCapabilityCompilerEnabled(),
+        // Shown as stored rather than resolved: a blank box means "whatever Chat uses", and filling
+        // it in with the chat model would make that indistinguishable from a deliberate override.
+        model: String(game.settings.get(MODULE_ID, CAPABILITY_SETTINGS.model) ?? ""),
+        concurrency: getCapabilityConcurrency(),
+      },
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
       playersPrompt: promptFieldView(SETTINGS.playersSystemPrompt),
@@ -128,6 +142,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       postHistory: promptFieldView(SETTINGS.postHistory),
       combatReminder: promptFieldView(SETTINGS.combatReminder),
       behaviorPrompt: promptFieldView(BEHAVIOR_SETTINGS.systemPrompt),
+      capabilityPrompt: promptFieldView(CAPABILITY_SETTINGS.systemPrompt),
 
       authorNoteDepth: getAuthorNoteDepth(),
       contextTokenBudget: getContextBudget(),
@@ -173,6 +188,22 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
 
     await set(BEHAVIOR_SETTINGS.enabled, Boolean(o.behavior));
     await set(BEHAVIOR_SETTINGS.banter, Boolean(o.npcBanter));
+
+    await set(CAPABILITY_SETTINGS.enabled, Boolean(o.capability));
+    // A model slug, so the same ASCII discipline as the assistant's name: it goes into a request
+    // body, and a smart quote pasted from a web page is a 400 nobody can see the cause of.
+    await set(
+      CAPABILITY_SETTINGS.model,
+      sanitizeUserText(o.capabilityModel, { maxLength: 200, allowNewlines: false }).replace(
+        /[^\x20-\x7e]/g,
+        "",
+      ),
+    );
+    const lanes = Number(o.capabilityConcurrency);
+    await set(
+      CAPABILITY_SETTINGS.concurrency,
+      lanes >= 1 && lanes <= 12 ? Math.round(lanes) : 4,
+    );
 
     await this.savePromptFields(form);
 

@@ -58,6 +58,36 @@ without installing the companion loses sixteen settings) and **noodlr-hooks-55e 
 `module.json` + `module.zip` attached and both `releases/latest/download/module.json` URLs verified to
 resolve to the right version with a reachable download.
 
+## The capability compiler (2026-08-09) — noodlr's half of the second pivot
+
+`noodlr-hooks-55e` stopped trying to hand-code the rules and became a runtime compiler instead; the
+reasoning, the schema and the deterministic half all live in [that module's AGENTS.md](../noodlr-hooks-55e/AGENTS.md).
+What lives HERE is the half that needs a key: `src/capability/`, listening on `noodlrHooks.compile`.
+
+The division is the same one that has governed the split since day one. The rules module knows the
+game and holds no credentials; noodlr holds the key, so noodlr makes the calls, and holds the rate
+limit, so noodlr decides how many at once. `runPool` and the 429 gate are the corpus miner's proven
+patterns, reused rather than re-derived.
+
+- **Nothing in `src/capability/` knows D&D.** Every trigger event, effect kind, predicate and
+  parameter arrives ON the request, in the `vocabulary` the asking module supplies, and
+  `validateAgainst()` checks the reply against that rather than against anything of ours. This is a
+  hard rule, not tidiness: a `noodlr-hooks-pf2e` must be able to send a different vocabulary and get
+  correct answers with no change here. It is also the same principle as #1 at the top of this file,
+  arriving from the other direction — the game system's knowledge stays in the game system's module.
+- **The model compiles; it never adjudicates.** Prose becomes a descriptor once, at scene load, and
+  deterministic code runs it every turn. The v0.4.22 decision to cut the per-turn model call stands.
+- **Failure is quiet and partial by construction.** A feature that will not validate is dropped and
+  the other nineteen come back; one repair prompt is offered and then it is left alone. The asking
+  module treats a missing descriptor as ordinary, because that is its baseline rather than an error
+  path — with noodlr uninstalled it gets nothing at all and behaves exactly as it always has.
+- **`composeSystemMessage` / `composeUserMessage` / `composeRepairMessage` live in `vocabulary.ts`,
+  not in `compile.ts`, and depend on no Foundry global.** That is deliberate: `noodlr-rules-corpus`
+  imports them directly to run the regression harness over 75,487 mined atoms, and a harness that
+  reimplemented the prompt would be measuring a different compiler than the one that ships.
+  **Do not inline them back into `compile.ts`** — a divergence there is invisible and makes every
+  regression number a lie. `test/seam.test.mjs` in the corpus repo is the guard.
+
 ## Workspace layout (multi-root)
 
 - `C:\Project\noodlr-main\` — **this project**: the AI game master. Own git repo on GitHub.
@@ -1346,9 +1376,22 @@ lorebook/author's-note/post-history injection.
   today. The names are deliberately generic so a `noodlr-hooks-pf2e` needs no change here, but that claim is
   untested until a second module exists — the first one written against this contract will find whatever we
   accidentally assumed.
-- **Seven of the ten behavior verbs have no trigger.** `FLEE`, `SURRENDER` and `MERCY` fire; `BRIBE`,
-  `PARLEY`, `INTIMIDATE`, `PERSUADE`, `DECEIVE`, `AMBUSH` and `DISTRACT` are declared and wired but nothing
-  requests them, so their prompt gloss in `behavior/narrate.ts` has never been exercised against a model.
+- **Two of the ten behavior verbs still have no trigger.** `FLEE`, `SURRENDER` and `MERCY` fire from the
+  rules module's encounter layer, and as of 2026-08-09 `PERSUADE`, `DECEIVE`, `INTIMIDATE`, `BRIBE` and
+  `PARLEY` fire from its new Influence action — so a listener that voices a guard captain's refusal
+  finally has something to hear. `AMBUSH` and `DISTRACT` are declared and wired with nothing requesting
+  them, so their prompt gloss in `behavior/narrate.ts` is still unexercised against a model.
+- **`influence` is a seventh ruling kind**, alongside `condition`, `dying`, `concentration`, `forced`,
+  `surprise` and `encounter`. `behavior/rulings.ts` keeps it in the ring buffer like any other.
+- **A behavior request carrying `incoming: true` is the verb being done TO `actor`, and the gloss must be
+  reversed** (protocol 2, 2026-08-09). Every verb before Influence was self-directed — a creature that
+  FLEEs is the one fleeing — so `narrate.ts` could read `actor` as the doer. A creature that is PERSUADEd
+  is the one *responding*, and it is still the one whose voice is wanted, because noodlr voices NPCs and
+  the party's negotiator must never be handed the microphone. Swapping `actor` and `target` would do
+  exactly that, which is why the contract reverses the sentence instead: `VERBS_INCOMING` holds the
+  receiving-end gloss for the seven verbs that can arrive that way, and the prompt asks for the creature's
+  answer rather than its action. A listener that ignores the flag narrates the right creature saying the
+  wrong thing — plausible nonsense, not an error, so nothing will surface it but a reader at the table.
 - Lorebook storage shape (world-scoped JournalEntry vs module setting vs flat file in world data) — decide in Phase 3.
 - Multi-GM/assistant-GM permissions model for Chronicle review and silo resets.
 - `noodlr.app` domain not yet acquired/configured; git + releases now hosted on `github.com/gobsmacked1` (see Phase 6 status). Revisit if a self-hosted forge / custom domain is preferred.

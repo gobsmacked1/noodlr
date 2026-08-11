@@ -100,6 +100,25 @@ export const BEHAVIOR_SETTINGS = {
 } as const;
 
 /**
+ * The capability compiler: turning a creature's written abilities into rules a hooks module can run.
+ *
+ * Noodlr's half of the `noodlrHooks.compile` contract. The rules module has its own switch for this
+ * and ships it OFF, so both ends have to agree before a single request is paid for — deliberate for
+ * a feature that spends the GM's credit on scene load. Ours defaults ON because it is the answer to
+ * "somebody asked": with no rules module installed nothing ever fires it.
+ */
+export const CAPABILITY_SETTINGS = {
+  /** Whether Noodlr answers a compile request at all. */
+  enabled: "capability.enabled",
+  /** The doctrine half of the compiler's system message; the vocabulary is generated, not stored. */
+  systemPrompt: "capability.systemPrompt",
+  /** Model slug for compilation. Blank means "whatever Chat uses". */
+  model: "capability.model",
+  /** How many features to compile at once. */
+  concurrency: "capability.concurrency",
+} as const;
+
+/**
  * Module socket name for client<->GM relay (push-to-log transcripts, artifact retire, player asks).
  *
  * REQUIRES `"socket": true` in module.json. Without it the server never grants the package a socket
