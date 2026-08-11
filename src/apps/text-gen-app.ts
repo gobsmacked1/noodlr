@@ -200,10 +200,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       ),
     );
     const lanes = Number(o.capabilityConcurrency);
-    await set(
-      CAPABILITY_SETTINGS.concurrency,
-      lanes >= 1 && lanes <= 12 ? Math.round(lanes) : 4,
-    );
+    await set(CAPABILITY_SETTINGS.concurrency, lanes >= 1 && lanes <= 12 ? Math.round(lanes) : 4);
 
     await this.savePromptFields(form);
 

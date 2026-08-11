@@ -2,6 +2,32 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.6.0
+
+**Noodlr can now read a creature's abilities for a rules module, and it trusts a sheet over a
+rulebook.**
+
+### Reading creature abilities
+
+When a rules companion like Noodlr Hooks 5.5e is installed, it can now hand Noodlr the ability text
+off the creatures on a scene and get back something it can execute. Noodlr holds the API key, so
+Noodlr makes the calls; the rules module knows the game, so it decides what is worth asking about.
+This happens once when a scene loads, not during the fight, and the answers are cached — twenty
+goblins sharing one trait cost one reading.
+
+Nothing about this is required, and Noodlr knows nothing about D&D: every term in the question comes
+from the module asking it, so a companion for a different game system would work here unchanged.
+Anything that comes back malformed is dropped and the rest is kept.
+
+### A creature's own sheet outranks the rulebook
+
+If you gave a goblin forty hit points, that is a fact about your goblin, and a retrieved rulebook
+paragraph about the published goblin is a weaker claim about the same creature. Retrieved memory now
+labels every line with where it came from — character sheet, rulebook, or campaign memory — and
+sheets are kept when a tight context budget forces something to be dropped. The same instruction now
+travels with the ruleset block, so it reaches the GM assistant, the players' bot, the adjudicator and
+combat narration alike.
+
 ## 0.5.4
 
 **The compendium export was flattening whole rulebooks into single entries.** Developer tools only.

@@ -130,9 +130,13 @@ export function validateAgainst(
     label?: unknown;
     rules?: unknown;
   };
-  if (!cap || typeof cap !== "object") return { ok: false, errors: ["the answer is not an object"] };
+  if (!cap || typeof cap !== "object")
+    return { ok: false, errors: ["the answer is not an object"] };
   if (!Array.isArray(cap.rules)) {
-    return { ok: false, errors: ['"rules" must be an array (use [] for a purely flavourful trait)'] };
+    return {
+      ok: false,
+      errors: ['"rules" must be an array (use [] for a purely flavourful trait)'],
+    };
   }
 
   cap.rules.forEach((rule: any, index: number) => {
@@ -149,7 +153,9 @@ export function validateAgainst(
     }
     const kind = String(rule.effect?.kind ?? "");
     if (!vocab.effects[kind]) {
-      errors.push(`${at}.effect.kind "${kind}" is not allowed; choose one of the listed effect kinds`);
+      errors.push(
+        `${at}.effect.kind "${kind}" is not allowed; choose one of the listed effect kinds`,
+      );
     } else {
       checkParams(vocab.effects[kind], rule.effect, `${at}.effect`, vocab, errors);
     }
@@ -258,7 +264,9 @@ export function composeRepairMessage(errors: string[]): string {
 /** The vocabulary, rendered for a prompt. Generated rather than written, so it cannot drift. */
 export function describeVocabulary(vocab: Vocabulary): string {
   const line = (kind: string, spec: ParamSpec): string => {
-    const req = spec.required.length ? ` required: ${spec.required.join(", ")}` : " no required parameters";
+    const req = spec.required.length
+      ? ` required: ${spec.required.join(", ")}`
+      : " no required parameters";
     const opt = spec.optional.length ? `; optional: ${spec.optional.join(", ")}` : "";
     const q = spec.quantities.length ? `; quantities: ${spec.quantities.join(", ")}` : "";
     // Marked rather than hidden: an inert kind is still the honest reading of a rule, and the sheet

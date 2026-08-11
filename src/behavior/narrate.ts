@@ -90,9 +90,7 @@ export async function narrateBehavior(event: BehaviorEvent): Promise<void> {
   const facts = [
     `Creature: ${speakerName || "an unnamed creature"}`,
     incoming ? `What is happening to it: it ${gloss}.` : `What it is doing: it ${gloss}.`,
-    targetName
-      ? `${incoming ? "Who is doing it" : "Who it is dealing with"}: ${targetName}`
-      : "",
+    targetName ? `${incoming ? "Who is doing it" : "Who it is dealing with"}: ${targetName}` : "",
     incoming ? "Write its answer, in its own voice." : "",
     describeContext(event.context),
   ]

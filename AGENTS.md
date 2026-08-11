@@ -53,6 +53,16 @@ rules. What replaced the rest:
 midi-qol. With no rules module installed, noodlr is a chatbot and media generator with no NPC
 management, and it says so in the settings window rather than failing quietly.
 
+That last clause turned out to be the important one, and `noodlr-hooks-55e` learned it the hard way on
+2026-08-11: it had accumulated four *silent* stand-asides (AC5e owning conditions, midi owning
+concentration and dying, Gambit's owning opportunity attacks), each individually correct, and together
+they meant a GM could read a checkbox that said ON while nothing happened. It now has an ownership
+resolver and three settings windows that show who is enforcing each rule; the full reasoning is in
+[that module's AGENTS.md](../noodlr-hooks-55e/AGENTS.md) under "A silent stand-aside is a bug report
+waiting to happen". **The transferable rule for this repo: greying "Behavioral automation" when no rules
+module is enabled was the right instinct, and any future stand-aside here needs the same treatment.**
+A capability that switches itself off has to say so in the interface, not only in a comment.
+
 Shipped as **noodlr v0.5.0** (minor bump, not a patch: features were removed, and a GM who upgrades
 without installing the companion loses sixteen settings) and **noodlr-hooks-55e v0.1.0**, both with
 `module.json` + `module.zip` attached and both `releases/latest/download/module.json` URLs verified to

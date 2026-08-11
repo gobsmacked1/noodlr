@@ -156,7 +156,8 @@ export async function completeJson(
       if (aborted && options.signal?.aborted) throw new CompileError("cancelled");
       const error = err as CompileError;
       // A TypeError from fetch is the network, not us, and is worth another go.
-      const retryable = aborted || error?.retryable === true || (err as Error)?.name === "TypeError";
+      const retryable =
+        aborted || error?.retryable === true || (err as Error)?.name === "TypeError";
       if (!retryable || attempt > maxRetries) {
         throw err instanceof CompileError
           ? err
@@ -165,7 +166,9 @@ export async function completeJson(
       const wait = error?.retryAfter
         ? error.retryAfter * 1000
         : Math.min(60_000, 2 ** attempt * 1000) + Math.random() * 1000;
-      warn(`compile retry ${attempt}/${maxRetries} in ${Math.round(wait / 1000)}s: ${error.message}`);
+      warn(
+        `compile retry ${attempt}/${maxRetries} in ${Math.round(wait / 1000)}s: ${error.message}`,
+      );
       // Only a rate limit is everybody's problem. Stalling the other workers for one 500 or one
       // timeout would throw away throughput for nothing.
       if (error?.status === 429) pausedUntil = Math.max(pausedUntil, Date.now() + wait);

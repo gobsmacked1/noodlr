@@ -115,9 +115,7 @@ export function detectedSystemLabel(): string {
 /** The id of the hooks module the GM selected, or "" when the choice is not one of them. */
 export function selectedHooksModuleId(): string {
   const choice = String(game.settings.get(MODULE_ID, SETTINGS.rulesetChoice) ?? RULESET_DEFAULT);
-  return choice.startsWith(RULESET_HOOKS_PREFIX)
-    ? choice.slice(RULESET_HOOKS_PREFIX.length)
-    : "";
+  return choice.startsWith(RULESET_HOOKS_PREFIX) ? choice.slice(RULESET_HOOKS_PREFIX.length) : "";
 }
 
 /** The active hooks module, when the GM picked one and it is still installed. */
@@ -179,7 +177,7 @@ export function buildRulesetBlock(): string {
     "outrank any rulebook text you retrieve: where a sheet and the published rules disagree about " +
     "a specific creature, character, or item, the sheet is correct and the rules are the default " +
     "it was deliberately changed from. Say so out of character rather than switching systems, and " +
-    "never \"correct\" a sheet toward the rulebook."
+    'never "correct" a sheet toward the rulebook.'
   );
 }
 

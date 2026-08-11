@@ -46,9 +46,7 @@ export function speakerFor(subject: any, fallbackName?: string): Record<string, 
   const ChatMessage = (globalThis as any).ChatMessage;
   const doc = subject?.document ?? subject;
   const actor = doc?.actor ?? (doc?.documentName === "Actor" ? doc : subject?.actor) ?? null;
-  const alias = String(
-    fallbackName ?? subject?.name ?? doc?.name ?? actor?.name ?? "",
-  ).trim();
+  const alias = String(fallbackName ?? subject?.name ?? doc?.name ?? actor?.name ?? "").trim();
 
   try {
     const token = doc?.documentName === "Token" ? doc : null;

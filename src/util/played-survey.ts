@@ -22,9 +22,9 @@ export function surveyPlayed(): Record<string, unknown> {
     assigned: user?.character?.name ?? null,
     assignedOnScene: Boolean(
       user?.character?.id &&
-        ((canvas as any)?.tokens?.placeables ?? []).some(
-          (t: any) => String(t?.actor?.id ?? "") === String(user.character.id),
-        ),
+      ((canvas as any)?.tokens?.placeables ?? []).some(
+        (t: any) => String(t?.actor?.id ?? "") === String(user.character.id),
+      ),
     ),
     // Strongest signal first: selection, then the assigned character's token, then anything else owned here.
     playing: playedTokens(user).map((t: any) => String(t?.name ?? "?")),
