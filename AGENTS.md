@@ -547,6 +547,11 @@ Implementation notes worth keeping:
 - `game.time.components` + `.calendar` for real month/day/season names, with a `worldTime`-seconds
   fallback that stays silent unless the GM actually advanced the clock (avoids printing a fake
   "day 1, 00:00" for worlds that never touch time).
+  - **Calendar modules feed this rather than bypass it, confirmed from source 2026-08-11.** Calendaria
+    sets `CONFIG.time.worldCalendarClass` to a subclass (`calendaria.mjs:179`), so `worldTime` stays the
+    canonical clock and `.components`/`.calendar` return its richer answer — a world running one gets
+    real month and season names here for free. The only rule that follows: read the calendar by duck
+    typing, never by `instanceof` against a core class. Tipster already does.
 - Regions capped at 8 names with a `+N more` tail (nearest-N discipline starts here).
 
 ### Debug logging + three fixes (v0.4.9, 2026-07-31)
