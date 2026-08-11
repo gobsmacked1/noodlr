@@ -200,6 +200,24 @@ What it provides:
 - **Hybrid retrieval:** dense + BM25 sparse fused by Reciprocal Rank Fusion; re-ranked by `importance` + `recency`; multi-query (Agent Mode) fusion with entity soft-boosting.
 - **HTTP API** under `/v1`: `health`, `collections`, `ingest`, `ingest-file`, `insert`, `query` (hybrid + weights + multi-query), `list`, `delete`, `purge`, `purge-all`.
 - **Security:** shared-secret header `x-noodlr-secret`, localhost bind by default (HOST 127.0.0.1, PORT 3010, env prefix `NOODLR_MEMORY_*`), filename sanitization, body-size caps. CORS reflects the request Origin and pre-answers OPTIONS (the secret header always triggers a preflight cross-origin). `DEPLOYMENT.md` has the Linux/systemd guide.
+- **Rate limits (v1.1.1, 2026-08-11):** `embedTexts` had no 429 handling of any kind, and its
+  recovery path was an amplifier. A failed batch was retried **one item at a time, immediately** —
+  which is right for a poison document and exactly wrong for a rate limit, since it fires
+  `batchSize` more requests at an endpoint that just said stop and then throws from the first of
+  them anyway. Hedging made it worse from the other side: a duplicate request fires when the first
+  stalls past `EMBED_HEDGE_MS`, and a rate-limited provider is *slow*, so the hedge doubled the
+  request rate precisely when the account could least afford it. Now: retry with `Retry-After` or
+  exponential backoff and jitter, a **process-wide** pause on 429 (a limit belongs to the key, so
+  everything in flight must honour one — the corpus miner's gate, ported), hedging stands down for a
+  minute after any 429, and a rate-limited batch is reported rather than fanned out. 401/402/400 are
+  never retried. New knobs: `EMBED_MAX_RETRIES` (5), `EMBED_MIN_INTERVAL_MS` (0, a pacing floor).
+  **Nothing in noodlr's ingest path ever changed** — `ingestCompendium` has always awaited one batch
+  of 25 documents at a time. What changed was the provider's tolerance and the fact that resetting
+  every silo means re-embedding the whole corpus in one unbroken run, which is the first workload
+  that ever reached the limit. `test/embeddings.test.js` covers all of it; the old behaviour was
+  untested, same as the `k must be positive` bug below.
+  **The first lever against a requests-per-minute limit is `EMBED_BATCH_SIZE`**, not backoff: the
+  limit counts requests and not texts, so 16 → 64 is a straight 4× cut in calls for identical work.
 - **Listeners (v1.1.0, 2026-08-01):** TCP **and** the optional Unix socket run at the same time. Before 1.1 a socket path switched TCP off entirely, which presumed Foundry and the service shared one Linux host; Windows hosts have no socket and some admins run the service on a separate box. `NOODLR_MEMORY_PORT=0` opts out of TCP; a socket path on Windows warns and is ignored; each listener reports its own bind failure and the process exits only if neither starts.
 
 How noodlr-main interacts with it (the integration contract):
