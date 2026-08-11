@@ -70,9 +70,11 @@ export function isSiloId(id: string): id is SiloId {
   return Object.prototype.hasOwnProperty.call(SILOS, id);
 }
 
-// Per-bot retrieval SELECT scope + precedence, transcribed from the access matrix
-// (noodlr-memory/scripts/RAG_Collections_Access-Order-Intent.csv). Order = query/injection
-// precedence (rules first; then the audience's own truth; shared logs/docs last).
+// Per-bot retrieval SELECT scope, transcribed from the access matrix
+// (noodlr-memory/scripts/RAG_Collections_Access-Order-Intent.csv). The order below is the matrix's
+// stated intent and nothing more: all of these ids go into ONE fused query, so what comes back is
+// ranked by score and the array order never reaches the model. Injection precedence is decided by
+// `precedenceRank` at the bottom of this file.
 //
 // SECURITY: PLAYER_QUERY_SILOS is also the hard whitelist for the players-only chatbot. Its
 // RagClient must be constrained to exactly these ids so a prompt-injecting player physically
@@ -142,6 +144,52 @@ export const PLAYER_QUERY_SILOS: SiloId[] = [
 
 /** Default silos queried at prompt-assembly time = the GM co-pilot scope. */
 export const DEFAULT_QUERY_SILOS: SiloId[] = GM_QUERY_SILOS;
+
+// A creature's own sheet outranks the rulebook (user's edict, 2026-08-10).
+//
+// A GM who gave a goblin 40 hit points and a fear aura has stated a fact about that goblin. A
+// retrieved rulebook paragraph describing the published goblin is a weaker claim about the same
+// creature, not a correction to be applied — and the bot that "corrects" it is the same failure as
+// the v0.4.20 wrong-system ruling: confident, plausible, and wrong about the only thing that
+// mattered.
+//
+// NOTE the ordering of GM_QUERY_SILOS / PLAYER_QUERY_SILOS does NOT implement this, despite what
+// their header comment has always claimed. Every silo goes into ONE fused query and the results come
+// back ranked by score, so the array order is documentation. These helpers are the mechanism: they
+// label each hit by what it is and hoist sheets in the block the model actually reads.
+
+/** Silos holding a specific creature's own data, as opposed to the rules it is played by. */
+export const SHEET_SILOS: SiloId[] = ["gm_sheets", "player_sheets"];
+
+/** What a retrieved hit IS, which decides how it is labelled and whether it can be trimmed. */
+export type RetrievalKind = "sheet" | "rules" | "memory";
+
+/**
+ * Classify a hit by the silo it came from. An unknown or missing silo is "memory" — the neutral
+ * answer, since claiming a hit is a sheet would grant it precedence it was never given.
+ */
+export function retrievalKind(silo: string | undefined): RetrievalKind {
+  if (!silo) return "memory";
+  if ((SHEET_SILOS as string[]).includes(silo)) return "sheet";
+  if (silo === "system_rules") return "rules";
+  return "memory";
+}
+
+/** How a kind is named to the model. Short: this rides on every retrieved line. */
+export const RETRIEVAL_KIND_LABEL: Record<RetrievalKind, string> = {
+  sheet: "character sheet",
+  rules: "rulebook",
+  memory: "campaign memory",
+};
+
+/**
+ * Sort key for the injected block; lower comes first. Sheets are hoisted so that a tight token
+ * budget trims published rules rather than this table's own customizations — precedence that only
+ * held when everything happened to fit would be no precedence at all.
+ */
+export function precedenceRank(silo: string | undefined): number {
+  return retrievalKind(silo) === "sheet" ? 0 : 1;
+}
 
 /** gm_* secret silos (+ system_rules) — the adjudication scope the GM bot consults to decide a
  *  player check's outcome. Never queried on a player's behalf directly. */

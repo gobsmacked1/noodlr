@@ -154,9 +154,15 @@ export function getRulesetName(): string {
 /**
  * The authoritative statement, injected once per request into every bot's prompt.
  *
- * Kept to ~45 tokens: it rides along on every turn, so the wording buys precedence (what outranks
+ * Kept to ~70 tokens: it rides along on every turn, so the wording buys precedence (what outranks
  * what) and a failure mode (say something rather than switch systems) and nothing else. Rules
  * content belongs in the `system_rules` silo, not here.
+ *
+ * The sheet-over-RAW clause (user's edict, 2026-08-10) lives here rather than in an editable prompt
+ * for the same reason the system name does — a guard that can be deleted by rewriting an unrelated
+ * paragraph is not a guard — and it belongs in this block rather than only in the retrieved-memory
+ * header because most sheet facts reach the model as LIVE Foundry state (the combat block, the
+ * Tipster briefing), on turns where retrieval returned nothing at all.
  */
 export function buildRulesetBlock(): string {
   const name = getRulesetName();
@@ -169,8 +175,11 @@ export function buildRulesetBlock(): string {
   return (
     `# Game system\nRules system: ${name}. This is authoritative. Never deduce the system from ` +
     "adventure titles, place names, or prior associations — published adventures are frequently " +
-    "converted between systems. Live Foundry data and the characters' own sheets outrank both. " +
-    "If something contradicts this, say so out of character rather than switching systems."
+    "converted between systems. Live Foundry data and a creature's own sheet outrank both, and " +
+    "outrank any rulebook text you retrieve: where a sheet and the published rules disagree about " +
+    "a specific creature, character, or item, the sheet is correct and the rules are the default " +
+    "it was deliberately changed from. Say so out of character rather than switching systems, and " +
+    "never \"correct\" a sheet toward the rulebook."
   );
 }
 

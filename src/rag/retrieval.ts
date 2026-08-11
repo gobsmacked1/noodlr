@@ -17,7 +17,13 @@ import { rerankDocuments } from "../providers/rerank";
 import { bumpStats } from "../util/stats";
 import type { RagHit } from "./client";
 import { isCombatActive } from "../combat/tracker";
-import { isSiloId, type SiloId } from "./silos";
+import {
+  isSiloId,
+  precedenceRank,
+  retrievalKind,
+  RETRIEVAL_KIND_LABEL,
+  type SiloId,
+} from "./silos";
 import { isRetracted } from "./retraction";
 
 /** Rough token estimate (~4 chars/token) — good enough for budgeting. */
@@ -129,17 +135,28 @@ async function maybeRerank(query: string, hits: RagHit[], signal?: AbortSignal):
 function formatContextBlock(hits: RagHit[], tokenBudget: number): string | null {
   const header =
     "# Retrieved campaign memory\n" +
-    "Authoritative reference retrieved from the campaign's memory. Use it to stay consistent; quote only when it matters.\n";
+    "Authoritative reference retrieved from the campaign's memory. Use it to stay consistent; quote only when it matters.\n" +
+    "Each entry is tagged with what it is. Where a [character sheet] entry and a [rulebook] entry " +
+    "disagree about a specific creature, character, or item, the sheet wins: it is this table's " +
+    "deliberate customization, and the rulebook is the generic default it was customized away from.\n";
   let used = estimateTokens(header);
   const lines: string[] = [];
   const seen = new Set<string>();
 
-  for (const hit of hits) {
+  // Sheets first, relevance order preserved inside each group (Array#sort is stable). A precedence
+  // that held only when everything fit in the budget would be no precedence at all — so when the
+  // budget runs out it is published rules that get trimmed, never the table's own sheets.
+  const ordered = [...hits].sort(
+    (a, b) => precedenceRank(a.collection) - precedenceRank(b.collection),
+  );
+
+  for (const hit of ordered) {
     const text = (hit.text ?? "").trim();
     if (!text || seen.has(text)) continue;
     const source =
       typeof hit.metadata?.sourceName === "string" ? ` (${hit.metadata.sourceName})` : "";
-    const line = `- ${text}${source}`;
+    const tag = RETRIEVAL_KIND_LABEL[retrievalKind(hit.collection)];
+    const line = `- [${tag}] ${text}${source}`;
     const cost = estimateTokens(line);
     if (used + cost > tokenBudget) break;
     used += cost;

@@ -1294,6 +1294,32 @@ lorebook/author's-note/post-history injection.
 
 ## Hard-won invariants
 
+- **A creature's own sheet outranks the rulebook, and the silo arrays were never what enforced it
+ (user's edict, 2026-08-10).** A GM who gave a goblin 40 hit points has stated a fact about that
+ goblin; a retrieved rulebook paragraph about the published goblin is a weaker claim about the same
+ creature, not a correction. Three things had to change, and the first is the trap:
+ - **`GM_QUERY_SILOS` / `PLAYER_QUERY_SILOS` order is documentation, not mechanism.** Their header
+ comment claimed "Order = query/injection precedence (rules first...)" since the 35-silo migration
+ and it was never true: every silo goes into ONE fused `client.query()` and comes back ranked by
+ score, so the array order never reaches the model. Reordering those arrays to "fix" precedence
+ changes nothing. `precedenceRank()` in `silos.ts` is the mechanism.
+ - **The block could not express the edict because it never said what a hit was.** Hits carried no
+ origin, so a sheet excerpt and a rulebook excerpt were indistinguishable bullets. The service had
+ stamped `collection` on every hit all along (`routes/vectors.js` `list.push({collection, ...h})`)
+ and `RagHit` simply never declared it; RAG Lite genuinely dropped it and now stamps it from a
+ per-silo id map. Every line is now tagged `[character sheet]` / `[rulebook]` / `[campaign memory]`.
+ - **Sheets are hoisted before the budget loop, not after.** `formatContextBlock` stable-sorts by
+ `precedenceRank` so relevance order survives within each group while a tight `tokenBudget` trims
+ published rules instead of the table's own customizations — precedence that held only when
+ everything fit would be no precedence at all.
+ - The clause also lives in `buildRulesetBlock()` rather than only in the retrieved-memory header,
+ because most sheet facts reach the model as LIVE Foundry state (the combat block, the Tipster
+ briefing) on turns where retrieval returned nothing. Being in that block means all four generation
+ paths get it from one edit, which is the v0.4.20 lesson paying off. **Not a prompt field**, for the
+ usual reason: a guard deletable by rewriting an unrelated paragraph is not a guard.
+ - Deliberately NOT done: re-weighting `importance` per source book on ingest. The user declined it,
+ and it would only take effect on re-ingest anyway, so it cannot fix a corpus already in the store.
+
 - **A prompt field's stored value is the whole truth.** Decided with the user 2026-08-01 and
   implemented in v0.4.18: every prompt setting ships pre-filled with its default (`src/prompts/fields.ts`
   is the single registry) and is read verbatim. Never reintroduce `stored.trim() || SOME_DEFAULT` in an

@@ -26,6 +26,12 @@ export interface RagHit {
   text: string;
   hash?: number | string;
   metadata?: Record<string, unknown>;
+  /**
+   * Silo the hit came from. The service has always stamped this (routes/vectors.js) and the type
+   * simply never declared it; RAG Lite now stamps it too. Optional because a hit that arrives
+   * without one must degrade to "unclassified memory" rather than throw — see `retrievalKind`.
+   */
+  collection?: string;
 }
 
 export interface QueryOptions {

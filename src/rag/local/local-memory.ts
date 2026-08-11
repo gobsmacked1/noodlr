@@ -127,9 +127,16 @@ export class LocalMemory implements MemoryBackend {
     if (queries.length === 0) return { hits: [], mode };
 
     // Gather candidates across the requested silos.
+    // Records are stored per silo but carry no silo of their own, so remember where each came from:
+    // the injected block labels hits by origin and gives a character sheet precedence over a
+    // rulebook. Last-wins on a duplicate id, matching `byId` below.
     const candidates: LocalRecord[] = [];
+    const siloById = new Map<string, SiloId>();
     for (const c of opts.collections) {
-      if (isSiloId(c)) candidates.push(...(await getRecords(c)));
+      if (!isSiloId(c)) continue;
+      const recs = await getRecords(c);
+      for (const r of recs) siloById.set(r.id, c);
+      candidates.push(...recs);
     }
     if (candidates.length === 0) return { hits: [], mode };
 
@@ -184,6 +191,7 @@ export class LocalMemory implements MemoryBackend {
       score: x.s,
       text: x.rec.text,
       metadata: x.rec.metadata,
+      collection: siloById.get(x.rec.id),
     }));
     return { hits, mode };
   }
