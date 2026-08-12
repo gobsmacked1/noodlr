@@ -2,6 +2,40 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.6.1
+
+**Roll tables and monster statblocks were being remembered by title only. Now they are remembered in
+full, and memory tells you when it cannot read something.**
+
+### Roll tables
+
+Ticking a `*.tables` compendium in Memory & Knowledge used to report success and store nothing but
+each table's name. Ask about Wild Magic Surge and memory could find the title and not one of its
+hundred effects. Roll tables now ingest with every row, including the die range that selects it, so
+"25-28" arrives attached to the effect it rolls.
+
+### Monster statblocks
+
+A creature's traits, attacks, reactions and legendary actions are stored as separate pieces attached
+to its sheet rather than as part of its description, and memory was not reading them. Most
+statblocks have no descriptive text at all, so a monster was being remembered as its name and a
+handful of numbers, with everything it can actually do missing. Traits and actions are now included,
+and a creature's armour class and hit points are still kept alongside them.
+
+### Memory now says when it cannot read something
+
+Both of the above were silent: the ingest finished, the count looked right, and the store was
+nearly empty. After ingesting a compendium, Noodlr now reports in the console how many documents
+came through with nothing but their own title, grouped by what kind of document they were. If a
+future game system stores its text somewhere Noodlr does not look, you find out the first time you
+ingest it rather than the first time a question goes unanswered.
+
+### For GMs who exported compendiums for the offline rules miner
+
+A pack the exporter could not read produced no file and no error, which looked exactly like a pack
+nobody ticked. It now reports the failure and lists what it found instead. Roll tables export
+correctly, with their rows.
+
 ## 0.6.0
 
 **Noodlr can now read a creature's abilities for a rules module, and it trusts a sheet over a

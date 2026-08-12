@@ -14,7 +14,7 @@
 // is sent anywhere and nothing is written to the game server: the GM saves the files and runs the
 // miner outside Foundry.
 
-import { MODULE_ID, log } from "../constants";
+import { MODULE_ID, log, warn } from "../constants";
 
 export interface ExportProgress {
   pack: string;
@@ -116,6 +116,93 @@ function activityObjects(system: any): any[] {
   if (!raw) return [];
   const list: any[] = typeof raw.forEach === "function" ? [...raw] : Object.values(raw);
   return list.map((a) => (typeof a?.toObject === "function" ? a.toObject() : a));
+}
+
+/** A `TableResult` collection on a live document; a plain array on a raw source. */
+function tableResults(doc: any): any[] {
+  const raw = doc?.results;
+  if (!raw) return [];
+  const list: any[] = Array.isArray(raw)
+    ? raw
+    : typeof raw.forEach === "function"
+      ? [...raw]
+      : Object.values(raw);
+  return list.map((r) => (typeof r?.toObject === "function" ? r.toObject() : r));
+}
+
+/**
+ * A roll table as prose, rows and all.
+ *
+ * This is the omission that cost the first corpus run 513 tables. A RollTable has no `system` at
+ * all — its prose is top-level `description` and its content is the embedded `results` collection —
+ * so `collectProse` found nothing, `toCorpusRecords` emitted no records, and `exportPack` returned
+ * null for the whole pack. Nine `*.tables` packs vanished without one error message, leaving the
+ * corpus holding every table's NAME (features say "Roll on the Wild Magic Surge table") and not one
+ * of its rows.
+ *
+ * The range prefix is part of the rule rather than decoration: "25-28" is what selects the effect,
+ * and a row without it is an assertion nobody can act on.
+ *
+ * One record per table, not per row. A row is a rule only in the context of the table that rolls
+ * it, and 12,500 one-sentence records would each need the parent restated to mean anything — the
+ * opposite trade from a creature's items, where every feature stands alone on its own sheet.
+ */
+function collectTableProse(doc: any): string {
+  const parts: string[] = [];
+  const description = stripHtml(String(doc?.description ?? ""));
+  if (description) parts.push(description);
+
+  const rows: string[] = [];
+  for (const row of tableResults(doc)) {
+    const range: unknown[] = Array.isArray(row?.range) ? row.range : [];
+    const label =
+      range.length === 2
+        ? range[0] === range[1]
+          ? String(range[0])
+          : `${range[0]}-${range[1]}`
+        : "";
+    // v13 split `TableResult#text` into `name` + `description`. Migrated packs carry the new pair,
+    // older ones still carry the legacy field; all three are read and deduplicated, because
+    // guessing between them yields an empty table that looks like a table with no rows.
+    const seen = new Set<string>();
+    for (const field of [row?.name, row?.description, row?.text]) {
+      const text = stripHtml(String(field ?? ""));
+      if (text) seen.add(text);
+    }
+    const body = [...seen].join(" — ");
+    if (body) rows.push(label ? `${label}: ${body}` : body);
+  }
+
+  if (rows.length > 0) {
+    const formula = String(doc?.formula ?? "").trim();
+    parts.push(formula ? `Roll ${formula}:\n${rows.join("\n")}` : rows.join("\n"));
+  }
+  return parts.join("\n\n").trim();
+}
+
+/**
+ * The structured half of a roll table, in the slot `data` occupies for everything else.
+ *
+ * `data` is documented as the document's untruncated `system`, and a RollTable has none — but the
+ * miner's whole method is comparing what the prose promises against what the schema can hold, so
+ * the field must carry the table's own structured content or every table would read as prose-only
+ * by construction and the enforcement verdict would be meaningless.
+ */
+function tableData(doc: any): Record<string, unknown> {
+  return {
+    formula: doc?.formula ?? null,
+    replacement: doc?.replacement ?? null,
+    displayRoll: doc?.displayRoll ?? null,
+    results: tableResults(doc).map((r: any) => ({
+      range: Array.isArray(r?.range) ? r.range : null,
+      weight: r?.weight ?? null,
+      type: r?.type ?? null,
+      name: r?.name ?? null,
+      description: r?.description ?? null,
+      text: r?.text ?? null,
+      documentUuid: r?.documentUuid ?? null,
+    })),
+  };
 }
 
 /**
@@ -288,6 +375,20 @@ function toCorpusRecords(doc: any, ctx: RecordContext): Array<Record<string, unk
   const system = source?.system ?? {};
   const records: Array<Record<string, unknown>> = [];
 
+  // Roll tables keep everything outside `system`, so they are read before the generic path and
+  // return early: `collectProse` would find nothing and `holderContext` has nothing to describe.
+  if (documentKind(doc) === "RollTable") {
+    const tableProse = collectTableProse(source);
+    if (tableProse) {
+      records.push({
+        ...baseRecord(doc, source, system, tableProse, ctx),
+        type: "RollTable",
+        data: tableData(source),
+      });
+    }
+    return records;
+  }
+
   // A document with no prose asserts no rule in words, so there is nothing to compare against the
   // schema. Skipping the holder does not skip its items: most statblocks carry no biography at all.
   const prose = collectProse(doc);
@@ -334,6 +435,11 @@ function toCorpusRecords(doc: any, ctx: RecordContext): Array<Record<string, unk
   return records;
 }
 
+/** The document type, however the caller obtained the document. */
+function documentKind(doc: any): string {
+  return String(doc?.documentName ?? doc?.constructor?.documentName ?? "");
+}
+
 /** Filesystem-safe name for a pack id like `dnd-players-handbook.spells`. */
 function fileNameFor(packId: string): string {
   return `${packId.replace(/[^A-Za-z0-9._-]+/g, "_")}.jsonl`;
@@ -377,7 +483,22 @@ export async function exportPack(
   }
   onProgress?.({ pack: ctx.packLabel, processed, total: docs.length });
 
-  if (parts.length === 0) return null;
+  // A ticked pack that yields nothing is the failure mode that lost the roll tables: no file, no
+  // error, and a missing book indistinguishable from a checkbox nobody clicked. Name the document
+  // types so an unhandled one is identified rather than merely counted.
+  if (parts.length === 0) {
+    const kinds: Record<string, number> = {};
+    for (const doc of docs) {
+      const kind = documentKind(doc) || "unknown";
+      kinds[kind] = (kinds[kind] ?? 0) + 1;
+    }
+    const census =
+      Object.entries(kinds)
+        .map(([kind, count]) => `${kind} x${count}`)
+        .join(", ") || "empty pack";
+    warn(`rules-corpus: ${packId} yielded no records from ${docs.length} documents (${census})`);
+    return null;
+  }
 
   const blob = new Blob(parts, { type: "application/x-ndjson" });
   log(`rules-corpus: built ${parts.length} records from ${docs.length} documents in ${packId}`);
@@ -412,6 +533,13 @@ export async function exportPacks(
       if (result) {
         results.push(result);
         onReady?.(result);
+      } else {
+        // Surfaced through the same channel as a thrown error, deliberately: the GM asked for this
+        // pack and has no file, which is the one outcome that must never be quiet.
+        failures.push({
+          packId,
+          error: "no records extracted — see the console for the document types found",
+        });
       }
       // Yield to the event loop so the link that was just added actually paints before the next
       // pack monopolizes the main thread for several seconds.
@@ -426,6 +554,8 @@ export async function exportPacks(
 export const _internal = {
   stripHtml,
   collectProse,
+  collectTableProse,
+  tableData,
   collectActivities,
   activationOf,
   holderContext,

@@ -1327,6 +1327,38 @@ lorebook/author's-note/post-history injection.
 
 ## Hard-won invariants
 
+- **A document ingests as its own name and reports success (v0.6.1, 2026-08-12).** Found while
+ cross-checking the rules corpus against a straight PDF conversion of the same books: the offline
+ exporter had silently dropped 513 roll tables, and the same two blind spots were live in
+ `rag/ingest.ts`, which is the path a GM actually uses. `documentToText()` read `system.description`,
+ `system.details.biography` and journal pages, then fell back to `JSON.stringify(doc.system)`
+ truncated at 4,000 characters. Consequences, both silent:
+ - **A RollTable has no `system` at all.** Its prose is top-level `description` and its content is
+ the embedded `results` collection, so a d100 table was embedded as its title and nothing else,
+ and the service dutifully reported it inserted. The compendium ingest matrix lists every pack
+ including the `*.tables` ones, so this was worse than omitting them — the GM ticks a box, sees a
+ success count, and gets a store that can match "Wild Magic Surge" and not one of its hundred
+ effects. Rows now render with their range prefix, because "25-28" is what selects the effect.
+ - **A creature's traits and actions are embedded Items, not fields of `system`.** This is the
+ lesson the offline miner learned first (436 SRD actors expand to 4,861 mining units, 11.1x), and
+ the importer never got it: most statblocks carry no biography, so an actor fell through to the
+ truncated-JSON fallback and was indexed as a name and a few hundred numbers with every trait,
+ attack and legendary action absent. Items are appended now, and **the fallback gate changed from
+ `parts.length <= 1` to a `hasProse` flag** so a statblock with traits still gets its AC and hit
+ points — gating on the count would have dropped the numbers the moment item text started arriving.
+ - **The generalisable fix is the reporting, not either extractor.** `ingestCompendium` tallies
+ documents whose text is only their own name, by document type, and warns with the census; the
+ exporter does the same for a pack that yields zero records, routed through `failures` so the GM
+ gets a red toast instead of a missing file. This is the same doctrine as greying "Behavioral
+ automation" and as `noodlr-hooks-55e`'s ownership resolver: **a capability that switches itself
+ off has to say so.** An extractor that cannot read a document type is not a bug worth preventing
+ in advance — it is a bug worth being told about the first time it happens.
+ - Untouched deliberately: the PDF path. `/ingest-file` parses server-side through the optional
+ `pdf-parse` dependency and 501s with an install hint when it is absent, and RAG Lite refuses PDFs
+ with a message naming the workaround. Both fail loudly, which is the property that matters. Its
+ real limitation is layout rather than loss — a PDF text layer interleaves table columns — and that
+ is not fixable without OCR-grade tooling nobody should add to a browser module.
+
 - **A creature's own sheet outranks the rulebook, and the silo arrays were never what enforced it
  (user's edict, 2026-08-10).** A GM who gave a goblin 40 hit points has stated a fact about that
  goblin; a retrieved rulebook paragraph about the published goblin is a weaker claim about the same
