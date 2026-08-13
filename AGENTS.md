@@ -301,6 +301,20 @@ What it provides:
     `{inserted, chunks, skipped, alreadyStored, repeats}` and the module surfaces it — a pack that
     reports zero inserted is finished, not broken, and that is the first thing a GM will misread.
   - Default `batchSize` moved 32 → 64 in the same release.
+  - **RAG Lite needs the deduplication and none of the rate limiting, and it already has it**
+    (checked 2026-08-13, because the reasonable assumption is that the whole arc has a Lite
+    counterpart). Nothing in the 1.1.1 → 1.3.2 rate-limit family reaches Lite at all: the only
+    embedding path in the module is `rag/local/embedder.ts`, which sets `allowRemoteModels = false`
+    against weights shipped in the package, so there is no provider, no key, no request and no 429 to
+    handle. **The dedup half matters MORE there than on the service** — it is the GM's own machine on
+    one WASM thread rather than someone else's CPU — and `local-memory.ts` skips both stored hashes
+    and within-request repeats before embedding. It skips a repeat outright rather than embedding once
+    and fanning the vector out, because a Lite row is identified by its hash and there is nothing to
+    fan out to. It is also structurally immune to the stale-cache bug `forgetHashes` exists to
+    prevent: in Lite the in-memory index IS the store, one client owns both it and the file, and
+    every mutation path updates it before saving. `skipped` is the one field both backends set, so
+    the queue's "reused" line is already backend-agnostic. Lite's fixed batch of 16 is a WASM
+    working-set size, not a request-count lever, and must not be "harmonised" with `EMBED_BATCH_SIZE`.
 - **Every wait in the above was sized for a model of the limit, and the model was wrong (v1.3.1,
  2026-08-13).** Reported from a live server: the **Diagnostics self-test** — one sentence, one
  request, no batching, nothing to deduplicate — failed on a 429, and the service then reported
@@ -327,14 +341,31 @@ What it provides:
  the pacing are exactly what would corrupt the measurement, since they exist to hide the behaviour
  being measured. `recover` is the one that sizes `EMBED_RATE_LIMIT_WAIT_MS`; `routing` needs no key
  (demanding one would send the operator hunting a credential to answer a free question).
-- **It was run, and it settled the number in one line (v1.3.2, 2026-08-13).** `recover` on the
- reference host: **the FIRST request out of a cold process was refused, and cleared 250ms later.**
- Both halves matter, and the first matters more. A limit our request rate could trip cannot refuse a
- process's first call, so every remedy shaped like "ask more slowly" was answering a question the
- provider never asked — which retires the whole self-throttling family for good, not merely as a
- default. `EMBED_RATE_LIMIT_WAIT_MS` is 250ms (20s → 1s → 250ms across three releases, each cut on
- better evidence than the last), and the ladder still doubles inside the 45s hold, so a genuinely
- window-shaped limit is reached in a few cheap attempts.
+- **It was run, and it settled the question — but not with a number (v1.3.2, amended v1.3.3
+ 2026-08-13).** `recover` on the reference host, twice, and **the two runs disagreed**: the first
+ refused the very first request of a cold process and cleared 250ms later; the second succeeded once,
+ was refused on request two, was still refused at 250ms and cleared at 500ms. **What they agree on is
+ the load-bearing half.** A refusal arrives within the first one or two requests of a cold process,
+ and no limit our own request rate could trip behaves that way — so every remedy shaped like "ask
+ more slowly" was answering a question the provider never asked, which retires the whole
+ self-throttling family for good rather than merely as a default.
+ - **The disagreement is itself the finding, and it is why the tuning stops here.** A transient
+ refusal lasts as long as that provider's saturation lasts, so there is no constant to match and
+ `EMBED_RATE_LIMIT_WAIT_MS` only has to be in the right order of magnitude — the ladder doubles
+ (0.5s, 1s, 2s, 4s, 8s, 16s) inside the 45s hold and absorbs the variance. It went 20s → 1s → 250ms
+ → **500ms** across four releases, each of the first three cut on better evidence than the last and
+ the fourth *raised* back to the top of the measured range. **Do not cut it again on a single probe
+ run**; that is fitting to noise, and `config.js` says so at the setting.
+ - **Sized to the top of the range rather than the middle, for an asymmetric reason.** Undershooting
+ spends a request on a provider that is still refusing, which is waste against the one resource
+ that is scarce; overshooting costs idle milliseconds on a rare event. The 250ms default was
+ measurably the wrong side of that on the second run.
+ - The regression test asserts the ORDER OF MAGNITUDE (`took < 3000`), not the value, so re-sizing
+ within the measured range is not a test change while restoring a window-shaped default still fails.
+ - `probe-rate.mjs recover` no longer prints "set the wait to N". Printing the newest sample as an
+ instruction is what produced this re-tune, and the operator cannot tell from one run that the
+ number moves; it now reports whether the measurement is within the scale the shipped ladder
+ already covers.
  - **Two other constants had been sized for the same imagined per-minute window and were quietly
  wrong by two orders of magnitude.** The hedge stand-down was a flat minute (`REFUSAL_SETTLE_MS`,
  now 5s): one blip during a bulk ingest disabled hedging for the interactive query arriving ten

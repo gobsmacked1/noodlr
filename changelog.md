@@ -19,17 +19,19 @@ slower for a problem that was never about its speed.
   succeeding and another refused a second later — so parking for twenty seconds spent the whole
   patience budget arriving at a failure the provider had already stopped issuing.
 
-Pair this with **noodlr-memory 1.3.2**, where the same correction lands on the service and is now
-backed by a measurement rather than a reading of the logs. Its new `scripts/probe-rate.mjs` asks your
-own provider directly what it will tolerate, and on the reference server the answer was unambiguous:
-the very first request out of a fresh process was refused, and succeeded again 250 milliseconds later.
-A limit your speed could trip cannot refuse your first request, so the service has stopped slowing
-itself down after a refusal, waits a quarter of a second before trying again, and — the part you will
-actually notice — **no longer logs a warning about a refusal it recovered from.** Those lines are
-routine for an embedding model served by a single provider; the ingest was working the whole time. It
-still tells you plainly, once, when a refusal is genuinely persistent, including how many providers
-can serve your model, because where the answer is one OpenRouter has nothing to fail over to and no
-amount of slowing down will help.
+Pair this with **noodlr-memory 1.3.3**, where the same correction lands on the service and is now
+backed by measurement rather than by a reading of the logs. Its new `scripts/probe-rate.mjs` asks your
+own provider directly what it will tolerate. Run twice on the reference server it gave two different
+answers — a refusal clearing after 250 milliseconds one time and 500 the next — which is the useful
+finding: how long a refusal lasts is that provider's momentary busyness, not a number to be matched.
+Both runs agreed on the part that matters, though. The refusal arrived within the first one or two
+requests of a freshly started service, and nothing your own speed could trip behaves like that. So the
+service has stopped slowing itself down after a refusal, waits half a second and doubles from there,
+and — the part you will actually notice — **no longer logs a warning about a refusal it recovered
+from.** Those lines are routine for an embedding model served by a single provider; the ingest was
+working the whole time. It still tells you plainly, once, when a refusal is genuinely persistent,
+including how many providers can serve your model, because where the answer is one OpenRouter has
+nothing to fail over to and no amount of slowing down will help.
 
 ## 0.6.4
 
