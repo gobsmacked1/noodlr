@@ -72,6 +72,9 @@ export function registerRagSettings(): void {
   game.settings.register(MODULE_ID, S.chatLogInterval, { ...worldNum, default: 300 });
   game.settings.register(MODULE_ID, S.chatLogWhispers, { ...worldBool, default: false });
 
+  // Unfinished ingest jobs, written whenever the queue changes and drained on the next load.
+  game.settings.register(MODULE_ID, S.ingestQueue, { ...worldStr, default: "" });
+
   // Embedding + rerank providers (used only when their features are enabled).
   registerFeatureProviderSettings("embeddings");
   registerFeatureProviderSettings("rerank");

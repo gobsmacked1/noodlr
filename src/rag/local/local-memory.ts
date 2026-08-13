@@ -10,6 +10,7 @@ import type {
   MemoryBackend,
   CollectionsInfo,
   IngestDocument,
+  IngestResult,
   QueryOptions,
   RagHit,
 } from "../backend";
@@ -59,7 +60,7 @@ export class LocalMemory implements MemoryBackend {
     documents: IngestDocument[],
     _embed?: unknown,
     signal?: AbortSignal,
-  ): Promise<{ inserted: number; chunks: number }> {
+  ): Promise<IngestResult> {
     if (!isSiloId(collection)) throw new RagClientError(`Unknown silo: ${collection}`);
     const texts: string[] = [];
     const metas: Record<string, unknown>[] = [];
@@ -78,22 +79,50 @@ export class LocalMemory implements MemoryBackend {
     }
     if (texts.length === 0) return { inserted: 0, chunks: 0 };
 
-    const vecs = await embedTexts(texts);
+    // Skip what is already stored, and any repeat inside this request, BEFORE embedding.
+    //
+    // `addRecords` has always deduplicated on the way in, so the rows were right — but the vector was
+    // computed first and then thrown away. That is free on the service (someone else's CPU, and now
+    // its own skip) and emphatically not free here: Lite embeds in this browser on one WASM thread,
+    // so a re-ingested compendium was minutes of the GM's own machine producing nothing.
+    const stored = new Set((await getRecords(collection)).map((r) => String(r.hash)));
+    const fresh: number[] = [];
+    const hashes: string[] = [];
+    let skipped = 0;
+    for (let i = 0; i < texts.length; i++) {
+      const hash = hashText(texts[i]);
+      if (stored.has(hash)) {
+        skipped++;
+        continue;
+      }
+      stored.add(hash);
+      hashes.push(hash);
+      fresh.push(i);
+    }
+    if (fresh.length === 0) {
+      log(`RAG Lite: ${skipped} chunk(s) already stored in "${collection}"; nothing to embed`);
+      return { inserted: docsIn, chunks: 0, skipped };
+    }
+
+    const vecs = await embedTexts(fresh.map((i) => texts[i]));
     const now = Date.now();
-    const recs: LocalRecord[] = texts.map((text, i) => ({
+    const recs: LocalRecord[] = fresh.map((src, i) => ({
       id: uid(),
-      text,
+      text: texts[src],
       vec: encodeVec(vecs[i] ?? []),
-      hash: hashText(text),
-      importance: num((metas[i] as { importance?: unknown }).importance),
-      ts: num((metas[i] as { ts?: unknown }).ts) || now,
-      entities: entitiesOf(metas[i]),
-      metadata: metas[i],
+      hash: hashes[i],
+      importance: num((metas[src] as { importance?: unknown }).importance),
+      ts: num((metas[src] as { ts?: unknown }).ts) || now,
+      entities: entitiesOf(metas[src]),
+      metadata: metas[src],
     }));
 
     const added = await addRecords(collection, recs);
-    log(`RAG Lite: ingested ${docsIn} doc(s) -> ${added} new chunk(s) into "${collection}"`);
-    return { inserted: docsIn, chunks: added };
+    log(
+      `RAG Lite: ingested ${docsIn} doc(s) -> ${added} new chunk(s) into "${collection}"` +
+        (skipped > 0 ? ` (${skipped} already stored)` : ""),
+    );
+    return { inserted: docsIn, chunks: added, skipped };
   }
 
   async ingestFile(
@@ -103,7 +132,7 @@ export class LocalMemory implements MemoryBackend {
     embed?: unknown,
     signal?: AbortSignal,
     importance?: number,
-  ): Promise<{ inserted: number; chunks: number }> {
+  ): Promise<IngestResult> {
     if (payload.fileType === "pdf") {
       throw new RagClientError(
         "RAG Lite can't read PDFs yet — convert it to a .txt file, or switch to the " +

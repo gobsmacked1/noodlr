@@ -272,8 +272,35 @@ What it provides:
 - **The arithmetic that makes deliberate pacing the right answer:** a whole corpus is one to two
  thousand requests at `batchSize` 64, so even 10/min finishes overnight — and a refusal costs the
  wait *and* the request, so going slowly on purpose is faster in wall-clock terms than being refused.
- `EMBED_HEDGE_MS=0` for a bulk run; hedging is an interactive-latency trick and every duplicate is
- another request against the same limit.
+  `EMBED_HEDGE_MS=0` for a bulk run; hedging is an interactive-latency trick and every duplicate is
+  another request against the same limit.
+- **The cheapest request is the one not sent (v1.3.0, 2026-08-13).** Everything above makes a refusal
+  survivable; this is the half that stops provoking one. The user rejected further self-throttling
+  outright and named the reason the corpus miner never hit this wall at 4 concurrency across nine
+  books: it deduplicated. Three sources of pure waste, in the order they were found:
+  - **Hedging fired on bulk batches.** A duplicate request is sent when the first stalls past
+    `EMBED_HEDGE_MS`, which doubles the request rate exactly when an account can least afford it —
+    and there is nobody waiting on a batch of 64 statblocks, so the latency it buys is worth nothing.
+    It now fires only for a **single** text. That is the whole of what hedging was for; the previous
+    advice to zero it for bulk runs is now mostly redundant rather than load-bearing.
+  - **Identical chunks were embedded once each.** `groupIdentical` folds a batch by exact text before
+    the call and fans the one vector back out. Keyed on the text and **not** on `contentHash`, which
+    is a 32-bit FNV-1a and therefore collides — a hash collision here would silently give two
+    different chunks the same vector, which is unfindable at the table.
+  - **A re-ingest re-embedded the entire pack.** `freshItems()` in `routes/vectors.js` drops chunks
+    the collection already holds, read through `listHashes` behind a small per-collection LRU
+    (`knownHashes`) so it is not a full scan per request. `forgetHashes` is called from `/delete`,
+    `/purge` and `/purge-all`, because a stale cache after a silo reset would skip everything and
+    leave the GM with an empty silo reporting success — the one failure mode that is worse than the
+    bug being fixed. Locked by `test/ingest-route.test.js`, which is also the first coverage that
+    route has ever had (see the `k must be positive` note: the query route had none either).
+  - **`/insert` deliberately does NOT skip stored hashes.** It is the path a memory is retracted or
+    edited through (`rag/retraction.ts` is delete + re-insert), so identical text arriving with new
+    metadata has to land. Skipping there would make retraction a silent no-op.
+  - **A skip has to be reported or it reads as a failure.** `/ingest` returns
+    `{inserted, chunks, skipped, alreadyStored, repeats}` and the module surfaces it — a pack that
+    reports zero inserted is finished, not broken, and that is the first thing a GM will misread.
+  - Default `batchSize` moved 32 → 64 in the same release.
 - **Listeners (v1.1.0, 2026-08-01):** TCP **and** the optional Unix socket run at the same time. Before 1.1 a socket path switched TCP off entirely, which presumed Foundry and the service shared one Linux host; Windows hosts have no socket and some admins run the service on a separate box. `NOODLR_MEMORY_PORT=0` opts out of TCP; a socket path on Windows warns and is ignored; each listener reports its own bind failure and the process exits only if neither starts.
 
 How noodlr-main interacts with it (the integration contract):
@@ -1430,6 +1457,36 @@ part is that two of the three faults were interface rather than networking.
 - The ingest buttons are deliberately NOT disabled while the queue is busy — they queue. What is
   disabled is everything that would either spend the same budget (upload, developer export) or move
   the ground under a running job (silo reset).
+
+### The queue survives a reload (v0.6.4, 2026-08-13)
+
+The user's prediction of operator behaviour is the whole specification: tick sixty packs, pick sixty
+silos, mash ingest, hit Save, close the window and start playing. 0.6.2 got everything except the last
+clause — the queue outlived the *window* and died with the *page*, and a GM who reloaded lost the run
+with no way to tell how much of it had landed.
+
+- **`IngestSpec` is a serializable descriptor, not the task.** An `IngestTask` closes over a
+  `MemoryBackend` and a pack's documents; none of that can be written to a setting. So a job persists
+  as `{type:"pack", pack:<id>}` plus its `resumeAt`, and `rebuildIngestTask()` in `memory-app.ts`
+  reconstructs the closure at load. A pack that has since been uninstalled rebuilds to nothing and
+  the job is dropped rather than retried forever.
+- **`resumeAt` was already the right number and is what makes this safe in both directions** (it only
+  advances once a batch is STORED, see above), so resuming re-sends nothing already paid for and skips
+  nothing that never landed. The reload path needed no new bookkeeping — only somewhere to put it.
+- **Only the primary GM writes, and only the primary GM resumes.** Two GMs both restoring the same
+  stored queue is two concurrent runs halving each other's share of one rate limit, which is precisely
+  what the queue exists to prevent. Same `isPrimaryGM()` rule as transcripts and artifact commits.
+- **A non-primary GM's jobs are carried, not dropped.** Each stored job records its `owner`, and
+  `writeNow()` re-serializes the jobs belonging to *other* active GMs alongside its own. Without that,
+  the primary GM's first write erases an assistant GM's queued work — a data-loss bug that only
+  appears on multi-GM tables and looks like the queue randomly forgetting things.
+- **Writes are debounced but structural changes flush immediately.** Progress ticks every second and a
+  world setting is a socket broadcast to every client, so a per-tick write would be a flood; a cancel
+  or a completion that is not written *now* can be resurrected by a reload, which is worse than a
+  slightly stale count. `restoring` suppresses writes while the queue is being rebuilt, or the restore
+  would race its own persistence.
+- Resuming is announced once with a notification and otherwise silent, which is what "I hit ingest and
+  went off to play" asks for.
 
 ## Hard-won invariants
 

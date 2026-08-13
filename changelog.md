@@ -2,6 +2,30 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.6.4
+
+**Ingesting the same compendium twice is now nearly free, and a queued ingest survives a page
+reload.** Two halves of the same complaint: the honest answer to "my provider is rate-limiting me" is
+usually that we were asking it to do work it had already done.
+
+- **Nothing is embedded twice.** Before a chunk is sent anywhere, it is checked against what the silo
+  already holds and against the rest of the same request. Adding one book to a shelf you have already
+  ingested now costs one book. The queue says so - "42 already stored (not re-embedded)" - because a
+  pack that reports nothing inserted is finished, not broken.
+- **A queued ingest resumes by itself after a reload.** Tick a dozen packs, hit ingest, close the
+  window and go play; if you reload mid-run, the remaining packs pick up from the last batch that was
+  actually stored. Nothing is re-embedded and nothing is skipped. Only the primary GM resumes, so a
+  second GM logging in does not start a duplicate run.
+
+With **noodlr-memory 1.3.0** the skip happens on the service, so it also covers a silo populated from
+somewhere else; on an older service the module still does its own within-run deduplication. Built-in
+memory (RAG Lite) does the same check in your browser, where an embedding costs you seconds rather
+than credits.
+
+Also: the service's default batch size is now 64 (a quarter of the requests for identical work), and
+it no longer sends duplicate "hedge" requests for bulk batches - that trick shortens the wait on a
+single interactive query and was doubling the request count on a corpus load.
+
 ## 0.6.3
 
 **A slow ingest now says it is slow.** Follow-up to 0.6.2, from a real run: a pack that was working

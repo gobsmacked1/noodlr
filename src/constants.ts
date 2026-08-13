@@ -225,6 +225,10 @@ export const RAG_SETTINGS = {
   chatLogEnabled: "rag.chatLog.enabled",
   chatLogInterval: "rag.chatLog.interval",
   chatLogWhispers: "rag.chatLog.whispers",
+  // The unfinished ingest queue, so a run survives the reload it is most likely to meet: a GM
+  // queues a shelf of compendia and goes to play. World scope because the work is the world's, and
+  // because a GM who reloads into a different browser profile should still find their queue.
+  ingestQueue: "rag.ingestQueue",
 } as const;
 
 /** Keybinding action ids. */

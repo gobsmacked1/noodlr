@@ -3,7 +3,7 @@
 // settings live in the Memory & Knowledge window; this window handles the data actions.
 // Opened from the Memory & Knowledge window's "Manage Memory" button.
 
-import { MODULE_ID, isDeveloperMode } from "../constants";
+import { MODULE_ID, isDeveloperMode, warn } from "../constants";
 import { exportPacks, type ExportResult } from "../dev/pack-export";
 import { getRagClient, isRagEnabled } from "../rag/config";
 import { RagClientError } from "../rag/client";
@@ -19,7 +19,9 @@ import {
   onIngestQueueChange,
   resumeIngest,
   type IngestJobView,
+  type IngestSpec,
   type IngestTask,
+  type StoredResume,
 } from "../rag/ingest-queue";
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -432,15 +434,35 @@ async function confirmDialog(title: string, content: string): Promise<boolean> {
  * `key` deliberately omits `from`, so a resume of the same pack into the same silo is still
  * recognised as the same work and cannot be queued twice.
  */
-function packTask(packId: string, label: string, silo: SiloId, from: number): IngestTask {
+export function packTask(packId: string, label: string, silo: SiloId, from: number): IngestTask {
   return {
     kind: "pack",
     label,
     silo,
     key: `pack:${packId}:${silo}`,
+    spec: { type: "pack", pack: packId },
+    startAt: from,
     run: (report, signal) => ingestCompendium(packId, silo, { from, report, signal }),
     resume: (next) => packTask(packId, label, silo, next),
   };
+}
+
+/**
+ * Rebuild a persisted job after a page load.
+ *
+ * The pack label is re-read from Foundry rather than trusted from the setting: a renamed or
+ * uninstalled module would otherwise leave a queue row naming something that no longer exists, and
+ * an absent pack is a job to drop rather than one to run and fail.
+ */
+export function rebuildIngestTask(spec: IngestSpec, stored: StoredResume): IngestTask | null {
+  if (spec.type !== "pack") return null;
+  const pack = game.packs?.get(spec.pack);
+  if (!pack) {
+    warn(`stored ingest job dropped: compendium ${spec.pack} is not installed`);
+    return null;
+  }
+  const label = pack.metadata?.label ?? stored.label ?? spec.pack;
+  return packTask(spec.pack, label, stored.silo, stored.from);
 }
 
 /** One uploaded file. No `resume`: it is a single indivisible request with no index to restart at. */
@@ -512,7 +534,11 @@ function queueStatusText(job: IngestJobView, pct: number): string {
   const state = game.i18n.localize(
     `NOODLR.Rag.Queue.Status.${job.status[0].toUpperCase()}${job.status.slice(1)}`,
   );
+  // Skips are shown only when there are some, and they are the difference between "did nothing" and
+  // "already had it": re-ingesting a stored pack now costs no embeddings and so reports 0 chunks.
+  const reused =
+    job.skipped > 0 ? game.i18n.format("NOODLR.Rag.Queue.Reused", { chunks: job.skipped }) : "";
   // The note carries the rate-limit countdown and the failure reason, which are the two things a GM
   // actually needs; it goes last so it is not truncated first when the window is narrow.
-  return [state, counts, job.note].filter(Boolean).join(" · ");
+  return [state, counts, reused, job.note].filter(Boolean).join(" · ");
 }

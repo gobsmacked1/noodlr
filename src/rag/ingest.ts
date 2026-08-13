@@ -3,7 +3,7 @@
 // fall back to a compact JSON of the document's system data.
 
 import { getEmbedOverride, getRagClient } from "./config";
-import { RagClientError, type IngestDocument } from "./client";
+import { RagClientError, type IngestDocument, type IngestResult } from "./client";
 import { IMPORTANCE, withImportance } from "./importance";
 import type { IngestReport } from "./ingest-queue";
 import { parseStructuredFile, structuredFormatFor } from "./parse-structured";
@@ -252,7 +252,7 @@ export async function ingestCompendium(
   packId: string,
   silo: SiloId,
   opts: IngestCompendiumOptions = {},
-): Promise<{ documents: number; inserted: number }> {
+): Promise<{ documents: number; inserted: number; skipped: number }> {
   const { from = 0, signal } = opts;
   const report = opts.report ?? (() => {});
   const pack = game.packs?.get(packId);
@@ -266,6 +266,7 @@ export async function ingestCompendium(
 
   const BATCH = 25;
   let inserted = 0;
+  let skipped = 0;
   let processed = from;
   report({ processed, total: docs.length, inserted, resumeAt: from });
   // A document whose text is only its own name was not really read. That is not a failure the
@@ -305,16 +306,24 @@ export async function ingestCompendium(
         report,
       );
       inserted += res.inserted ?? 0;
+      skipped += res.skipped ?? 0;
       bumpStats({ ingestDocs: res.inserted ?? 0, ingestChunks: res.chunks ?? 0 });
     }
     processed += batch.length;
     // resumeAt is only advanced once the batch is stored, so a resume never skips unsent documents
     // and never re-sends stored ones.
-    report({ processed, total: docs.length, inserted, resumeAt: i + batch.length, note: "" });
+    report({
+      processed,
+      total: docs.length,
+      inserted,
+      skipped,
+      resumeAt: i + batch.length,
+      note: "",
+    });
   }
 
   reportBare(nameOnly, packId, docs.length);
-  return { documents: docs.length, inserted };
+  return { documents: docs.length, inserted, skipped };
 }
 
 /**
@@ -329,7 +338,7 @@ export async function ingestUploadedFile(
   file: File,
   silo: SiloId,
   opts: { report?: (r: IngestReport) => void; signal?: AbortSignal } = {},
-): Promise<{ documents: number; inserted: number }> {
+): Promise<{ documents: number; inserted: number; skipped: number }> {
   const report = opts.report ?? (() => {});
   const { signal } = opts;
   const client = getRagClient();
@@ -340,7 +349,7 @@ export async function ingestUploadedFile(
   const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
   const structured = structuredFormatFor(file.name, file.type);
 
-  let send: () => Promise<{ inserted: number; chunks: number }>;
+  let send: () => Promise<IngestResult>;
   if (structured) {
     const parsed = await parseStructuredFile(file);
     if (parsed.length === 0) throw new Error(game.i18n.localize("NOODLR.Rag.StructuredEmpty"));
@@ -377,8 +386,9 @@ export async function ingestUploadedFile(
   const res = await withPatience(send, signal, report);
   bumpStats({ ingestDocs: res.inserted ?? 0, ingestChunks: res.chunks ?? 0 });
   const inserted = res.inserted ?? 0;
-  report({ processed: 1, total: 1, inserted, note: "" });
-  return { documents: 1, inserted };
+  const skipped = res.skipped ?? 0;
+  report({ processed: 1, total: 1, inserted, skipped, note: "" });
+  return { documents: 1, inserted, skipped };
 }
 
 /** Read a file as base64 without its data-URL prefix, for the PDF passthrough. */

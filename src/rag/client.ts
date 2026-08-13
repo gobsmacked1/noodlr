@@ -62,6 +62,21 @@ export interface IngestDocument {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * What an ingest actually did.
+ *
+ * `skipped` matters to the interface, not only to the log: now that the service deduplicates against
+ * what it already holds, re-ingesting a compendium legitimately reports `inserted: 0`, which reads as
+ * a failure to anyone watching a progress bar. Counting the skips is what turns that into "already
+ * stored". A service older than the module omits the field, so every reader treats it as optional.
+ */
+export interface IngestResult {
+  inserted: number;
+  chunks: number;
+  /** Chunks that needed no embedding: already in the collection, or repeated inside the request. */
+  skipped?: number;
+}
+
 export interface CollectionsInfo {
   collections: Record<string, string>;
   stats: Record<string, unknown>;
@@ -152,7 +167,7 @@ export class RagClient {
     documents: IngestDocument[],
     embed?: EmbedOverride,
     signal?: AbortSignal,
-  ): Promise<{ inserted: number; chunks: number }> {
+  ): Promise<IngestResult> {
     return this.request("POST", "/ingest", { collection, documents, embed }, signal);
   }
 
@@ -164,7 +179,7 @@ export class RagClient {
     signal?: AbortSignal,
     /** Re-ranker weight for the resulting chunks; the service builds their metadata. */
     importance?: number,
-  ): Promise<{ inserted: number; chunks: number }> {
+  ): Promise<IngestResult> {
     return this.request(
       "POST",
       "/ingest-file",

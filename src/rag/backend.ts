@@ -6,12 +6,13 @@ import type {
   CollectionsInfo,
   EmbedOverride,
   IngestDocument,
+  IngestResult,
   QueryOptions,
   RagHit,
 } from "./client";
 import type { SiloId } from "./silos";
 
-export type { CollectionsInfo, EmbedOverride, IngestDocument, QueryOptions, RagHit };
+export type { CollectionsInfo, EmbedOverride, IngestDocument, IngestResult, QueryOptions, RagHit };
 
 export interface MemoryBackend {
   health(signal?: AbortSignal): Promise<{ ok: boolean; backend: string }>;
@@ -22,7 +23,7 @@ export interface MemoryBackend {
     documents: IngestDocument[],
     embed?: EmbedOverride,
     signal?: AbortSignal,
-  ): Promise<{ inserted: number; chunks: number }>;
+  ): Promise<IngestResult>;
   ingestFile(
     collection: SiloId,
     filename: string,
@@ -30,7 +31,7 @@ export interface MemoryBackend {
     embed?: EmbedOverride,
     signal?: AbortSignal,
     importance?: number,
-  ): Promise<{ inserted: number; chunks: number }>;
+  ): Promise<IngestResult>;
   purge(collection: SiloId, signal?: AbortSignal): Promise<{ ok: boolean; purged: string }>;
   /** Delete specific rows by id and/or content hash (bot-driven UPDATE/FORGET). */
   delete(

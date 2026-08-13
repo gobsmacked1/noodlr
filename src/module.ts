@@ -15,7 +15,10 @@ import { NoodlrImageGenApp } from "./apps/image-gen-app";
 import { NoodlrSecurityApp } from "./apps/security-app";
 import { registerNoodlrPartials } from "./apps/partials";
 import { seedPromptDefaults } from "./prompts/fields";
-import { NoodlrMemoryApp } from "./apps/memory-app";
+import { NoodlrMemoryApp, rebuildIngestTask } from "./apps/memory-app";
+import { restoreIngestQueue } from "./rag/ingest-queue";
+import { isRagEnabled } from "./rag/config";
+import { isPrimaryGM } from "./util/gm";
 import { NoodlrLorebookApp } from "./apps/lorebook-app";
 import { NoodlrRagBrowserApp } from "./apps/rag-browser-app";
 import { speak, stopSpeaking } from "./media/tts";
@@ -210,6 +213,18 @@ Hooks.once("ready", () => {
     initAdjudicationCapture();
     // Parsed once; a missing file just means silent monsters.
     void loadBanter();
+    // Pick up an ingest queue that a reload interrupted. Primary GM only, and only when memory is
+    // still switched on: the expected behaviour is a GM queueing a shelf of compendia and going off
+    // to play, so a refresh hours later must not quietly abandon a half-ingested world. Silent
+    // unless something was actually adopted — nobody needs a toast about an empty queue.
+    if (isPrimaryGM() && isRagEnabled()) {
+      const resumed = restoreIngestQueue(rebuildIngestTask);
+      if (resumed > 0) {
+        ui.notifications?.info(
+          game.i18n.format("NOODLR.Rag.Queue.Resumed", { count: String(resumed) }),
+        );
+      }
+    }
   }
 });
 
