@@ -19,6 +19,7 @@
 
 import { MODULE_ID, RAG_SETTINGS, debug, warn } from "../constants";
 import { isPrimaryGM } from "../util/gm";
+import { providerRefusalAdvice } from "./failure";
 import { isSiloId, type SiloId } from "./silos";
 
 export type IngestJobKind = "pack" | "file";
@@ -445,8 +446,12 @@ async function pump(): Promise<void> {
       } catch (err) {
         const aborted = job.controller.signal.aborted;
         job.status = aborted ? "cancelled" : "failed";
-        job.note = aborted ? "" : ((err as Error).message ?? String(err));
-        if (!aborted) warn(`ingest failed (${job.label}): ${job.note}`);
+        const raw = (err as Error).message ?? String(err);
+        // A provider refusal is reported in the operator's terms, not the wire's. The job kept its
+        // resume index, so what this needs to say is "press Resume in a minute" rather than a 429
+        // body that reads like the memory service broke. Full detail still goes to the console.
+        job.note = aborted ? "" : providerRefusalAdvice(err) || raw;
+        if (!aborted) warn(`ingest failed (${job.label}): ${raw}`);
       } finally {
         job.phase = "idle";
         job.finishedAt = Date.now();

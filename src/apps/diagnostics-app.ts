@@ -3,7 +3,7 @@
 // (ingest a marker -> query it back), and session usage counters (chat turns, tokens, memory
 // retrieved vs. injected, rerank trim, ingests). GM-only in practice (memory is GM-gated).
 
-import { MODULE_ID, MODULE_TITLE } from "../constants";
+import { MODULE_ID, MODULE_TITLE, warn } from "../constants";
 import {
   getRagClient,
   getRagBackend,
@@ -13,6 +13,7 @@ import {
   getRagTuning,
 } from "../rag/config";
 import { RagClientError, type RagHit } from "../rag/client";
+import { providerRefusalAdvice } from "../rag/failure";
 import { IMPORTANCE, withImportance } from "../rag/importance";
 import { SILOS, isSiloId } from "../rag/silos";
 import { snapshotStats, resetStats } from "../util/stats";
@@ -268,7 +269,15 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       }
     } catch (err) {
       const msg = err instanceof RagClientError ? err.message : String(err);
-      setStatus(game.i18n.format("NOODLR.Diagnostics.SelfTest.Fail", { error: msg }), false);
+      // A refusal is not a failed self-test. The write path, the store and the service are all fine
+      // and an upstream model was busy, so the operator needs to be told to press it again rather
+      // than sent to debug a service that never misbehaved.
+      const refusal = providerRefusalAdvice(err);
+      setStatus(
+        refusal || game.i18n.format("NOODLR.Diagnostics.SelfTest.Fail", { error: msg }),
+        false,
+      );
+      if (refusal) warn(`memory self-test: provider refused — ${msg}`);
     }
   }
 }

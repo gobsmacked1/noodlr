@@ -3,7 +3,8 @@
 // fall back to a compact JSON of the document's system data.
 
 import { getEmbedOverride, getRagClient } from "./config";
-import { RagClientError, type IngestDocument, type IngestResult } from "./client";
+import { type IngestDocument, type IngestResult } from "./client";
+import { isRateLimit } from "./failure";
 import { IMPORTANCE, withImportance } from "./importance";
 import type { IngestReport } from "./ingest-queue";
 import { parseStructuredFile, structuredFormatFor } from "./parse-structured";
@@ -134,24 +135,16 @@ function documentKind(doc: any): string {
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * Whether a failure is the provider's rate limit rather than a fault in the request.
+ * First wait after a rate limit, in ms, doubling from there.
  *
- * The service reports one as HTTP 429 as of noodlr-memory 1.2.0. Older builds flattened it to a 400
- * whose message still quoted the provider's status, and a GM does not upgrade the service in step
- * with the module — so the message is read as well. Getting this wrong in the permissive direction
- * costs one pointless wait; getting it wrong in the strict direction abandons an ingest that would
- * have finished, which is the failure this whole path exists to prevent.
+ * This was 20s, sized for a per-minute account window on the same reasoning the service used, and the
+ * premise turned out to be wrong: an OpenRouter generation log shows a single-text embed returning
+ * 200 and another refused ~1.0s later, so the common refusal is momentary saturation upstream rather
+ * than a rolled window. A blip that clears in a second does not need a twenty-second park, and
+ * parking anyway is what made a working ingest spend its whole budget on waiting. Doubling still
+ * reaches a long wait quickly when the limit is real.
  */
-function isRateLimit(err: unknown): boolean {
-  if (err instanceof RagClientError) {
-    if (err.status === 429) return true;
-    return /\b429\b|rate.?limit/i.test(err.message);
-  }
-  return /\b429\b|rate.?limit/i.test(String((err as Error)?.message ?? err));
-}
-
-/** First wait after a rate limit, in ms. Sized for a per-minute window, not for a blip. */
-const RATE_LIMIT_WAIT_MS = 20_000;
+const RATE_LIMIT_WAIT_MS = 1_000;
 const RATE_LIMIT_WAIT_MAX_MS = 120_000;
 /**
  * How long one batch may spend waiting out rate limits before the run gives up and reports.
@@ -216,7 +209,7 @@ async function withPatience<T>(
       if (!isRateLimit(err)) throw err;
 
       waits++;
-      const wait = Math.min(RATE_LIMIT_WAIT_MAX_MS, RATE_LIMIT_WAIT_MS * waits);
+      const wait = Math.min(RATE_LIMIT_WAIT_MAX_MS, RATE_LIMIT_WAIT_MS * 2 ** (waits - 1));
       if (spent + wait > RATE_LIMIT_BUDGET_MS) throw err;
       spent += wait;
       debug(`ingest rate-limited, waiting ${wait}ms (${spent}ms spent)`);

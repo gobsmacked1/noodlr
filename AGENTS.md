@@ -301,6 +301,32 @@ What it provides:
     `{inserted, chunks, skipped, alreadyStored, repeats}` and the module surfaces it — a pack that
     reports zero inserted is finished, not broken, and that is the first thing a GM will misread.
   - Default `batchSize` moved 32 → 64 in the same release.
+- **Every wait in the above was sized for a model of the limit, and the model was wrong (v1.3.1,
+ 2026-08-13).** Reported from a live server: the **Diagnostics self-test** — one sentence, one
+ request, no batching, nothing to deduplicate — failed on a 429, and the service then reported
+ "embed pacing now 1s / 2s between requests". Two separate faults, and neither is fixable by any of
+ the efficiency work above, because there was no waste left to remove.
+ - **Read the operator's generation log, not our own inference.** It showed `status: 200` for a
+ single-text embed at 21:12:00.502 and a refusal about a second later. A per-minute window cannot
+ produce that, so the 20 s first wait (`rateLimitWaitMs`, and `ingest.ts`'s matching constant) was
+ spending the entire 45 s hold arriving at a failure the provider had already stopped issuing.
+ **1 s, doubling** — and `Retry-After` still beats any schedule we can invent.
+ - **Adaptive pacing is OFF by default now (`paceMaxMs` 30000 → 0), and the default is the whole
+ decision.** The mechanism assumes a 429 proves "the account cannot take requests at this rate",
+ which is true of `[account limit]` and false of `[upstream limit]`: that one is a model's capacity,
+ consumed by everybody's traffic, so pacing throttles a run that was never the cause and leaves the
+ service slow for minutes after the event passed. Do not restore it as a default; `minIntervalMs` is
+ the honest lever because it is a number an operator chose rather than one a failure taught us.
+ - **A single-provider model cannot be routed around, and that is most of the mystery.** `routingNote`
+ reads `/api/v1/models/<slug>/endpoints` once and logs the provider count on the first 429;
+ `perplexity/pplx-embed-v1-4b` is served by Perplexity alone, so OpenRouter has no failover and
+ saturation reaches us however slowly we ask. The user kept that slug deliberately (2026-08-13), so
+ the remedy is to SAY this rather than to throttle around it.
+ - **`scripts/probe-rate.mjs` exists so this is never re-argued from inference.** It talks to the
+ provider directly and deliberately bypasses `embeddings.js` — the gate, the retries, the hedge and
+ the pacing are exactly what would corrupt the measurement, since they exist to hide the behaviour
+ being measured. `recover` is the one that sizes `EMBED_RATE_LIMIT_WAIT_MS`; `routing` needs no key
+ (demanding one would send the operator hunting a credential to answer a free question).
 - **Listeners (v1.1.0, 2026-08-01):** TCP **and** the optional Unix socket run at the same time. Before 1.1 a socket path switched TCP off entirely, which presumed Foundry and the service shared one Linux host; Windows hosts have no socket and some admins run the service on a separate box. `NOODLR_MEMORY_PORT=0` opts out of TCP; a socket path on Windows warns and is ignored; each listener reports its own bind failure and the process exits only if neither starts.
 
 How noodlr-main interacts with it (the integration contract):
@@ -1486,7 +1512,29 @@ with no way to tell how much of it had landed.
   slightly stale count. `restoring` suppresses writes while the queue is being rebuilt, or the restore
   would race its own persistence.
 - Resuming is announced once with a notification and otherwise silent, which is what "I hit ingest and
-  went off to play" asks for.
+ went off to play" asks for.
+
+### A provider's refusal is not a broken memory service (v0.6.5, 2026-08-13)
+
+`src/rag/failure.ts` is the one place that tells the two apart, and it exists because they arrive at
+the same place and mean opposite things. A rate limit says the store is healthy, the write path is
+correct, and an upstream model was busy for a moment; a connection or store failure says nothing
+works. Reported as one raw error string — which is how the Diagnostics self-test reported it — the
+reasonable conclusion is that memory is broken, and the operator goes off to audit a service that was
+never at fault.
+
+- **`isRateLimit` reads the status AND the message**, because noodlr-memory only started reporting 429
+ as 429 in 1.2.0 and a GM does not upgrade the service in step with the module. Wrong in the
+ permissive direction costs one pointless wait; wrong in the strict direction abandons an ingest that
+ would have finished.
+- **`providerRefusalAdvice` names the model only when `getEmbedOverride()` carries one.** Without the
+ opt-in provider block the service uses its own `EMBED_MODEL`, and naming a setting that had no part
+ in the request is the same class of mistake as advising an account top-up for an upstream limit.
+- **The advice names the SERVICE's environment variables**, because the audience is whoever runs
+ noodlr-memory and every lever is on that side. Same reasoning as the socket/reverse-proxy hints in
+ `ragFailureAdvice`.
+- Both consumers matter: the self-test (a one-request probe, so nothing here is about bulk load) and
+ the queue, where the job note becomes "press Resume in a minute" instead of a quoted 429 body.
 
 ## Hard-won invariants
 

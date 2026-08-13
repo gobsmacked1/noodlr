@@ -2,6 +2,29 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.6.5
+
+**A provider refusing to embed no longer looks like your memory service being broken, and the waits
+that were making it worse are gone.** Reported from a live server: the Diagnostics self-test — a
+single sentence, one request — failed on a rate limit, and the service then paced itself slower and
+slower for a problem that was never about its speed.
+
+- **The self-test and the ingest queue now name what happened.** "Your memory service is fine — the
+  embedding provider refused the request" is a different instruction from "memory is broken": one says
+  wait a moment and press it again, the other says go and debug. It also lists the levers, all of
+  which are on the service (a bigger batch size, a different embedding model, or embedding in-process
+  with no provider at all).
+- **The 20-second wait after a refusal is now one second, doubling from there.** It was sized for a
+  per-minute quota. What was actually happening was momentary — an OpenRouter log shows a request
+  succeeding and another refused a second later — so parking for twenty seconds spent the whole
+  patience budget arriving at a failure the provider had already stopped issuing.
+
+With **noodlr-memory 1.3.1** the same correction lands on the service, which additionally stops
+throttling itself after a refusal (that only ever made sense for a limit on your own key, not for a
+busy model) and now reports how many providers can serve your embedding model — where the answer is
+one, OpenRouter has nothing to fail over to, and no amount of slowing down helps. It also ships
+`scripts/probe-rate.mjs`, which measures what your provider really tolerates instead of guessing.
+
 ## 0.6.4
 
 **Ingesting the same compendium twice is now nearly free, and a queued ingest survives a page
