@@ -139,10 +139,15 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
  *
  * This was 20s, sized for a per-minute account window on the same reasoning the service used, and the
  * premise turned out to be wrong: an OpenRouter generation log shows a single-text embed returning
- * 200 and another refused ~1.0s later, so the common refusal is momentary saturation upstream rather
- * than a rolled window. A blip that clears in a second does not need a twenty-second park, and
- * parking anyway is what made a working ingest spend its whole budget on waiting. Doubling still
- * reaches a long wait quickly when the limit is real.
+ * 200 and another refused ~1.0s later, and noodlr-memory's `probe-rate.mjs recover` then measured the
+ * refusal clearing on the first retry 250ms later. So the common refusal is momentary saturation
+ * upstream rather than a rolled window, and parking for twenty seconds spent a whole budget waiting
+ * out something that had already passed.
+ *
+ * Deliberately LONGER than the service's own 250ms first wait, and the asymmetry is the point: by the
+ * time a 429 reaches this side, the service has already retried the blip away for up to its 45s hold,
+ * so a refusal we can see is one that persisted. Harmonising the two numbers would either make the
+ * service patient enough to look hung or make this side retry a wall it was just handed.
  */
 const RATE_LIMIT_WAIT_MS = 1_000;
 const RATE_LIMIT_WAIT_MAX_MS = 120_000;

@@ -327,6 +327,42 @@ What it provides:
  the pacing are exactly what would corrupt the measurement, since they exist to hide the behaviour
  being measured. `recover` is the one that sizes `EMBED_RATE_LIMIT_WAIT_MS`; `routing` needs no key
  (demanding one would send the operator hunting a credential to answer a free question).
+- **It was run, and it settled the number in one line (v1.3.2, 2026-08-13).** `recover` on the
+ reference host: **the FIRST request out of a cold process was refused, and cleared 250ms later.**
+ Both halves matter, and the first matters more. A limit our request rate could trip cannot refuse a
+ process's first call, so every remedy shaped like "ask more slowly" was answering a question the
+ provider never asked — which retires the whole self-throttling family for good, not merely as a
+ default. `EMBED_RATE_LIMIT_WAIT_MS` is 250ms (20s → 1s → 250ms across three releases, each cut on
+ better evidence than the last), and the ladder still doubles inside the 45s hold, so a genuinely
+ window-shaped limit is reached in a few cheap attempts.
+ - **Two other constants had been sized for the same imagined per-minute window and were quietly
+ wrong by two orders of magnitude.** The hedge stand-down was a flat minute (`REFUSAL_SETTLE_MS`,
+ now 5s): one blip during a bulk ingest disabled hedging for the interactive query arriving ten
+ seconds later, which is the only thing hedging still serves now that it fires for a single text
+ only. And the `?? 20_000` / `?? 6000` fallbacks in `resolveEmbedConfig` still stated the old
+ defaults — a second copy of a default is a value nobody chose, reached on exactly the path (a
+ hand-built cfg) where it is least likely to be noticed.
+ - **A refusal the service recovers from is `info`, not `warn` (`REFUSAL_NOISE_MS`, 5s of cumulative
+ wait within one batch).** A single-provider model refuses the occasional request as a matter of
+ course and we retry it away in a quarter of a second; logging that at `warn` with a paragraph of
+ remedies is how a working ingest came to be reported as a broken service — the operator's words
+ were that it "isn't even able to perform the self-test without being throttled and erroring", and
+ the self-test had in fact succeeded. **Severity has to track what the operator should DO**, which
+ is the same doctrine as `rag/failure.ts` on the module side, arriving from the other direction.
+ The advice and the routing note now fire once per batch at escalation rather than on the first
+ rung, so they appear when they are actionable.
+ - **`dur()` because the logs rounded the interesting number away.** Every line printed
+ `Math.round(ms / 1000)}s`, which was fine while the waits were tens of seconds and became a lie
+ the moment they were measured properly: a 250ms retry read as "waiting 0s" and a learned 120ms gap
+ as "pacing now 0s between requests". A log that rounds off the quantity it exists to report looks
+ like a broken mechanism rather than a broken message.
+ - **The module's first wait stays at 1s, and the asymmetry is deliberate.** By the time a 429 reaches
+ `ingest.ts`, the service has already retried the blip away for up to its whole 45s hold, so a
+ refusal the module can see is one that persisted. Harmonising the two numbers would either make
+ the service patient enough to look hung or make the module retry a wall it was just handed.
+ - Locked by `test/embeddings.test.js` — "at the shipped defaults, a recovered 429 leaves nothing
+ behind" asserts no learned pacing and a sub-second first wait, so restoring a non-zero
+ `paceMaxMs` default fails a test instead of quietly slowing the next self-test.
 - **Listeners (v1.1.0, 2026-08-01):** TCP **and** the optional Unix socket run at the same time. Before 1.1 a socket path switched TCP off entirely, which presumed Foundry and the service shared one Linux host; Windows hosts have no socket and some admins run the service on a separate box. `NOODLR_MEMORY_PORT=0` opts out of TCP; a socket path on Windows warns and is ignored; each listener reports its own bind failure and the process exits only if neither starts.
 
 How noodlr-main interacts with it (the integration contract):
