@@ -2,6 +2,26 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.6.3
+
+**A slow ingest now says it is slow.** Follow-up to 0.6.2, from a real run: a pack that was working
+perfectly well looked hung, because the progress bar only moved once a batch finished and a batch
+being held up by a rate limit could take minutes. The running job now ticks the seconds it has been
+waiting on the current batch, so "embedding and storing… 94s" is visibly different from a job that has
+stopped.
+
+The reason it went quiet is worth knowing if you are diagnosing your own provider: noodlr-memory 1.2.0
+absorbed rate-limit waits *inside* the request, up to ten minutes, so the countdown built into this
+window never got a chance to fire. Service 1.2.1 hands the refusal back after 45 seconds instead and
+lets this side do the waiting, where you can see it and cancel it. Pair the two.
+
+**If your ingests are being refused, read the service log line — it now names which limiter said no.**
+An OpenRouter account limit and the model provider's own limit look identical from here and have
+opposite fixes: the first is solved by credits, the second cannot be solved by credits at all. For a
+one-off bulk load of a whole corpus, deliberately slowing down (Memory & Knowledge → Embeddings:
+batch size 64, minimum gap 6000 ms) finishes overnight and is *faster* in practice than being refused,
+because a refusal costs you the wait and the request.
+
 ## 0.6.2
 
 **Ingesting compendiums no longer falls over when your embedding provider says "slow down". Ingests

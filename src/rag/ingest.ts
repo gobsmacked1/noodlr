@@ -170,6 +170,37 @@ const RATE_LIMIT_BUDGET_MS = 1_200_000;
  * indistinguishable from one that has hung — which is precisely how the previous version presented,
  * right before it reported failure and lost the whole pack.
  */
+/**
+ * Run `send`, ticking the elapsed seconds while it is in flight.
+ *
+ * A request that is merely SLOW has to look different from one that is stuck, and it did not: the
+ * phase was reported once as "sending" with an empty note and then nothing changed until the reply
+ * arrived. That is how a working ingest came to read as hung — the service was absorbing rate-limit
+ * waits internally, so the countdown below never fired and the only visible state was a progress bar
+ * that had stopped moving. The service now hands a 429 back quickly instead, but the heartbeat is
+ * the part that makes any long request honest, whatever the reason.
+ */
+async function reportWhilePending<T>(
+  send: () => Promise<T>,
+  report: (r: IngestReport) => void,
+): Promise<T> {
+  const started = Date.now();
+  const tick = () =>
+    report({
+      phase: "sending",
+      note: game.i18n.format("NOODLR.Rag.Queue.Sending", {
+        seconds: Math.round((Date.now() - started) / 1000),
+      }),
+    });
+  tick();
+  const timer = window.setInterval(tick, 1000);
+  try {
+    return await send();
+  } finally {
+    window.clearInterval(timer);
+  }
+}
+
 async function withPatience<T>(
   send: () => Promise<T>,
   signal: AbortSignal | undefined,
@@ -179,8 +210,7 @@ async function withPatience<T>(
   let spent = 0;
   for (;;) {
     try {
-      report({ phase: "sending", note: "" });
-      return await send();
+      return await reportWhilePending(send, report);
     } catch (err) {
       if (signal?.aborted) throw err;
       if (!isRateLimit(err)) throw err;

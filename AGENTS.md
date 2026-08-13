@@ -236,8 +236,44 @@ What it provides:
   - **Raising `batchSize` needs a character cap to stay safe**, hence `EMBED_MAX_CHARS_PER_REQUEST`
     (48k) and `planBatches`: the documented advice is to raise the batch size, and 64 statblocks is
     a payload some providers reject outright. Splitting by length means the advice cannot backfire.
-  - The default `batchSize` moved 16 → 32, and the module can override both it and the pacing floor
-    per request (see the ingest-queue section below).
+ - The default `batchSize` moved 16 → 32, and the module can override both it and the pacing floor
+ per request (see the ingest-queue section below).
+- **Patience belongs to whoever has the progress bar (v1.2.1, 2026-08-13).** 1.2.0's ten-minute
+ `rateLimitBudgetMs` was spent *inside one HTTP request*, and that is the wrong side of the wire.
+ Two failures followed, and only the second was obvious. A reverse proxy cuts the connection first
+ (nginx `proxy_read_timeout` defaults to 60 s). Worse, **the module's own countdown could never
+ fire**: `withPatience` waits for a 429 *response*, so while the service absorbed the wait the queue
+ reported `phase: "sending"` with an empty note and a working ingest was indistinguishable from a
+ hung one — which is exactly how it was reported. The hold is now 45 s and then the 429 is handed
+ back; the module's 20-minute budget does the waiting where a GM can see and cancel it.
+ - **The pacing must survive the hand-back.** A short hold puts the whole weight of not re-bursting
+ on the process-wide gate outliving the throw, so `pauseAll` is called before it. Reset the pace on
+ the way out and the caller's retry arrives at full speed into the same wall — the stall-burst cycle
+ the adaptation exists to stop, looking exactly like the adaptation not working. Locked by a test.
+ - **`PACE_DECAY_MS` must comfortably exceed the longest single wait.** It is 300 s, and the older
+ note here saying "a quiet minute" was wrong in a dangerous direction: at 60 s a one-minute
+ rate-limit wait would count as quiet and zero the pace immediately before the retry that provoked
+ it.
+ - **`paceMaxMs` 6000 got the ceiling's purpose backwards.** It is a runaway guard, not a cap on
+ compliance, and 6 s is 10 requests a minute — so an upstream provider wanting fewer than that
+ could never be satisfied, and every retry was refused the instant it left. Now 30 s (2/min).
+- **Read WHICH limiter refused, because the two remedies are opposite (v1.2.1).** OpenRouter returns
+ its own cap as `{error:{code:429, metadata:{error_type:"rate_limit_exceeded"}}}` with
+ `X-RateLimit-Limit`/`-Remaining`/`-Reset` headers; that one is fixable with credits or by leaving a
+ `:free` variant. An **upstream** provider's refusal is relayed verbatim behind an `HTTP 429:` prefix
+ with a nested body and **no `X-RateLimit-*` at all** — it is that model's capacity rather than the
+ key's balance, so credits change nothing and the levers are a slower rate, fewer requests, or a
+ different model. `limiterOf()` classifies it (headers first, body shape second, `unknown` carries no
+ advice) and the log names it. The 2026-08-13 report was upstream Perplexity, and without this the
+ operator's first move is to buy credits that cannot help. **`rate_limit` on `GET /api/v1/key` is
+ deprecated and always returns −1**, so there is no asking the account what its limit is.
+ `X-RateLimit-Reset` is now used as the wait when no `Retry-After` arrives, its unit inferred by
+ magnitude and discarded unless it yields a plausible wait.
+- **The arithmetic that makes deliberate pacing the right answer:** a whole corpus is one to two
+ thousand requests at `batchSize` 64, so even 10/min finishes overnight — and a refusal costs the
+ wait *and* the request, so going slowly on purpose is faster in wall-clock terms than being refused.
+ `EMBED_HEDGE_MS=0` for a bulk run; hedging is an interactive-latency trick and every duplicate is
+ another request against the same limit.
 - **Listeners (v1.1.0, 2026-08-01):** TCP **and** the optional Unix socket run at the same time. Before 1.1 a socket path switched TCP off entirely, which presumed Foundry and the service shared one Linux host; Windows hosts have no socket and some admins run the service on a separate box. `NOODLR_MEMORY_PORT=0` opts out of TCP; a socket path on Windows warns and is ignored; each listener reports its own bind failure and the process exits only if neither starts.
 
 How noodlr-main interacts with it (the integration contract):
@@ -1372,11 +1408,19 @@ part is that two of the three faults were interface rather than networking.
   is taken in `_onRender` and dropped in `_onClose`, and closing the window does **not** cancel the
   run.
 - **A wait has to be visible or it reads as a hang.** The old path sat silent through a backoff and
-  then reported failure, which is the worst available combination. `withPatience` counts the wait down
-  through `report` every second, names the retry number, and gives one batch 20 minutes before it
-  gives up. It wraps a thunk rather than a batch so the upload path shares it instead of growing a
-  second copy of the loop — which is also why `ingestUploadedFile` moved out of `memory-app.ts` into
-  `ingest.ts`.
+ then reported failure, which is the worst available combination. `withPatience` counts the wait down
+ through `report` every second, names the retry number, and gives one batch 20 minutes before it
+ gives up. It wraps a thunk rather than a batch so the upload path shares it instead of growing a
+ second copy of the loop — which is also why `ingestUploadedFile` moved out of `memory-app.ts` into
+ `ingest.ts`.
+ - **v0.6.2 got that half right and left the other half silent (fixed v0.6.3).** The countdown only
+ runs once a 429 has been *received*, and the service was absorbing rate-limit waits internally for
+ up to ten minutes, so the visible state through all of it was one `phase: "sending"` with an empty
+ note. A pack that was working perfectly was reported as hung. `reportWhilePending` now ticks the
+ elapsed seconds of the in-flight request every second, so slow and stuck look different whatever
+ the reason — a property worth having independently of the service-side fix, since any request can
+ be slow. The generalisable form: **a progress indicator that only updates on completion is not a
+ progress indicator**, and the queue's coalesced `report` already made a per-second tick cheap.
 - **Throttle settings are sent independently of `sendEmbedConfig`.** Conflating them is what left the
   documented first lever unreachable: the provider block (model, URL, key) is opt-in because it means
   the GM's key leaves their browser, while batch size and pacing are not credentials. A lever that

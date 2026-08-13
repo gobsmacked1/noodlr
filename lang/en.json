@@ -250,6 +250,7 @@
   "NOODLR.Rag.Queue.Queued": "Queued \"{label}\" for ingestion.",
   "NOODLR.Rag.Queue.Duplicate": "\"{label}\" is already queued or running.",
   "NOODLR.Rag.Queue.Loading": "reading documents…",
+  "NOODLR.Rag.Queue.Sending": "embedding and storing… {seconds}s",
   "NOODLR.Rag.Queue.Cancel": "Cancel this job",
   "NOODLR.Rag.Queue.CancelAll": "Cancel all",
   "NOODLR.Rag.Queue.ClearFinished": "Clear finished",
