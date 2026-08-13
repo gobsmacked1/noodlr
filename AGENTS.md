@@ -218,6 +218,26 @@ What it provides:
   untested, same as the `k must be positive` bug below.
   **The first lever against a requests-per-minute limit is `EMBED_BATCH_SIZE`**, not backoff: the
   limit counts requests and not texts, so 16 → 64 is a straight 4× cut in calls for identical work.
+- **Patience is measured in time, not attempts (v1.2.0, 2026-08-13).** 1.1.1 handled a 429 correctly
+  and still could not finish a compendium, because `maxRetries` (5) with exponential backoff spends
+  every attempt *inside the same per-minute window* and then throws while the provider is still
+  refusing. A per-minute limit needs a wait sized to the window: `EMBED_RATE_LIMIT_WAIT_MS` starts at
+  20 s and scales, and the whole batch gets `EMBED_RATE_LIMIT_BUDGET_MS` (10 min) of patience rather
+  than a count. 401/402/400 still fail on the first try — patience is for the one error that passes
+  with time.
+  - **A 429 teaches the process to pace itself.** `adaptivePaceMs` doubles by `EMBED_PACE_STEP_MS`
+    up to `EMBED_PACE_MAX_MS` on every rate limit and decays after a quiet minute, so the run
+    settles at a sustainable rate instead of sprinting into the next window. It is a floor on top of
+    `EMBED_MIN_INTERVAL_MS`, not a replacement.
+  - **429 is now reported as 429.** It used to be flattened into the 400 that `embedTexts` throws for
+    any provider error, so a caller could only find it by grepping the message. Both are still read
+    on the module side (`isRateLimit` in `ingest.ts`) because a GM does not upgrade the service in
+    step with the module.
+  - **Raising `batchSize` needs a character cap to stay safe**, hence `EMBED_MAX_CHARS_PER_REQUEST`
+    (48k) and `planBatches`: the documented advice is to raise the batch size, and 64 statblocks is
+    a payload some providers reject outright. Splitting by length means the advice cannot backfire.
+  - The default `batchSize` moved 16 → 32, and the module can override both it and the pacing floor
+    per request (see the ingest-queue section below).
 - **Listeners (v1.1.0, 2026-08-01):** TCP **and** the optional Unix socket run at the same time. Before 1.1 a socket path switched TCP off entirely, which presumed Foundry and the service shared one Linux host; Windows hosts have no socket and some admins run the service on a separate box. `NOODLR_MEMORY_PORT=0` opts out of TCP; a socket path on Windows warns and is ignored; each listener reports its own bind failure and the process exits only if neither starts.
 
 How noodlr-main interacts with it (the integration contract):
@@ -1324,6 +1344,48 @@ players" suppressing both text and audio; the GM-relayed player ask with acknowl
 Still unverified in-app: push-to-log/MediaRecorder cycling, image/music/video generation from a
 player client (see the upload-permission note below — expected to fail), combat block + NPC turn,
 lorebook/author's-note/post-history injection.
+
+## Ingest is a queue with a progress bar (v0.6.2, 2026-08-13)
+
+Reported as a rate limit and only half of it was: repopulating every silo could not get through a
+single compendium. The service side is the note above; this is the module side, and the interesting
+part is that two of the three faults were interface rather than networking.
+
+- **`#busy` on the window was never a lock.** It guarded re-entry into one handler on one client, so
+  it did nothing about a second window, a reload mid-run, or an upload fired while a pack was going.
+  Two concurrent ingests do not go twice as fast — they halve each other's share of a limit that
+  counts requests — so serializing them is a correctness measure. `src/rag/ingest-queue.ts` is a
+  **module-level** singleton for the same reason it is not a window field: a run has to survive the
+  GM closing the window, and every caller must see the same queue. Memory access is GM-gated, so
+  there is exactly one client doing this.
+- **The duplicate guard is on `key`, not on a busy flag.** Queueing is the *right* answer to a GM
+  clicking six packs; what must not happen is the same pack twice. A resume keeps the same key
+  (`pack:<id>:<silo>`, no `from`), so resuming cannot enqueue a second copy of a job.
+- **`resumeAt` is only advanced once a batch is STORED.** That is what makes resume safe in both
+  directions: it never re-sends embeddings already paid for and never skips documents that never
+  landed. A cancelled job keeps it — the rows written are real. An uploaded file omits `resume`
+  entirely rather than faking one, and the button is absent as a consequence rather than as a
+  separate check: it is one indivisible request with no index to restart at.
+- **The queue is painted imperatively; `render()` is never called on progress.** A re-render rebuilds
+  60-odd pack rows, resets every silo picker to its default and loses the scroll position — several
+  times a second while a countdown ticks. Same rule as the chat panel's streaming. The subscription
+  is taken in `_onRender` and dropped in `_onClose`, and closing the window does **not** cancel the
+  run.
+- **A wait has to be visible or it reads as a hang.** The old path sat silent through a backoff and
+  then reported failure, which is the worst available combination. `withPatience` counts the wait down
+  through `report` every second, names the retry number, and gives one batch 20 minutes before it
+  gives up. It wraps a thunk rather than a batch so the upload path shares it instead of growing a
+  second copy of the loop — which is also why `ingestUploadedFile` moved out of `memory-app.ts` into
+  `ingest.ts`.
+- **Throttle settings are sent independently of `sendEmbedConfig`.** Conflating them is what left the
+  documented first lever unreachable: the provider block (model, URL, key) is opt-in because it means
+  the GM's key leaves their browser, while batch size and pacing are not credentials. A lever that
+  only works when an unrelated checkbox is on is a lever nobody finds. `resolveEmbedConfig` falls
+  back to the server's value for every omitted field, so a throttle-only override leaves the provider
+  config exactly as the service has it. 0 means "let the service decide" and must survive a save.
+- The ingest buttons are deliberately NOT disabled while the queue is busy — they queue. What is
+  disabled is everything that would either spend the same budget (upload, developer export) or move
+  the ground under a running job (silo reset).
 
 ## Hard-won invariants
 

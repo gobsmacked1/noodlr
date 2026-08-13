@@ -99,6 +99,8 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
 
       sendEmbedConfig: Boolean(g(RAG_SETTINGS.sendEmbedConfig)),
       embeddings: { id: "embeddings", ...getProviderView("embeddings") },
+      embedBatchSize: Number(g(RAG_SETTINGS.embedBatchSize)) || 0,
+      embedPaceMs: Number(g(RAG_SETTINGS.embedPaceMs)) || 0,
 
       webFallbackEnabled: getWebFallbackConfig().enabled,
       webFallbackMinScore: getWebFallbackConfig().minScore,
@@ -158,6 +160,11 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
     await set(RAG_SETTINGS.agentMode, Boolean(o.agentMode));
     await set(RAG_SETTINGS.tokenBudget, Number(o.tokenBudget) || 1500);
     await set(RAG_SETTINGS.topK, Number(o.topK) || 5);
+
+    // Embedding throttle. Clamped rather than rejected: a 0 means "let the service decide", which is
+    // the documented default, so a blanked field has to survive a save.
+    await set(RAG_SETTINGS.embedBatchSize, clampNumber(o.embedBatchSize, 0, 256));
+    await set(RAG_SETTINGS.embedPaceMs, clampNumber(o.embedPaceMs, 0, 10_000));
 
     // Web-search fallback (OpenRouter chat only)
     await set(RAG_SETTINGS.webFallbackEnabled, Boolean(o.webFallbackEnabled));
@@ -254,6 +261,13 @@ export class NoodlrMemoryConfigApp extends HandlebarsApplicationMixin(Applicatio
  * honest as the GM types — "what will actually be fetched" is the question the old single URL box
  * couldn't answer.
  */
+/** A blank or nonsense field reads as 0, which every consumer treats as "use the default". */
+function clampNumber(value: unknown, min: number, max: number): number {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return min;
+  return Math.min(max, Math.max(min, n));
+}
+
 function wireTargetMode(root: HTMLElement): void {
   const select = root.querySelector<HTMLSelectElement>('select[name="targetMode"]');
   const pathInput = root.querySelector<HTMLInputElement>('input[name="servicePath"]');

@@ -12,12 +12,22 @@ export interface RagConnection {
   secret: string;
 }
 
-/** Optional per-request embedding override (keeps keys server-side when omitted). */
+/**
+ * Optional per-request embedding override (keeps keys server-side when omitted).
+ *
+ * `provider` is optional so the throttle fields can be sent on their own: the service resolves every
+ * absent field against its own configuration, so a `{batchSize}`-only object tunes the request rate
+ * without touching which provider or key the service uses.
+ */
 export interface EmbedOverride {
-  provider: "openrouter" | "custom" | "mock";
+  provider?: "openrouter" | "custom" | "mock";
   model?: string;
   baseUrl?: string;
   apiKey?: string;
+  /** Texts per embedding request. The largest lever against a requests-per-minute limit. */
+  batchSize?: number;
+  /** Minimum gap between embedding requests, in ms. */
+  minIntervalMs?: number;
 }
 
 export interface RagHit {

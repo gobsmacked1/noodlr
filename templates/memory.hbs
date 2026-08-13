@@ -21,6 +21,23 @@
     </button>
   </div>
 
+  {{! Painted imperatively from the ingest queue (see memory-app.ts #paintQueue): a re-render on
+      every progress tick would reset every silo picker and lose the scroll position. }}
+  <fieldset class="noodlr-memory__section noodlr-queue">
+    <legend>{{localize "NOODLR.Rag.Queue.Legend"}}</legend>
+    <p class="notes">{{localize "NOODLR.Rag.Queue.Hint"}}</p>
+    <p class="notes" data-role="queue-empty">{{localize "NOODLR.Rag.Queue.Empty"}}</p>
+    <ul class="noodlr-queue__list" data-role="queue"></ul>
+    <div class="noodlr-queue__actions">
+      <button type="button" class="noodlr-danger" data-action="cancelAllJobs">
+        <i class="fa-solid fa-ban"></i> {{localize "NOODLR.Rag.Queue.CancelAll"}}
+      </button>
+      <button type="button" data-action="clearFinishedJobs">
+        <i class="fa-solid fa-broom"></i> {{localize "NOODLR.Rag.Queue.ClearFinished"}}
+      </button>
+    </div>
+  </fieldset>
+
   <fieldset class="noodlr-memory__section">
     <legend>{{localize "NOODLR.Rag.SiloStatus"}}</legend>
     <table class="noodlr-memory__table">
@@ -73,7 +90,7 @@
                 </select>
               </td>
               <td>
-                <button type="button" data-action="ingestPack" data-pack="{{this.id}}">
+                <button type="button" data-action="ingestPack" data-pack="{{this.id}}" data-label="{{this.label}}">
                   <i class="fa-solid fa-download"></i> {{localize "NOODLR.Rag.Ingest"}}
                 </button>
               </td>

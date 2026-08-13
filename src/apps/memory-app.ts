@@ -5,14 +5,22 @@
 
 import { MODULE_ID, isDeveloperMode } from "../constants";
 import { exportPacks, type ExportResult } from "../dev/pack-export";
-import { getEmbedOverride, getRagClient, isRagEnabled } from "../rag/config";
-import { IMPORTANCE, withImportance } from "../rag/importance";
+import { getRagClient, isRagEnabled } from "../rag/config";
 import { RagClientError } from "../rag/client";
 import { SILOS, SILO_IDS, isSiloId, type SiloId } from "../rag/silos";
-import { ingestCompendium } from "../rag/ingest";
-import { parseStructuredFile, structuredFormatFor } from "../rag/parse-structured";
-import { bumpStats } from "../util/stats";
-
+import { ingestCompendium, ingestUploadedFile } from "../rag/ingest";
+import {
+  cancelAllIngest,
+  cancelIngest,
+  clearFinishedIngest,
+  enqueueIngest,
+  ingestActive,
+  ingestJobs,
+  onIngestQueueChange,
+  resumeIngest,
+  type IngestJobView,
+  type IngestTask,
+} from "../rag/ingest-queue";
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -30,6 +38,10 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
       ingestFile: NoodlrMemoryApp.#onIngestFile,
       exportPacks: NoodlrMemoryApp.#onExportPacks,
       selectAllPacks: NoodlrMemoryApp.#onSelectAllPacks,
+      cancelJob: NoodlrMemoryApp.#onCancelJob,
+      resumeJob: NoodlrMemoryApp.#onResumeJob,
+      cancelAllJobs: NoodlrMemoryApp.#onCancelAll,
+      clearFinishedJobs: NoodlrMemoryApp.#onClearFinished,
     },
   };
 
@@ -134,43 +146,55 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
-  static async #onIngestPack(
-    this: NoodlrMemoryApp,
-    _event: Event,
-    target: HTMLElement,
-  ): Promise<void> {
-    if (this.#busy) return;
+  /**
+   * Queue a pack rather than ingesting it here.
+   *
+   * The button used to await the whole run behind a `#busy` flag, which made a large pack look like a
+   * frozen window for several minutes and made a rate limit look like a failure. Queuing keeps
+   * mashing harmless — six clicks are six jobs run one at a time — and the progress list is where the
+   * run reports itself.
+   */
+  static #onIngestPack(this: NoodlrMemoryApp, _event: Event, target: HTMLElement): void {
     const packId = target.dataset.pack;
     if (!packId) return;
     const silo = this.#selectedSilo(`silo-${packId}`);
     if (!silo) return;
+    const label = target.dataset.label || packId;
 
-    this.#busy = true;
-    ui.notifications?.info(game.i18n.localize("NOODLR.Rag.IngestStart"));
-    try {
-      const res = await ingestCompendium(packId, silo, (p) => {
-        if (p.processed % 100 === 0) {
-          ui.notifications?.info(`${p.processed}/${p.total} → ${p.inserted} chunks`);
-        }
-      });
-      ui.notifications?.info(
-        game.i18n.format("NOODLR.Rag.IngestDone", {
-          docs: res.documents,
-          chunks: res.inserted,
-          silo: SILOS[silo],
-        }),
-      );
-      this.render();
-    } catch (err) {
-      const msg = err instanceof RagClientError ? err.message : String(err);
-      ui.notifications?.error(game.i18n.format("NOODLR.Rag.IngestFail", { error: msg }));
-    } finally {
-      this.#busy = false;
+    const queued = enqueueIngest(packTask(packId, label, silo, 0));
+    if (!queued) {
+      ui.notifications?.warn(game.i18n.format("NOODLR.Rag.Queue.Duplicate", { label }));
+      return;
     }
+    ui.notifications?.info(game.i18n.format("NOODLR.Rag.Queue.Queued", { label }));
   }
 
-  static async #onIngestFile(this: NoodlrMemoryApp): Promise<void> {
-    if (this.#busy) return;
+  static #onCancelJob(this: NoodlrMemoryApp, _event: Event, target: HTMLElement): void {
+    const id = target.dataset.job;
+    if (id) cancelIngest(id);
+  }
+
+  static #onResumeJob(this: NoodlrMemoryApp, _event: Event, target: HTMLElement): void {
+    const id = target.dataset.job;
+    if (!id) return;
+    if (!resumeIngest(id)) ui.notifications?.warn(game.i18n.localize("NOODLR.Rag.Queue.NoResume"));
+  }
+
+  static #onCancelAll(this: NoodlrMemoryApp): void {
+    cancelAllIngest();
+  }
+
+  static #onClearFinished(this: NoodlrMemoryApp): void {
+    clearFinishedIngest();
+  }
+
+  /**
+   * Queue an upload through the same single-flight queue as the packs.
+   *
+   * Not because a single file is slow, but because it embeds against the same key: an upload fired
+   * while a compendium is running is a second stream of requests at a rate limit that counts them.
+   */
+  static #onIngestFile(this: NoodlrMemoryApp): void {
     const root = this.element as HTMLElement | null;
     const fileInput = root?.querySelector<HTMLInputElement>('[data-role="file"]');
     const file = fileInput?.files?.[0];
@@ -181,62 +205,12 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const silo = this.#selectedSilo("silo-file");
     if (!silo) return;
 
-    this.#busy = true;
-    try {
-      const client = getRagClient();
-      const embed = getEmbedOverride();
-      const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
-      const structured = structuredFormatFor(file.name, file.type);
-      let res: { inserted: number; chunks: number };
-      if (structured) {
-        // JSON/YAML/CSV: parse client-side into per-record documents so BOTH backends handle them
-        // identically (no server/Lite change). Empty/garbage files surface a clear error.
-        const docs = await parseStructuredFile(file);
-        if (docs.length === 0) {
-          ui.notifications?.warn(game.i18n.localize("NOODLR.Rag.StructuredEmpty"));
-          return;
-        }
-        res = await client.ingest(
-          silo,
-          docs.map((d) => ({ ...d, metadata: withImportance(d.metadata, IMPORTANCE.ingested) })),
-          embed,
-        );
-      } else if (isPdf) {
-        const data = await fileToBase64(file);
-        res = await client.ingestFile(
-          silo,
-          file.name,
-          { fileType: "pdf", data },
-          embed,
-          undefined,
-          IMPORTANCE.ingested,
-        );
-      } else {
-        const text = await file.text();
-        res = await client.ingestFile(
-          silo,
-          file.name,
-          { fileType: "text", text },
-          embed,
-          undefined,
-          IMPORTANCE.ingested,
-        );
-      }
-      bumpStats({ ingestDocs: res.inserted ?? 0, ingestChunks: res.chunks ?? 0 });
-      ui.notifications?.info(
-        game.i18n.format("NOODLR.Rag.IngestDone", {
-          docs: 1,
-          chunks: res.inserted,
-          silo: SILOS[silo],
-        }),
-      );
-      this.render();
-    } catch (err) {
-      const msg = err instanceof RagClientError ? err.message : String(err);
-      ui.notifications?.error(game.i18n.format("NOODLR.Rag.IngestFail", { error: msg }));
-    } finally {
-      this.#busy = false;
+    const queued = enqueueIngest(fileTask(file, silo));
+    if (!queued) {
+      ui.notifications?.warn(game.i18n.format("NOODLR.Rag.Queue.Duplicate", { label: file.name }));
+      return;
     }
+    ui.notifications?.info(game.i18n.format("NOODLR.Rag.Queue.Queued", { label: file.name }));
   }
 
   /**
@@ -315,6 +289,8 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   _onClose(options?: unknown): void {
     this.#releaseExportUrls();
+    this.#unsubscribe?.();
+    this.#unsubscribe = undefined;
     (super._onClose as ((o?: unknown) => void) | undefined)?.call(this, options);
   }
 
@@ -364,6 +340,50 @@ export class NoodlrMemoryApp extends HandlebarsApplicationMixin(ApplicationV2) {
     );
   }
 
+  /**
+   * Paint the queue on every change, and never through `render()`.
+   *
+   * A re-render would rebuild the whole window — 60-odd pack rows, every silo select back to its
+   * default, the scroll position lost — several times a second while a rate-limit countdown ticks.
+   * Same reasoning as the chat panel's streaming: patch the DOM, do not re-render mid-run.
+   */
+  #unsubscribe?: () => void;
+
+  _onRender(context: unknown, options: unknown): void {
+    (super._onRender as ((c: unknown, o: unknown) => void) | undefined)?.call(
+      this,
+      context,
+      options,
+    );
+    this.#unsubscribe?.();
+    this.#unsubscribe = onIngestQueueChange(() => this.#paintQueue());
+    this.#paintQueue();
+  }
+
+  #paintQueue(): void {
+    const root = this.element as HTMLElement | null;
+    if (!root) return;
+    const list = root.querySelector<HTMLElement>('[data-role="queue"]');
+    const jobs = ingestJobs();
+    const active = ingestActive();
+
+    // Everything that would embed against the same key, or move the ground under a running job, is
+    // locked while the queue has work. The ingest buttons are deliberately NOT locked: they queue.
+    for (const sel of ['[data-action="ingestFile"]', '[data-action="exportPacks"]']) {
+      root.querySelectorAll<HTMLButtonElement>(sel).forEach((b) => (b.disabled = active));
+    }
+    root
+      .querySelectorAll<HTMLButtonElement>('[data-action="resetSilo"]')
+      .forEach((b) => (b.disabled = active));
+    root.classList.toggle("is-ingesting", active);
+
+    const empty = root.querySelector<HTMLElement>('[data-role="queue-empty"]');
+    if (empty) empty.hidden = jobs.length > 0;
+    if (!list) return;
+
+    list.replaceChildren(...jobs.map((job) => queueRow(job)));
+  }
+
   #selectedSilo(selectName: string): SiloId | null {
     const root = this.element as HTMLElement | null;
     const select = root?.querySelector<HTMLSelectElement>(`select[name="${selectName}"]`);
@@ -406,15 +426,93 @@ async function confirmDialog(title: string, content: string): Promise<boolean> {
   }
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result ?? "");
-      const comma = result.indexOf(",");
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("file read failed"));
-    reader.readAsDataURL(file);
+/**
+ * One compendium pack, resumable from a document index.
+ *
+ * `key` deliberately omits `from`, so a resume of the same pack into the same silo is still
+ * recognised as the same work and cannot be queued twice.
+ */
+function packTask(packId: string, label: string, silo: SiloId, from: number): IngestTask {
+  return {
+    kind: "pack",
+    label,
+    silo,
+    key: `pack:${packId}:${silo}`,
+    run: (report, signal) => ingestCompendium(packId, silo, { from, report, signal }),
+    resume: (next) => packTask(packId, label, silo, next),
+  };
+}
+
+/** One uploaded file. No `resume`: it is a single indivisible request with no index to restart at. */
+function fileTask(file: File, silo: SiloId): IngestTask {
+  return {
+    kind: "file",
+    label: file.name,
+    silo,
+    key: `file:${file.name}:${file.size}:${silo}`,
+    run: (report, signal) => ingestUploadedFile(file, silo, { report, signal }),
+  };
+}
+
+/** One row of the queue: a bar, a state line, and whichever of cancel/resume applies. */
+function queueRow(job: IngestJobView): HTMLElement {
+  const row = document.createElement("li");
+  row.className = `noodlr-queue__job is-${job.status}`;
+
+  const head = document.createElement("div");
+  head.className = "noodlr-queue__head";
+  const name = document.createElement("span");
+  name.className = "noodlr-queue__label";
+  name.textContent = `${job.label} → ${SILOS[job.silo]}`;
+  head.append(name);
+
+  if (job.status === "queued" || job.status === "running") {
+    head.append(queueButton("cancelJob", job.id, "NOODLR.Rag.Queue.Cancel", "fa-xmark"));
+  } else if (job.status !== "done" && job.resumable && job.resumeAt > 0) {
+    head.append(queueButton("resumeJob", job.id, "NOODLR.Rag.Queue.Resume", "fa-rotate-right"));
+  }
+  row.append(head);
+
+  // The bar is driven by documents processed, not by chunks inserted: chunk counts are unbounded
+  // (one statblock can be several chunks) so they cannot express a fraction of the work.
+  const pct = job.total > 0 ? Math.min(100, Math.round((job.processed / job.total) * 100)) : 0;
+  const track = document.createElement("div");
+  track.className = "noodlr-queue__track";
+  const fill = document.createElement("div");
+  fill.className = "noodlr-queue__fill";
+  fill.style.width = `${pct}%`;
+  track.append(fill);
+  row.append(track);
+
+  const status = document.createElement("div");
+  status.className = "noodlr-queue__status";
+  status.textContent = queueStatusText(job, pct);
+  row.append(status);
+  return row;
+}
+
+function queueButton(action: string, id: string, key: string, icon: string): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "noodlr-queue__btn";
+  button.dataset.action = action;
+  button.dataset.job = id;
+  button.title = game.i18n.localize(key);
+  button.append(Object.assign(document.createElement("i"), { className: `fa-solid ${icon}` }));
+  return button;
+}
+
+function queueStatusText(job: IngestJobView, pct: number): string {
+  const counts = game.i18n.format("NOODLR.Rag.Queue.Counts", {
+    processed: job.processed,
+    total: job.total || "?",
+    chunks: job.inserted,
+    percent: pct,
   });
+  const state = game.i18n.localize(
+    `NOODLR.Rag.Queue.Status.${job.status[0].toUpperCase()}${job.status.slice(1)}`,
+  );
+  // The note carries the rate-limit countdown and the failure reason, which are the two things a GM
+  // actually needs; it goes last so it is not truncated first when the window is narrow.
+  return [state, counts, job.note].filter(Boolean).join(" · ");
 }

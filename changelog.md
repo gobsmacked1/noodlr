@@ -2,6 +2,54 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.6.2
+
+**Ingesting compendiums no longer falls over when your embedding provider says "slow down". Ingests
+now queue, show a progress bar, and can be resumed where they stopped.**
+
+Needs noodlr-memory 1.2.0 or later for the whole of it. On an older service the queue, the progress
+bar and the resume button all work; only the service-side pacing is missing.
+
+### A rate limit is a pause, not a failure
+
+Ingesting a large compendium means thousands of embedding requests, and most providers cap how many
+they will accept per minute. Noodlr used to treat that cap as an error: the run stopped, the whole
+pack was lost, and the only thing you saw was `429`. It now waits the limit out — a visible countdown
+in the window, retried for up to twenty minutes per batch — and carries on. If it does eventually
+give up, the documents already stored stay stored.
+
+### One ingest at a time, with a queue
+
+Click as many compendiums as you like. They now line up and run one after another instead of all at
+once, which matters because two ingests do not go twice as fast — they halve each other's share of
+the same rate limit, and a modest key can reach a state where nothing ever finishes. The same queue
+covers file uploads, since those spend the same budget.
+
+The queue sits at the top of the Manage Memory window and shows, per job: how many documents are
+done out of how many, how many chunks were stored, and what it is doing right now — including how
+long it is waiting on a rate limit and which retry it is on. Jobs can be cancelled individually or
+all at once, and a run keeps going if you close the window.
+
+### Resume where it stopped
+
+A pack that stopped 3,000 documents in — cancelled, or finally beaten by a rate limit — offers a
+resume button that picks up from the last batch actually stored. You do not pay your provider twice
+for the same documents.
+
+While a job is running, the buttons that would compete with it are disabled: resetting a silo,
+uploading a file, and the developer export.
+
+### Two new settings for a stubborn provider
+
+In Memory & Knowledge, under Embeddings:
+
+- **Embedding batch size** — how many texts go in each request. A rate limit counts *requests*, not
+  texts, so this is the first thing to raise if a provider keeps refusing: 16 to 64 is the same work
+  in a quarter of the calls. Leave it at 0 to let the service decide.
+- **Minimum gap between embedding requests** — a deliberate slowdown, in milliseconds. Only needed
+  for a provider with a strict per-minute cap; the service already paces itself once it has seen a
+  refusal, so leave this at 0 unless ingestion still stalls.
+
 ## 0.6.1
 
 **Roll tables and monster statblocks were being remembered by title only. Now they are remembered in

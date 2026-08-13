@@ -182,6 +182,21 @@
     <p class="notes">{{localize "NOODLR.Rag.SendEmbedConfig.Hint"}}</p>
 
     {{> providerBlock embeddings}}
+
+    {{! Throttle, not provider: these are sent whether or not the provider block above is shared,
+        because they are the levers against a 429 rather than credentials. }}
+    <div class="noodlr-grid">
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Rag.EmbedBatchSize"}}</label>
+        <p class="notes">{{localize "NOODLR.Rag.EmbedBatchSizeHint"}}</p>
+        <input type="number" name="embedBatchSize" value="{{embedBatchSize}}" min="0" max="256" step="1" />
+      </div>
+      <div class="noodlr-field">
+        <label>{{localize "NOODLR.Rag.EmbedPaceMs"}}</label>
+        <p class="notes">{{localize "NOODLR.Rag.EmbedPaceMsHint"}}</p>
+        <input type="number" name="embedPaceMs" value="{{embedPaceMs}}" min="0" max="10000" step="100" />
+      </div>
+    </div>
   </fieldset>
 
   {{! ---- Rerank ---- }}

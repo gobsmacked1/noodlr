@@ -203,6 +203,12 @@ export const RAG_SETTINGS = {
   hybrid: "rag.hybrid",
   agentMode: "rag.agentMode",
   sendEmbedConfig: "rag.sendEmbedConfig",
+  // Embedding throttle, sent with every request whether or not the provider block is shared: a rate
+  // limit counts REQUESTS, so batch size is the largest lever against one and the pace is the
+  // gentlest. 0 on either means "leave the service's own .env value alone", so a server admin who
+  // tuned it is not silently overruled by a form default. (noodlr-memory only)
+  embedBatchSize: "rag.embedBatchSize",
+  embedPaceMs: "rag.embedPaceMs",
   tokenBudget: "rag.tokenBudget",
   topK: "rag.topK",
   querySilos: "rag.querySilos",

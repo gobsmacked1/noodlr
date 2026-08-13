@@ -45,6 +45,9 @@ export function registerRagSettings(): void {
   game.settings.register(MODULE_ID, S.hybrid, { ...worldBool, default: true });
   game.settings.register(MODULE_ID, S.agentMode, { ...worldBool, default: false });
   game.settings.register(MODULE_ID, S.sendEmbedConfig, { ...worldBool, default: false });
+  // 0 = use whatever the service was configured with. See the note in constants.ts.
+  game.settings.register(MODULE_ID, S.embedBatchSize, { ...worldNum, default: 0 });
+  game.settings.register(MODULE_ID, S.embedPaceMs, { ...worldNum, default: 0 });
   // 4000 tokens of retrieved knowledge is a comfortable default for large-context models (200k-1M);
   // topK 8 gives the budget enough candidate chunks to actually fill it (~400-800 tokens each).
   game.settings.register(MODULE_ID, S.tokenBudget, { ...worldNum, default: 4000 });
@@ -143,18 +146,40 @@ export function isRagEnabled(): boolean {
   return getRagConnection().serviceUrl.trim().length > 0;
 }
 
-/** Build the embed override from the embeddings feature config, if the user opted in. */
+/**
+ * Build the per-request embedding override.
+ *
+ * Two independent halves, and conflating them is what left the throttle unreachable. The PROVIDER
+ * block (model, URL, key) is opt-in, because sending it means the GM's key leaves their browser for
+ * the service, and the default is that keys stay server-side. The THROTTLE (batch size, pacing) is
+ * not a credential and is sent whenever the GM has set one — it is the documented first lever
+ * against a requests-per-minute limit, and a lever that only works when an unrelated checkbox is on
+ * is a lever nobody finds. `resolveEmbedConfig` falls back to the server's own value for every field
+ * we omit, so a throttle-only object leaves the provider config exactly as the service has it.
+ */
 export function getEmbedOverride(): EmbedOverride | undefined {
+  const throttle = getEmbedThrottle();
   const send = game.settings.get(MODULE_ID, RAG_SETTINGS.sendEmbedConfig) as boolean;
-  if (!send) return undefined;
+  if (!send) return Object.keys(throttle).length > 0 ? throttle : undefined;
   const cfg = getFeatureConfig("embeddings");
-  if (!cfg.model.trim()) return undefined;
+  if (!cfg.model.trim()) return Object.keys(throttle).length > 0 ? throttle : undefined;
   return {
+    ...throttle,
     provider: cfg.provider === "custom" ? "custom" : "openrouter",
     model: cfg.model,
     baseUrl: cfg.baseUrl || undefined,
     apiKey: cfg.apiKey || undefined,
   };
+}
+
+/** The throttle fields the GM has actually set; omitted fields keep the service's own defaults. */
+function getEmbedThrottle(): Partial<EmbedOverride> {
+  const out: Partial<EmbedOverride> = {};
+  const batchSize = Number(game.settings.get(MODULE_ID, RAG_SETTINGS.embedBatchSize)) || 0;
+  const paceMs = Number(game.settings.get(MODULE_ID, RAG_SETTINGS.embedPaceMs)) || 0;
+  if (batchSize > 0) out.batchSize = Math.max(1, Math.min(256, Math.round(batchSize)));
+  if (paceMs > 0) out.minIntervalMs = Math.max(0, Math.min(60_000, Math.round(paceMs)));
+  return out;
 }
 
 export function getQuerySilos(): SiloId[] {
