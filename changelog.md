@@ -2,6 +2,30 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.6.6
+
+**Built-in Memory (RAG Lite) now diagnoses its own failures, and can no longer be handed advice meant
+for the separate memory service.** Everything in 0.6.5 was about a provider refusing to embed, which
+is a thing that can only happen on the noodlr-memory backend — Lite embeds inside your browser using
+files shipped in the module, with no account, no key and nothing to be rate-limited by. That left two
+loose ends worth tying off before somebody hit them.
+
+- **Lite will never again tell you to raise a batch size or change an embedding model.** Those are
+  settings of a service you are not running, and a failure that mentioned a rate limit for any
+  unrelated reason could previously produce that advice. Wrong instructions cost more than no
+  instructions.
+- **"Test in-browser embedder" now tells you what to do about a failure.** The one cause it exists to
+  catch is an incomplete install: Lite deliberately never downloads anything, so a missing file is
+  simply not found, and the raw error is a page of loader internals. It now says plainly that this is
+  an install problem rather than a setting, and that reinstalling from the manifest URL fixes it. If
+  you have ever unpacked Noodlr into your modules folder by hand, this is the message you would have
+  wanted.
+- **A silo that cannot be saved says why.** Lite writes one file per silo into your Foundry data
+  folder, so an account without file-upload permission can build memories and then fail to store them.
+  That now names the permission instead of the function that threw.
+
+No changes to how either backend works, and nothing to reconfigure.
+
 ## 0.6.5
 
 **A provider refusing to embed no longer looks like your memory service being broken, and the waits

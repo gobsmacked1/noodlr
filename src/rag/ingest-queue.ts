@@ -19,7 +19,7 @@
 
 import { MODULE_ID, RAG_SETTINGS, debug, warn } from "../constants";
 import { isPrimaryGM } from "../util/gm";
-import { providerRefusalAdvice } from "./failure";
+import { ingestFailureAdvice } from "./failure";
 import { isSiloId, type SiloId } from "./silos";
 
 export type IngestJobKind = "pack" | "file";
@@ -447,10 +447,11 @@ async function pump(): Promise<void> {
         const aborted = job.controller.signal.aborted;
         job.status = aborted ? "cancelled" : "failed";
         const raw = (err as Error).message ?? String(err);
-        // A provider refusal is reported in the operator's terms, not the wire's. The job kept its
-        // resume index, so what this needs to say is "press Resume in a minute" rather than a 429
-        // body that reads like the memory service broke. Full detail still goes to the console.
-        job.note = aborted ? "" : providerRefusalAdvice(err) || raw;
+        // A known cause is reported in the operator's terms, not the wire's. The job kept its resume
+        // index, so a refusal needs to say "press Resume in a minute" rather than quote a 429 body
+        // that reads like the memory service broke — and on Lite, where no provider exists to refuse,
+        // the same slot carries Lite's own diagnosis. Full detail still goes to the console.
+        job.note = aborted ? "" : ingestFailureAdvice(err) || raw;
         if (!aborted) warn(`ingest failed (${job.label}): ${raw}`);
       } finally {
         job.phase = "idle";

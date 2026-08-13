@@ -315,6 +315,28 @@ What it provides:
     every mutation path updates it before saving. `skipped` is the one field both backends set, so
     the queue's "reused" line is already backend-agnostic. Lite's fixed batch of 16 is a WASM
     working-set size, not a request-count lever, and must not be "harmonised" with `EMBED_BATCH_SIZE`.
+  - **What DID need doing was the reporting, and it was the inverse of the expected bug (v0.6.6).**
+    Lite cannot be rate-limited, so the question is not "does Lite need this remedy" but **"can Lite be
+    given this remedy by mistake"** — and it could. `providerRefusalAdvice` was ungated, and
+    `isRateLimit` matches the message as well as the status, so any 429 arriving from somewhere else
+    entirely (a reverse proxy in front of Foundry refusing the `FilePicker.upload` that Lite saves a
+    silo with) would have told a Lite operator to raise `EMBED_BATCH_SIZE` on a service they do not
+    run. It returns "" on Lite now, and `ingestFailureAdvice()` is the single dispatcher every report
+    path calls, so **adding a backend cannot leave one path handing out another backend's remedies.**
+    That is the same doctrine as `ragFailureAdvice`, which was already correctly gated, and the same
+    one as naming the model only when `getEmbedOverride()` carries it.
+  - **`liteFailureAdvice()` names the two failures Lite actually has, and both have shipped as real
+    bugs.** An incomplete install is a 404 *by construction* — `allowRemoteModels = false` means there
+    is no fallback — and it is invisible in dev because `npm run fetch-model` already put the weights
+    on disk: the v0.4.25 asset genuinely shipped without `models/` and the rc6–rc8 series was three
+    releases of the ORT paths resolving to the wrong directory. So the advice says "reinstall from the
+    manifest, a complete package is ~29 MB with `models/` and `dist/ort/`", which is the actionable
+    form of that. The other is `FilePicker.upload` without `FILES_UPLOAD`, where an index builds fine
+    in memory and then cannot be written. **The "Test in-browser embedder" probe is the one that
+    catches the install case**, so it leads with the diagnosis and keeps the raw ORT text after it —
+    an unrecognised error still shows verbatim, which is the honest fallback.
+  - Deliberately absent from Lite's advice: anything about batch size, rate or model. On that backend
+    the work is one WASM thread in the GM's own browser and there is no request to slow down.
 - **Every wait in the above was sized for a model of the limit, and the model was wrong (v1.3.1,
  2026-08-13).** Reported from a live server: the **Diagnostics self-test** — one sentence, one
  request, no batching, nothing to deduplicate — failed on a 429, and the service then reported

@@ -13,7 +13,7 @@ import {
   getRagTuning,
 } from "../rag/config";
 import { RagClientError, type RagHit } from "../rag/client";
-import { providerRefusalAdvice } from "../rag/failure";
+import { ingestFailureAdvice, liteFailureAdvice } from "../rag/failure";
 import { IMPORTANCE, withImportance } from "../rag/importance";
 import { SILOS, isSiloId } from "../rag/silos";
 import { snapshotStats, resetStats } from "../util/stats";
@@ -205,7 +205,13 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       const ok = dims === EMBED_DIM;
       set(game.i18n.format("NOODLR.Diagnostics.EmbedTest.Ok", { dims, ms }), ok);
     } catch (err) {
-      set(game.i18n.format("NOODLR.Diagnostics.EmbedTest.Fail", { error: String(err) }), false);
+      // This probe exists to fail informatively: it is the one that catches an install missing the
+      // bundled weights or the ORT WASM, which is a 404 by construction (`allowRemoteModels` is off)
+      // and has shipped as a real regression more than once. A raw ORT stack trace says nothing an
+      // operator can act on, so lead with the diagnosis and keep the error text after it.
+      const advice = liteFailureAdvice(err);
+      const raw = game.i18n.format("NOODLR.Diagnostics.EmbedTest.Fail", { error: String(err) });
+      set(advice ? `${advice} ${raw}` : raw, false);
     }
   }
 
@@ -271,13 +277,14 @@ export class NoodlrDiagnosticsApp extends HandlebarsApplicationMixin(Application
       const msg = err instanceof RagClientError ? err.message : String(err);
       // A refusal is not a failed self-test. The write path, the store and the service are all fine
       // and an upstream model was busy, so the operator needs to be told to press it again rather
-      // than sent to debug a service that never misbehaved.
-      const refusal = providerRefusalAdvice(err);
+      // than sent to debug a service that never misbehaved. On Lite there is no provider to refuse,
+      // so the same slot carries Lite's own diagnosis instead — see `ingestFailureAdvice`.
+      const advice = ingestFailureAdvice(err);
       setStatus(
-        refusal || game.i18n.format("NOODLR.Diagnostics.SelfTest.Fail", { error: msg }),
+        advice || game.i18n.format("NOODLR.Diagnostics.SelfTest.Fail", { error: msg }),
         false,
       );
-      if (refusal) warn(`memory self-test: provider refused — ${msg}`);
+      if (advice) warn(`memory self-test failed with a known cause — ${msg}`);
     }
   }
 }
