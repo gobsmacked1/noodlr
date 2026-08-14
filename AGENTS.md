@@ -357,7 +357,8 @@ What it provides:
  reads `/api/v1/models/<slug>/endpoints` once and logs the provider count on the first 429;
  `perplexity/pplx-embed-v1-4b` is served by Perplexity alone, so OpenRouter has no failover and
  saturation reaches us however slowly we ask. The user kept that slug deliberately (2026-08-13), so
- the remedy is to SAY this rather than to throttle around it.
+ the remedy is to SAY this rather than to throttle around it. **Superseded the same day — see the
+ default change below; the slug WAS the bug and saying so was not enough.**
  - **`scripts/probe-rate.mjs` exists so this is never re-argued from inference.** It talks to the
  provider directly and deliberately bypasses `embeddings.js` — the gate, the retries, the hedge and
  the pacing are exactly what would corrupt the measurement, since they exist to hide the behaviour
@@ -416,6 +417,56 @@ What it provides:
  - Locked by `test/embeddings.test.js` — "at the shipped defaults, a recovered 429 leaves nothing
  behind" asserts no learned pacing and a sub-second first wait, so restoring a non-zero
  `paceMaxMs` default fails a test instead of quietly slowing the next self-test.
+- **The answer was the model slug, and the default changed (v1.3.4 / noodlr v0.6.7, 2026-08-13).**
+ Everything above is correct and none of it fixed anything, because none of it addressed the cause.
+ The user switched `perplexity/pplx-embed-v1-4b` → `qwen/qwen3-embedding-8b` and reported ingestion
+ "without any errors at all", nothing else changed. `probe-rate.mjs routing` says why in one line:
+ **three provider endpoints (Nebius, DeepInfra, SiliconFlow) against one (Perplexity).** With one,
+ OpenRouter has nothing to fail over to and that provider's saturation is our 429; with three, the
+ same event is absorbed before we ever see it. Both defaults moved (`config.js` `EMBED_MODEL`,
+ `providers/config.ts` `embeddings`).
+ - **The transferable rule: provider redundancy is a selection criterion for an embedding model, not
+ a footnote.** It outranks price and benchmark position for this use, because a bulk ingest is
+ thousands of requests and one endpoint means every one of them is exposed to strangers' traffic.
+ `probe-rate.mjs routing <slug>` answers it in seconds and **needs no API key** — so it is now
+ asked before a slug is adopted, and both READMEs plus the in-app refusal advice lead with it. That
+ command took a `slug` argument only as of this release; without one it reported the *configured*
+ model, which is useless for the question an operator actually has (about a model they have not
+ switched to yet) and cost a wrong answer in this very investigation.
+ - **Changing the model changes the VECTOR WIDTH**, and a LanceDB table's width is fixed when it is
+ first written, so a switch means purge-all and a full re-ingest. Stated at both defaults and in
+ the refusal advice, because a GM who changes the slug to escape 429s and then finds every query
+ returning nothing has traded a loud failure for a silent one.
+ - **Safe to change as a default precisely because it is only a default.** The provider form has
+ always saved every field, so worlds that have ingested anything hold an explicit value and are
+ untouched; the new slug reaches new worlds and worlds that never opened the setting, i.e. exactly
+ those with nothing to re-ingest.
+- **The self-throttling audit, asked for and answered (2026-08-13).** With blame settled, the user
+ asked what had been added to ingest "less aggressively" that should now be backed out. The honest
+ inventory divides in three, and only one item was ever a self-throttle:
+ - **Back out: adaptive pacing, and it already is** (`paceMaxMs` default 0 since v1.3.1). Its premise
+ — that a 429 proves our rate is too high — is now not merely unproven but measurably false for the
+ case that produced it. The code stays because it cannot fire without an operator setting both
+ `EMBED_PACE_STEP_MS` and `EMBED_PACE_MAX_MS`, and there is one honest use left (a limit measured
+ and known to be the key's). **Do not restore it as a default**, and prefer `EMBED_MIN_INTERVAL_MS`
+ even for that case, because it is a number somebody chose.
+ - **Keep, because it is PATIENCE rather than throttling**, and patience is right against any
+ provider whoever's fault the refusal is: retries with backoff, `Retry-After`/`X-RateLimit-Reset`,
+ the 45s service hold, the module's 20-minute budget and visible countdown, the process-wide pause
+ (brief now that the first wait is 500ms), the hedge stand-down. None of these slow a healthy run
+ by a millisecond — they only ever spend time that a refusal had already taken.
+ - **Keep, because it is EFFICIENCY and would be right against a perfect provider**: `batchSize` 64,
+ `EMBED_MAX_CHARS_PER_REQUEST`, `groupIdentical`, `freshItems`/`knownHashes`, Lite's hash skip,
+ hedging only for a single text. These make an ingest cheaper and faster, not gentler. This is the
+ half worth having kept: it is why a full re-ingest on the working model is quick.
+ - **The one real cost still standing is the ingest queue's strict serialization**, and its stated
+ rationale was the bad premise — "two concurrent ingests halve each other's share of a limit that
+ counts requests". The queue itself earns its place on grounds that have nothing to do with rate
+ limits (one writer, resume across a reload, visible progress, no duplicate job per pack, nothing
+ moving under a running job), so it stays; but sixty packs now run strictly one at a time against a
+ provider that could serve several. Parked in `IDEAS.md` rather than built: a small worker count
+ would have to keep one shared 429 gate and a per-job `resumeAt`, and `EMBED_BATCH_SIZE` already
+ bought a 4× cut in requests for free.
 - **Listeners (v1.1.0, 2026-08-01):** TCP **and** the optional Unix socket run at the same time. Before 1.1 a socket path switched TCP off entirely, which presumed Foundry and the service shared one Linux host; Windows hosts have no socket and some admins run the service on a separate box. `NOODLR_MEMORY_PORT=0` opts out of TCP; a socket path on Windows warns and is ignored; each listener reports its own bind failure and the process exits only if neither starts.
 
 How noodlr-main interacts with it (the integration contract):

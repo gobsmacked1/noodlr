@@ -21,7 +21,13 @@ const IMAGE_MODEL = "google/gemini-3.1-flash-lite-image";
 /** Spec defaults per AGENTS.md (chat has no mandated default model). */
 const DEFAULTS: Record<FeatureId, FeatureDefaults> = {
   chat: { provider: "openrouter", model: "" },
-  embeddings: { provider: "openrouter", model: "perplexity/pplx-embed-v1-4b" },
+  // Chosen for provider redundancy, which is a selection criterion for an embedding model rather than
+  // a footnote: OpenRouter serves this one from three providers and the previous default
+  // (perplexity/pplx-embed-v1-4b) from exactly one, so a single busy provider's 429s reached us with
+  // nothing to route around. Changing it changes the vector width, so a world that has already
+  // ingested must reset its silos and re-ingest — which is why this only takes effect where the GM
+  // never saved a value.
+  embeddings: { provider: "openrouter", model: "qwen/qwen3-embedding-8b" },
   tts: { provider: "openrouter", model: "microsoft/mai-voice-2" },
   image: { provider: "openrouter", model: IMAGE_MODEL },
   portrait: { provider: "openrouter", model: IMAGE_MODEL },

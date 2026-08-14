@@ -87,3 +87,12 @@ Parked tangents — one line each. Promote to the roadmap in AGENTS.md when pick
   actually asks and has a large existing world there. Until then, "export → drop the JSON/CSV in"
   is the supported path. World-scoped Journal ingest + a "dump current NPC state" button are the
   higher-value native additions to consider first.
+- **Concurrent ingest jobs (a small worker count in the queue).** The queue serializes jobs strictly,
+  and the rationale for that was the belief that concurrent ingests would halve each other's share of
+  an account rate limit. That premise died on 2026-08-13, when the 429s turned out to be one upstream
+  provider's saturation on a single-provider model. The queue keeps every other reason to exist (one
+  writer, resume across a reload, visible progress, one job per pack), so this is a throughput idea
+  rather than a fix: sixty packs run one at a time against a provider that could serve several. Would
+  need the shared 429 gate to stay shared and each job to keep its own `resumeAt`. Low priority because
+  `EMBED_BATCH_SIZE` 64 already cut requests 4x, and a healthy multi-provider model finishes a corpus
+  quickly as it is.

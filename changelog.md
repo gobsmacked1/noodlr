@@ -2,6 +2,31 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.6.7
+
+**The embedding model that ships by default has changed, and it turned out to be the whole cause of the
+rate-limit trouble in 0.6.2 through 0.6.6.** Four releases went into surviving an embedding provider
+that kept refusing requests: waiting properly, showing you a countdown, resuming where a pack left off,
+and not embedding the same text twice. All of that is worth having and all of it stays. None of it was
+the fix. The fix was one line of configuration.
+
+- **New default: `qwen/qwen3-embedding-8b`, replacing `perplexity/pplx-embed-v1-4b`.** OpenRouter serves
+  the new one from three providers and the old one from exactly one. With one provider there is nothing
+  to route around when that provider is busy — and it gets busy because of everyone's traffic, not
+  yours — so refusals arrived no matter how gently we asked. With three, the same moment passes
+  unnoticed. Switching models ended the errors immediately, with nothing else changed.
+- **Existing worlds keep the model they already have.** This is a default, and any world that has
+  configured memory already has a value saved, so nothing changes underneath you. It applies to new
+  worlds and to anyone who never opened the setting.
+- **If you change the model yourself, reset your silos and ingest again.** Different models produce
+  vectors of different sizes, and a silo's size is fixed when it is first written, so old memories
+  become unreadable rather than merely stale. The advice shown when a provider refuses now says this,
+  because escaping rate limits by changing the model and then finding every search empty is a worse
+  problem than the one you started with.
+- **When a provider does refuse, the advice now leads with the model** instead of listing it last. If
+  you run noodlr-memory, `node scripts/probe-rate.mjs routing <slug>` tells you how many providers
+  serve a model before you commit to it, and needs no API key.
+
 ## 0.6.6
 
 **Built-in Memory (RAG Lite) now diagnoses its own failures, and can no longer be handed advice meant
