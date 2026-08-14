@@ -98,6 +98,45 @@ patterns, reused rather than re-derived.
   **Do not inline them back into `compile.ts`** — a divergence there is invisible and makes every
   regression number a lie. `test/seam.test.mjs` in the corpus repo is the guard.
 
+## Reading a held action's trigger (v0.7.0, 2026-08-14) — `src/watch/`
+
+The second thing a rules module asks noodlr to read, and the second time the division has held without
+being renegotiated. `noodlr-hooks-55e` shipped the **Ready action** — hold your turn for something
+specific to happen — and it is the one rule in the book whose trigger is **authored at the table in free
+text**. Every module that has attempted it offered a dropdown of six conditions, and nobody used it,
+because the interesting readied actions are exactly the ones the dropdown does not contain. So the player
+writes a sentence and `src/watch/watch.ts` reads it.
+
+Two verbs on `noodlrHooks.watch`, protocol 1: **`compile`** turns the sentence into a descriptor once, at
+declaration, and **`judge`** answers one narrow question about one event when the rules module's own
+predicates cannot. Everything the capability compiler's section above says applies unchanged, so this is
+only what is different:
+
+- **`judge` is a per-event call and `compile` is not, which is the whole cost model.** A descriptor states
+ `judge: true|false`, and a `false` one is answered by deterministic code in the rules module forever
+ after — no model call, no latency, no spend. So the compiler's job includes **deciding whether it needs
+ to be asked again**, and understating that is the expensive mistake. `PATIENCE` splits accordingly:
+ `compile` gets 60s and one retry because it happens once and a player is waiting on a dialog; `judge`
+ gets 20s and **no retry**, because it may be asked a dozen times in one round and a retried judge is a
+ second call for an answer the rules module can safely default.
+- **A judge that does not answer is not a "no".** The rules module reads null as "fall through to asking
+ the human", so timing out costs a prompt rather than a player's Action. That is a property of the
+ contract worth not breaking from this side: returning a fabricated `fires: false` to look decisive would
+ silently eat readied actions.
+- **This reads intention, never consequence.** It never decides what the readied action does, whether it
+ hits, or what it costs — the same boundary as the capability compiler, stated the other way round. The
+ vocabulary (events, sides, senses) arrives ON the request and `shapeDescriptor` validates against that
+ rather than against anything of ours, so a `noodlr-hooks-pf2e` needs no change here.
+- **Gated on `game.user?.isGM`, and the rules module relays to make that true.** A player pressing Ready
+ would otherwise spend the world's credit from their own browser; `noodlr-hooks-55e` routes the compile
+ through `askGm` and this listener declines anywhere else. Same reasoning as `compile.ts`.
+- **The model is shared with the capability compiler, deliberately.** Both jobs are "read a sentence and
+ answer to a strict schema", which is a different selection from the model that tells the story.
+- Setting: `watch.enabled` (world, default **on**) plus its own prompt field in Text Generation. Unlike
+ `capabilities.compile` it defaults on, because a `judge: false` descriptor spends nothing after the one
+ compile and the failure mode of being off is a player writing a careful trigger and getting a shrug.
+ Off, the rules module offers its canned list instead and still works.
+
 ## Workspace layout (multi-root)
 
 - `C:\Project\noodlr-main\` — **this project**: the AI game master. Own git repo on GitHub.

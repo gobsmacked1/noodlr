@@ -43,6 +43,7 @@ import { exportPacks } from "./dev/pack-export";
 import { loadBanter } from "./behavior/banter-library";
 import { registerBehaviorHooks } from "./behavior/listen";
 import { registerCapabilityCompiler } from "./capability/compile";
+import { registerWatchListener } from "./watch/watch";
 import { detectHooksModules } from "./integration/hooks-modules";
 import {
   PLAYER_ASK,
@@ -153,6 +154,10 @@ Hooks.once("init", () => {
   // The other direction of the same seam: a rules module handing us prose it cannot interpret. The
   // listener declines on a non-GM client, so registering it everywhere is free.
   registerCapabilityCompiler();
+
+  // And the same seam again for prose a PLAYER wrote: the trigger on a readied action. The rules
+  // module routes the question to the GM before firing it, and this declines off-GM regardless.
+  registerWatchListener();
 
   // Expose the API on the module entry so it's reachable as
   // game.modules.get("noodlr").api during development.

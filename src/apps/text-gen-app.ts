@@ -11,6 +11,7 @@ import {
   SETTINGS,
   BEHAVIOR_SETTINGS,
   CAPABILITY_SETTINGS,
+  WATCH_SETTINGS,
 } from "../constants";
 import { promptFieldView } from "../prompts/fields";
 import { ASSISTANT_NAME_MAX_LENGTH, getAssistantName } from "../chat/assistant";
@@ -28,6 +29,7 @@ import {
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
 import { isBehaviorEnabled, isNpcBanterEnabled } from "../behavior/config";
 import { getCapabilityConcurrency, isCapabilityCompilerEnabled } from "../capability/config";
+import { isWatchEnabled } from "../watch/watch";
 import { detectHooksModules } from "../integration/hooks-modules";
 import {
   detectedSystemLabel,
@@ -134,6 +136,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
         model: String(game.settings.get(MODULE_ID, CAPABILITY_SETTINGS.model) ?? ""),
         concurrency: getCapabilityConcurrency(),
       },
+      watch: isWatchEnabled(),
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
       playersPrompt: promptFieldView(SETTINGS.playersSystemPrompt),
@@ -143,6 +146,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       combatReminder: promptFieldView(SETTINGS.combatReminder),
       behaviorPrompt: promptFieldView(BEHAVIOR_SETTINGS.systemPrompt),
       capabilityPrompt: promptFieldView(CAPABILITY_SETTINGS.systemPrompt),
+      watchPrompt: promptFieldView(WATCH_SETTINGS.systemPrompt),
 
       authorNoteDepth: getAuthorNoteDepth(),
       contextTokenBudget: getContextBudget(),
@@ -201,6 +205,8 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
     );
     const lanes = Number(o.capabilityConcurrency);
     await set(CAPABILITY_SETTINGS.concurrency, lanes >= 1 && lanes <= 12 ? Math.round(lanes) : 4);
+
+    await set(WATCH_SETTINGS.enabled, Boolean(o.watch));
 
     await this.savePromptFields(form);
 

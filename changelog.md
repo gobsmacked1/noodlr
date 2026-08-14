@@ -2,6 +2,35 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.7.0
+
+**Noodlr can now read a held action's trigger, written by a player in their own words.** This is the
+other half of a feature in the rules module: the Ready action lets somebody hold their turn for something
+specific to happen, and it is the one rule in the book whose trigger is authored at the table in free
+text. "If a goblin I can see approaches an ally, I shoot it." "If I hear the sound of weapons being drawn
+behind that door, I hide." Every module that has attempted this offered a dropdown of six conditions,
+which is why nobody used it — the interesting readied actions are exactly the ones the dropdown does not
+contain.
+
+So the sentence is read once, at the moment it is written, and turned into something the rules module can
+watch the round for. After that most of the work is free: the rules module notices movement, damage, a
+cast, an attack, a condition and the rest by itself, and only the questions that genuinely turn on meaning
+rather than measurement — is *that* what fleeing looks like, was *that* the shouting I meant — come back
+here, one narrow question at a time. Which is also the point of the escape hatch: "if I hear shouting
+ahead" has no mechanical signal at all, and the only thing at the table that knows it happened is whoever
+described it, so a GM's own narration is something a readied action can wait for.
+
+Same boundary as reading a creature's abilities, stated the other way round: **this reads intention, never
+consequence.** It never decides what the readied action does, whether it hits, or what it costs. And it is
+routed to your client rather than answered on the player's, so a player pressing Ready never spends the
+world's credit from their own browser.
+
+New switch in Text Generation, **Read a held action's trigger, written in words**, on by default and inert
+until a rules module asks. Its own editable prompt sits beside it. Switch it off and the rules module
+offers a list of common triggers instead, which still works — it just cannot read anything you invent. The
+model is shared with ability reading, deliberately: both jobs are reading a sentence and answering to a
+strict format, which is a different choice from the model you want telling the story.
+
 ## 0.6.7
 
 **The embedding model that ships by default has changed, and it turned out to be the whole cause of the

@@ -133,12 +133,19 @@
         <input type="number" name="capabilityConcurrency" value="{{capability.concurrency}}"
           min="1" max="12" step="1" />
       </div>
+
+      <label class="noodlr-inline">
+        <input type="checkbox" name="watch" {{#if watch}}checked{{/if}} />
+        {{localize "NOODLR.Watch.Enabled.Name"}}
+      </label>
+      <p class="notes">{{localize "NOODLR.Watch.Enabled.Hint"}}</p>
     </div>
 
     {{> noodlrPromptField playersPrompt}}
     {{> noodlrPromptField adjudicationPrompt}}
     {{> noodlrPromptField behaviorPrompt}}
     {{> noodlrPromptField capabilityPrompt}}
+    {{> noodlrPromptField watchPrompt}}
   </fieldset>
 
   {{! ---- Context & injections ---- }}

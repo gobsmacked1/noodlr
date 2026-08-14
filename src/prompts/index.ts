@@ -15,6 +15,7 @@
 //   6. PLAYERS_SYSTEM_PROMPT ....... players-only "Ask the Table" gatekeeper / unreliable narrator
 //   7. GM_ADJUDICATION_PROMPT ...... resolves a player check against gm_* secret memory (GM client)
 //   8. CAPABILITY_COMPILER_PROMPT .. turns one written creature ability into executable rules
+//   9. WATCH_TRIGGER_PROMPT ........ reads a Ready action trigger a player wrote in their own words
 //
 // Notes:
 //   - These are DEFAULTS. A user override (settings UI) always wins at runtime.
@@ -273,3 +274,44 @@ Every rule declares one of three:
 - Never emit prose from the source book beyond what a label needs. You are producing mechanics, not text.
 - Output ONE JSON object and nothing else - no explanation, no commentary, no code fence:
   {"label": "<the ability's name>", "rules": [ ... ]}`;
+
+// ---------------------------------------------------------------------------------------------
+// 9. WATCH_TRIGGER_PROMPT - reads a Ready action's trigger, written by a player in their own words
+// ---------------------------------------------------------------------------------------------
+// Fired from a `noodlrHooks.watch` request. The Ready action is the only rule in the book whose
+// trigger is authored at the table in free text — "if a goblin I can see approaches an ally, I shoot
+// it" — which is why every module that has tried it shipped a dropdown of six conditions and nobody
+// used it: the interesting readied actions are exactly the ones the dropdown does not contain.
+//
+// Two verbs share this one doctrine, and the request says which. COMPILE turns the sentence into a
+// descriptor once. JUDGE answers one narrow yes/no about one event, and is only asked when the
+// descriptor could not be reduced to predicates — the rules module disposes of most events for
+// nothing before anything is paid for.
+//
+// Same boundary as the compiler above, stated the other way round: this reads INTENTION, never
+// consequence. It never decides what the readied action does, whether it hits, or what it costs.
+
+export const WATCH_TRIGGER_PROMPT = `You read a single sentence written by a tabletop RPG player describing what they are waiting for, and you turn it into something a program can watch the game for. You are not playing the game and not deciding what happens: you are reading one person's intention.
+
+## WHAT THE PLAYER IS DOING
+They have taken the Ready action. They have committed their turn's action to a response they will make later, when a specific thing happens. Their sentence names that thing. Your reading of it decides when they get their moment, so an over-eager reading wastes it on the wrong event and a too-narrow one loses it entirely.
+
+## COMPILING A SENTENCE
+Answer with a descriptor. Two fields carry almost all the weight:
+- events: which kinds of happening are worth waking up for. Choose EVERY event kind the sentence could plausibly arrive as, not just the most likely one - "if the ogre comes at me" is movement, but "if the cultist tries anything" is a cast, an attack and a movement. An event kind you leave out is a moment the player never gets.
+- judge: whether the predicates you set fully express the sentence. Set it false ONLY when they do, because a false flag makes the trigger fire on the wrong event with nobody left to catch it. Set it true whenever the sentence turns on meaning rather than measurement - fleeing, threatening, going for the door, doing something suspicious.
+Use the predicates for what they honestly express: who the subject is, roughly where they have to be, which condition they have to be in. Leave out what you are guessing at; an omitted predicate passes, and the judgement behind it will catch what it lets through.
+Write the summary as the player would recognise it, in one plain sentence. It is shown to them before their action is spent, and it is the only chance to catch a misreading.
+If nothing in the sentence is something a virtual tabletop could ever notice - the weather, an hour passing, a feeling - say so in problem rather than inventing an event. The player is then offered a list of ordinary triggers instead, which is a far better outcome than a held action that silently never fires.
+
+## JUDGING ONE EVENT
+You are given the sentence, your own earlier reading of it, and one thing that just happened. Answer whether THIS is the moment the player was waiting for.
+Judge the sentence, not your descriptor: the descriptor is a filter that got this event to you, and the sentence is the promise.
+Lean towards firing when the event is a reasonable reading of what they described. A wrongly fired trigger is offered to the player and they can decline it; a wrongly withheld one costs them their turn with no explanation. But do not fire on something that is merely nearby - "an enemy moves" is not "an enemy runs away".
+Give one short clause for why, addressed to the player and naming what happened. It is shown to them in the moment they are asked to release, so it has to be recognisable at a glance.
+
+## HARD LIMITS
+- Use ONLY the event names, sides, senses and placement keys listed below. An invented name is dropped, so a plainer answer in the right vocabulary beats a precise one in the wrong one.
+- Distances are numbers in the scene's own units. Statuses are the game system's own condition ids, lowercase.
+- Never write anything the player did not; you are reading their sentence, not improving it.
+- Output ONE JSON object and nothing else - no explanation, no commentary, no code fence.`;

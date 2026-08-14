@@ -119,6 +119,26 @@ export const CAPABILITY_SETTINGS = {
 } as const;
 
 /**
+ * Watching for a trigger a player wrote in their own words.
+ *
+ * Noodlr's half of the `noodlrHooks.watch` contract, and the second half of the same trade the
+ * capability compiler makes: prose in, a machine-readable descriptor out, deterministic code doing the
+ * work thereafter. The difference is what the prose is ABOUT — a creature's permanent ability there, one
+ * player's intention for the next six seconds here — which is why they are separate switches and
+ * separate prompts. A GM who declines to pay for a scene load still wants the Ready action to work.
+ *
+ * The MODEL is shared with the compiler, deliberately. Both jobs are "read a sentence and answer to a
+ * schema", which is a different choice from the model that narrates, and a second slug to keep in step
+ * would be a knob whose right value is always the same as the one beside it.
+ */
+export const WATCH_SETTINGS = {
+  /** Whether Noodlr reads a Ready trigger written in words. Off leaves the rules module its picker. */
+  enabled: "watch.enabled",
+  /** The doctrine half of both messages; the vocabulary and the event arrive on the request. */
+  systemPrompt: "watch.systemPrompt",
+} as const;
+
+/**
  * Module socket name for client<->GM relay (push-to-log transcripts, artifact retire, player asks).
  *
  * REQUIRES `"socket": true` in module.json. Without it the server never grants the package a socket

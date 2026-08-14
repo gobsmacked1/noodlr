@@ -22,6 +22,7 @@ import {
   IMAGE_EXPAND_SYSTEM_PROMPT,
   MAP_DEFAULT_POSITIVE,
   SYSTEM_PROMPT_MAX_LENGTH,
+  WATCH_TRIGGER_PROMPT,
 } from "./index";
 
 /**
@@ -141,6 +142,16 @@ const TEXT_FIELDS: PromptFieldDef[] = [
     label: "NOODLR.Capability.PromptName",
     hint: "NOODLR.Capability.PromptHint",
     default: CAPABILITY_COMPILER_PROMPT,
+    rows: 8,
+    maxLength: SYSTEM_PROMPT_MAX_LENGTH,
+  },
+  {
+    // Shared by both watch verbs. Which one is being asked, and the vocabulary it must answer in,
+    // are generated from the request — see watch/watch.ts.
+    key: "watch.systemPrompt",
+    label: "NOODLR.Watch.PromptName",
+    hint: "NOODLR.Watch.PromptHint",
+    default: WATCH_TRIGGER_PROMPT,
     rows: 8,
     maxLength: SYSTEM_PROMPT_MAX_LENGTH,
   },
