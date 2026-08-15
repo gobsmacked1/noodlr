@@ -1743,7 +1743,41 @@ never at fault.
  automation" and as `noodlr-hooks-55e`'s ownership resolver: **a capability that switches itself
  off has to say so.** An extractor that cannot read a document type is not a bug worth preventing
  in advance — it is a bug worth being told about the first time it happens.
- - Untouched deliberately: the PDF path. `/ingest-file` parses server-side through the optional
+   - **A game system's notes about Foundry are not rules, and they were being indexed as rules
+     (v0.7.1, 2026-08-15).** dnd5e ships 793 authoring asides addressed to the human GM — "the
+     Exhaustion levels from missing limbs must be applied manually", "you can enable the AE in the
+     effects tab" — and `stripHtml` flattened them into ordinary prose, because `textContent` erases
+     the `<section class="secret">` that marked them. The consequence is specific to retrieval: a hit
+     carries no label saying it came from a note, so under the `# Retrieved campaign memory` header an
+     instruction about our software is read with the authority of the rulebook paragraph beside it, and
+     a rules question gets answered "your GM applies this by hand". `src/rag/prose.ts` drops them
+     inside `stripHtml`, which is where every extraction path funnels through.
+     - **THE STRIP MUST BE CONDITIONAL, AND THE ARGUMENT IS STRONGER HERE THAN IN THE RULES MODULE.**
+       `class="secret"` is also how a GM marks their OWN campaign secrets, which is precisely what the
+       `gm_*` silos exist to hold — so dropping hidden sections wholesale would delete the most
+       valuable thing anybody ingests, and it would present as memory simply never learning the
+       secrets they wrote down. Being hidden is not the test; talking about the software is.
+     - **Deliberately only half of `noodlr-hooks-55e`'s predicate.** That module also scrubs tooling
+       sentences standing in the OPEN, because there a note reaching the compiler can suppress a rule
+       outright. Here the worst case is one noisy chunk, while the risk runs the other way: this path
+       ingests a GM's own journals and homebrew, where a sentence deleter on an eleven-term vocabulary
+       will eventually eat a line of somebody's campaign silently. The volume settles it — across all
+       of dnd5e the open-prose case is **5 descriptions, two distinct sentences**, against 793 hidden
+       notes. `keepOpenProse` records that decision where somebody would go to add the feature.
+     - **A deliberate second copy of that vocabulary, not an import**, same call as the header-save
+       button: neither module depends on the other and twenty lines is cheaper than the coupling. The
+       two are allowed to diverge because they answer slightly different questions.
+     - `compendium` must never join the vocabulary. `@UUID[Compendium.dnd5e.…]` is how a link to a
+       spell is written, so it sits inside thousands of ordinary rules — measured, adding it takes the
+       strip from 5 descriptions to 2,469 and 1,334 distinct sentences. The Troll's own rule text is
+       the specimen and is used verbatim in `test/prose.test.ts`.
+     - **Debug, not a warning.** 793 correctly-marked notes per system means a toast per pack would
+       teach a GM to ignore the channel; one line somewhere is still wanted, because "memory did not
+       learn that" is a question that gets asked. Same severity doctrine as `rag/failure.ts`.
+     - **Consequence for existing stores: purge then re-ingest**, not re-ingest alone — `freshItems()`
+       skips by content hash, so scrubbed text is a NEW hash and the old note-bearing chunks would
+       simply remain beside it.
+   - Untouched deliberately: the PDF path. `/ingest-file` parses server-side through the optional
  `pdf-parse` dependency and 501s with an install hint when it is absent, and RAG Lite refuses PDFs
  with a message naming the workaround. Both fail loudly, which is the property that matters. Its
  real limitation is layout rather than loss — a PDF text layer interleaves table columns — and that

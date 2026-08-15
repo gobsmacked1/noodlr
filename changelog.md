@@ -2,6 +2,34 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.7.1
+
+**Memory no longer learns the notes a game system's authors wrote about Foundry.** D&D 5e's own
+compendia carry 793 short asides addressed to whoever runs the table, describing what the software
+cannot do and what you therefore have to do by hand — "the Exhaustion levels must be applied
+manually", "you can enable the effect in the Effects tab", "you can select the damage type in the
+dialog box". They are correctly marked as hidden from players, and until now they were ingested along
+with everything else.
+
+That matters because a retrieved chunk does not arrive with a label saying where it came from. Sitting
+under the "retrieved campaign memory" heading, an instruction about our software reads with exactly the
+authority of the rulebook paragraph next to it, so the failure looks like this: you ask a rules question
+and get told your GM applies something by hand. It is advice about Foundry, delivered as advice about
+the game. These are now dropped on the way in.
+
+**What is emphatically NOT dropped is your own hidden material.** A secret section is also how you mark
+your own campaign secrets — the villain's real name, what is really behind the door, the faction's
+actual plan — and those are the single most valuable thing you ingest. So being hidden is not the test.
+Talking about Foundry is the test. Your secrets are indexed exactly as before, and so are the 55 places
+where the system itself hides a genuine rule that happens to be a surprise: a curse, a disease's
+progression, Sneak Attack's "once per turn".
+
+**If you have already ingested a game system's compendia, a re-ingest is worth doing** — and if you did
+it before 0.6.1 it is worth doing regardless, because that release fixed two much larger omissions
+(roll tables arriving as nothing but their titles, and a creature's traits and actions being cut off).
+Purge the silo first rather than ingesting over the top: re-ingesting alone leaves the old chunks in
+place beside the new ones.
+
 ## 0.7.0
 
 **Noodlr can now read a held action's trigger, written by a player in their own words.** This is the

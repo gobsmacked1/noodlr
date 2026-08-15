@@ -8,14 +8,29 @@ import { isRateLimit } from "./failure";
 import { IMPORTANCE, withImportance } from "./importance";
 import type { IngestReport } from "./ingest-queue";
 import { parseStructuredFile, structuredFormatFor } from "./parse-structured";
+import { dropMetaAsides } from "./prose";
 import type { SiloId } from "./silos";
 import { bumpStats } from "../util/stats";
 import { debug, warn } from "../constants";
 
-/** Strip HTML to plain text using a detached element (browser context). */
+/** How many authoring notes the current ingest has dropped, for one debug line at the end. */
+let asidesDropped = 0;
+
+/**
+ * Strip HTML to plain text using a detached element (browser context).
+ *
+ * Authoring notes go first, and it matters that they go BEFORE the tags do: `textContent` flattens a
+ * `<section class="secret">` into ordinary prose, so by the time this returns there is no longer
+ * anything marking which sentences were addressed to whoever runs the table rather than to the
+ * reader of a rule. Every extraction path below funnels through here, which is why the removal lives
+ * here rather than in `documentToText` — a journal page, a stat block and a table row all carry the
+ * same asides.
+ */
 function stripHtml(html: string): string {
+  const { html: cleaned, removed } = dropMetaAsides(html);
+  asidesDropped += removed;
   const tmp = document.createElement("div");
-  tmp.innerHTML = html;
+  tmp.innerHTML = cleaned;
   return (tmp.textContent ?? "").replace(/\s+\n/g, "\n").trim();
 }
 
@@ -272,6 +287,10 @@ export async function ingestCompendium(
   // in the UI looks like success. Every silent omission found so far (roll table rows, a
   // creature's embedded items) presented exactly this way, so it is tallied by type and reported.
   const nameOnly: Record<string, number> = {};
+  // Snapshotted rather than reset, so a resumed job reports what this run dropped without the
+  // counter having to be owned by anybody. The queue serializes ingests, so there is no second
+  // writer to race with.
+  const asidesBefore = asidesDropped;
 
   for (let i = from; i < docs.length; i += BATCH) {
     if (signal?.aborted) break;
@@ -321,6 +340,11 @@ export async function ingestCompendium(
   }
 
   reportBare(nameOnly, packId, docs.length);
+  // Debug rather than a warning, deliberately: dnd5e alone ships 793 of these and they are correctly
+  // marked, so a toast per pack would be noise that teaches a GM to ignore the channel. It is worth
+  // one line somewhere, because "memory did not learn that" is a question that will be asked.
+  const asides = asidesDropped - asidesBefore;
+  if (asides > 0) debug("ingest", `${packId}: dropped ${asides} authoring notes about Foundry`);
   return { documents: docs.length, inserted, skipped };
 }
 
