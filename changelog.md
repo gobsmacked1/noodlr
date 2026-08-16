@@ -2,6 +2,21 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.7.4
+
+**Noodlr now tells you when your AI account has hit a spending limit, instead of quietly reading
+nothing.** Retrying the 62 abilities from 0.7.3 revealed a third kind of refusal that release had not
+allowed for: an API key can carry its own monthly spend guardrail, separate from your credit balance,
+and when it trips the provider turns away every request in milliseconds. Noodlr was patiently waiting
+and asking again — four times per ability — for a limit that cannot pass without you raising it.
+
+A refusal is now read as one of three things, because each wants a different response: your prompt was
+flagged (permanent for that wording — write the ability by hand on the Capabilities sheet), your
+account is over a limit (nothing will work until you raise it), or the gateway was simply busy (wait
+and ask again). The first two now raise a notice that stays on screen and names the remedy — one per
+run, not one per ability — because reading a world's abilities happens quietly during a scene load, and
+a line in the console is not something anyone is watching.
+
 ## 0.7.3
 
 **A refused ability now says why it was refused, and is asked again.** Reading a whole world's abilities

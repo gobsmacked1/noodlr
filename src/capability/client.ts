@@ -17,37 +17,78 @@ export class CompileError extends Error {
   readonly status?: number;
   readonly retryable: boolean;
   readonly retryAfter: number;
+  /** Set only for a 403, so a caller can act on the reason without re-reading the body. */
+  readonly kind?: RefusalKind;
 
   constructor(
     message: string,
-    options: { status?: number; retryable?: boolean; retryAfter?: number } = {},
+    options: {
+      status?: number;
+      retryable?: boolean;
+      retryAfter?: number;
+      kind?: RefusalKind;
+    } = {},
   ) {
     super(message);
     this.name = "CompileError";
     this.status = options.status;
     this.retryable = options.retryable ?? false;
     this.retryAfter = options.retryAfter ?? 0;
+    this.kind = options.kind;
   }
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Whether a 403 is a verdict on the CONTENT or a refusal at the door.
+ * Which of THREE opposite things a 403 means. The status alone says none of them.
  *
- * OpenRouter uses one status for two opposite things. Moderation flagged the prompt, which is
- * permanent for that wording — asking again spends a request to be told the same thing, and the
- * repair prompt is the only route left. Or the gateway refused the account outright, which is a
- * threshold and passes with time exactly like a 429.
+ * - `moderation` — the prompt was flagged. Permanent for that wording: asking again spends a request
+ *   to be told the same thing, and the repair prompt is the only route left.
+ * - `budget` — the account is over a credit or spending cap. Permanent until a HUMAN acts, so a retry
+ *   is pure waste and, worse, the shared pause gate below would stall every other request behind a
+ *   refusal that cannot pass. This is also the only 403 the operator can fix, which makes reporting
+ *   it more important than classifying it.
+ * - `threshold` — the gateway turned the account away. Passes with time, exactly like a 429.
  *
- * The body is the only thing that tells them apart, so it is READ rather than inferred from the
- * status. An unreadable or unfamiliar body is treated as transient, because the two mistakes are not
- * the same size: one needless retry costs a request, while calling a threshold permanent loses the
- * whole batch. That asymmetry is why 403 must not simply be added to the retryable list either —
- * a flagged wording would then be re-sent five times on every scene load, for ever.
+ * MEASURED, not reasoned: the first version of this had two branches, and the very next real refusal
+ * was `{"error":{"message":"Budget limit exceeded (monthly limit). Contact your org admin."}}`, which
+ * the two-way test read as a threshold and retried four times into a monthly cap. A taxonomy of
+ * provider errors is only ever as complete as the errors somebody has actually seen.
+ *
+ * The body is READ rather than inferred, and an unreadable or unfamiliar body is `threshold` — the
+ * transient answer — because that is the one guess a later run can recover from on its own.
  */
-export function moderationRefusal(detail: string): boolean {
-  return /moderation|flagged|content[_ -]?polic/i.test(String(detail ?? ""));
+export type RefusalKind = "moderation" | "budget" | "threshold";
+
+export function refusalKind(detail: string): RefusalKind {
+  const body = String(detail ?? "");
+  // Content first: it is a verdict about this request, and the more specific claim.
+  if (/moderation|flagged|content[_ -]?polic/i.test(body)) return "moderation";
+  // A money word is required. "exceeded" alone is not enough — that is also how a rate limit reads,
+  // and a rate limit is a 429 that must keep its own handling.
+  if (/budget|credit|quota|insufficient|spend(?:ing)?[_ -]?limit|top[_ -]?up|billing/i.test(body)) {
+    return "budget";
+  }
+  return "threshold";
+}
+
+/** What the operator should DO about a 403, or "" when there is nothing for them to do. */
+export function refusalAdvice(kind: RefusalKind | undefined): string {
+  if (kind === "budget") {
+    return (
+      "The AI provider is refusing every request because the account is over a spending or credit " +
+      "limit. Nothing was compiled and nothing will be until the limit is raised or the account is " +
+      "topped up — on OpenRouter that is Settings → Credits, or your organisation's spend limit."
+    );
+  }
+  if (kind === "moderation") {
+    return (
+      "The AI provider refused this wording on content grounds. It will refuse it again, so the " +
+      "capability has to be written by hand on the Capabilities sheet."
+    );
+  }
+  return "";
 }
 
 /**
@@ -153,13 +194,12 @@ export async function completeJson(
         const detail = (await res.text().catch(() => "")).slice(0, 300);
         // 429 is a rate limit and 5xx is the provider having a moment; both pass with time.
         // 400/401/402 is a fault in how we are asking and will never pass, so retrying only
-        // multiplies the error. 403 is the one status that is BOTH — see `moderationRefusal`.
+        // multiplies the error. 403 is the one status that is all three — see `refusalKind`.
+        const kind = res.status === 403 ? refusalKind(detail) : undefined;
         throw new CompileError(`HTTP ${res.status}: ${detail}`, {
           status: res.status,
-          retryable:
-            res.status === 429 ||
-            res.status >= 500 ||
-            (res.status === 403 && !moderationRefusal(detail)),
+          kind,
+          retryable: res.status === 429 || res.status >= 500 || kind === "threshold",
           retryAfter: Number(res.headers.get("retry-after")) || 0,
         });
       }
@@ -195,7 +235,10 @@ export async function completeJson(
       // 403 are both about to be handed to every request in flight, and private backoff marches
       // them into the same wall in lockstep. That is not hypothetical: on 2026-08-16 a batch of 62
       // died inside 52ms, four at a time, because each worker spent its one attempt independently.
-      if (error?.status === 429 || (error?.status === 403 && error.retryable === true)) {
+      //
+      // A `budget` 403 is deliberately NOT here, and it is not merely that retrying it is wasted:
+      // arming the gate for a refusal that cannot pass makes every OTHER request wait for it too.
+      if (error?.status === 429 || error?.kind === "threshold") {
         pausedUntil = Math.max(pausedUntil, Date.now() + wait);
       }
       await sleep(wait);

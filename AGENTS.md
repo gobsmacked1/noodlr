@@ -194,15 +194,45 @@ on any wording — and both of the things that made it unrecoverable were in thi
 - **The fix is not "add 403 to the list", because OpenRouter uses one status for two opposite things.**
   Moderation flagged the prompt, which is permanent for that wording — asking again buys the same answer
   and the repair prompt is the only route left. Or the gateway refused the account, which is a threshold
-  and passes with time exactly like a 429. **`moderationRefusal()` READS THE BODY** rather than inferring
+  and passes with time exactly like a 429. **`refusalKind()` READS THE BODY** rather than inferring
   from the status, and an unreadable or unfamiliar body is treated as transient: one needless retry costs
-  a request, while calling a threshold permanent loses the batch. `test/client.test.ts` pins both
-  directions, because each is silent — a permanent-verdict mistake loses abilities with nothing
+  a request, while calling a threshold permanent loses the batch. `test/client.test.ts` pins every
+  direction, because each is silent — a permanent-verdict mistake loses abilities with nothing
   explaining itself, and a transient mistake re-sends a flagged wording five times per scene load for ever.
 - **A retryable 403 arms the process-wide `pausedUntil` gate**, same as a 429. Without that, sixteen
   concurrent requests each back off privately and all sixteen return together into the same refusal —
   the stall-burst cycle `noodlr-memory` documents at length, rebuilt from parts on a different status.
   This is the third place that gate has earned itself.
+
+### And then the retry ran, and 403 turned out to be THREE things (v0.7.4, 2026-08-16)
+
+The fix above shipped, the 62 were re-asked, and every one came back in milliseconds with
+`Budget limit exceeded (monthly limit)` — a spending guardrail on the key. **v0.7.3 classified that as a
+threshold and retried it four times per wording into a cap that cannot pass without a human**, which is
+the mirror of the bug it had just fixed: same one status, and the two-way test put it on the wrong side.
+
+- **The axis is not permanent-versus-transient, it is WHO CAN CLEAR IT.** Moderation is permanent for
+  that wording (nobody can clear it; write the rule by hand). A budget or credit cap is permanent
+  *until a human acts*, so retrying is pure waste and the only useful response is to say so. A gateway
+  threshold clears by itself. Three answers, three behaviours: `RefusalKind` names them and
+  `CompileError.kind` carries it, so a caller acts on the reason without re-reading the body.
+- **`refusalAdvice()` exists because A CONSOLE LINE IS NOBODY'S NOTIFICATION on this path.** A compile
+  batch runs unattended during a scene load, so the operator's first evidence of a spend cap would
+  otherwise be descriptors quietly not appearing. `compile.ts` collects the distinct kinds a batch met
+  and raises **one permanent `ui.notifications.error` per kind** — per batch, not per wording, or a
+  1,022-ability run stacks a thousand toasts. Same doctrine as `rag/failure.ts`: severity and channel
+  track what the operator should DO.
+- **`threshold` deliberately carries NO advice and raises nothing.** There is nothing for a human to
+  do about it and we retry it away; a toast for it would teach them to dismiss the channel, and then
+  the budget one is dismissed too.
+- **`"exceeded"` must not be read as a budget on its own**, because that is also how a rate limit
+  reads, and a 429 has its own handling this must not shadow. Pinned in `test/client.test.ts`
+  alongside the case that proves ordinary rules prose echoed back in an error body cannot make a
+  refusal permanent — a 403's body can quote the request, so every pattern here has to be a word that
+  cannot turn up in a statblock.
+- **The operator-facing lesson worth keeping: an OpenRouter key can carry its own spend guardrail,
+  separate from the account's credit balance.** Nothing in the module can see it and topping up
+  credits does not lift it.
 
 ## Reading a held action's trigger (v0.7.0, 2026-08-14) — `src/watch/`
 

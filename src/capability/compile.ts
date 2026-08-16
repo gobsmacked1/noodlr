@@ -17,7 +17,7 @@
 // other nineteen are returned. The asking module treats a missing descriptor as ordinary — that is
 // its baseline, not an error path.
 
-import { debug, log, warn } from "../constants";
+import { debug, log, warn, MODULE_TITLE } from "../constants";
 import { isConfigured, type ChatMessage } from "../providers/types";
 import { runPool } from "../util/pool";
 import { bumpStats } from "../util/stats";
@@ -27,7 +27,7 @@ import {
   getCapabilityPrompt,
   isCapabilityCompilerEnabled,
 } from "./config";
-import { completeJson } from "./client";
+import { completeJson, refusalAdvice, type CompileError, type RefusalKind } from "./client";
 import {
   asVocabulary,
   composeRepairMessage,
@@ -118,6 +118,7 @@ async function compileBatch(
   );
 
   const compiled = (event.compiled ??= {});
+  const refusals = new Set<RefusalKind>();
   let ok = 0;
   let failed = 0;
   results.forEach((result, index) => {
@@ -137,6 +138,8 @@ async function compileBatch(
     // that names the cause. A batch of 62 was lost to an unexplained 403 on 2026-08-16 and the
     // body that would have identified it had been read and thrown away here.
     warn(`could not compile "${item.label ?? item.id}": ${reasonOf(result.error)}`);
+    const kind = (result.error as CompileError | undefined)?.kind;
+    if (kind && kind !== "threshold") refusals.add(kind);
   });
 
   bumpStats({ chatTurns: ok });
@@ -144,6 +147,16 @@ async function compileBatch(
     `compiled ${ok}/${items.length} ability/abilities in ${Math.round((Date.now() - started) / 1000)}s` +
       (failed ? ` (${failed} could not be compiled and were left out)` : ""),
   );
+
+  // ONCE PER BATCH, AND TO THE SCREEN. A spending cap is the only provider refusal a GM can do
+  // anything about, and this whole path runs unattended during a scene load: nobody is reading a
+  // console, so the honest report of "your credit ran out" is a notification. Sixty-two of them
+  // would be a storm, hence the set — and a `threshold` never lands here at all, because it is
+  // transient and the retry already dealt with it.
+  for (const kind of refusals) {
+    const advice = refusalAdvice(kind);
+    if (advice) ui.notifications?.error(`${MODULE_TITLE}: ${advice}`, { permanent: true });
+  }
 }
 
 async function compileOne(
