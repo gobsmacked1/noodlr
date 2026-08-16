@@ -2,6 +2,19 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.7.3
+
+**A refused ability now says why it was refused, and is asked again.** Reading a whole world's abilities
+ended with 62 of them failing, and the console said only "Error" — the provider's own explanation was
+being thrown away before it was printed. It is printed now, in full, including the HTTP status.
+
+**And that particular refusal is no longer treated as final.** A "403" from OpenRouter means two
+opposite things: your prompt was flagged, which will not change however many times you ask; or the
+gateway turned the request away at the door, which passes on its own like any other busy signal. Noodlr
+now reads the reply to tell them apart, waits, and asks again for the second kind — the same patience it
+has always shown a rate limit, including standing every other request down while it waits so a batch
+does not stampede. A flagged wording is still left alone after one try.
+
 ## 0.7.2
 
 **The ability compiler is told what Foundry already does.** When it reads a creature's abilities off its

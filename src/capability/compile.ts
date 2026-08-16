@@ -46,6 +46,19 @@ type CompileEvent = Record<string, any> & {
   handled?: boolean;
 };
 
+/**
+ * The readable half of a thrown error, for a log line.
+ *
+ * `Error.message` is where every useful detail lives — `client.ts` puts the HTTP status and the
+ * provider's own response body there — and it is exactly what a console hides when the object is
+ * handed to it as an argument. Anything that is not an Error is stringified rather than dropped,
+ * since a thrown string is still the only account we have of what went wrong.
+ */
+function reasonOf(err: unknown): string {
+  if (err instanceof Error) return err.message || err.name;
+  return String(err ?? "no reason given");
+}
+
 let registered = false;
 
 export function registerCapabilityCompiler(): void {
@@ -81,7 +94,9 @@ export function registerCapabilityCompiler(): void {
     // second listener taking it on while we are mid-flight would buy every descriptor twice.
     event.handled = true;
     event.waitFor?.(
-      compileBatch(event, items, vocabulary).catch((err) => warn("compile batch failed:", err)),
+      compileBatch(event, items, vocabulary).catch((err) =>
+        warn(`compile batch failed: ${reasonOf(err)}`),
+      ),
     );
   });
 
@@ -115,7 +130,13 @@ async function compileBatch(
     failed++;
     // Named, because the alternative is a GM watching a scene silently not work. The asking module
     // logs its own rejections; this is the half it cannot see.
-    warn(`could not compile "${item.label ?? item.id}":`, result.error);
+    //
+    // THE REASON IS INTERPOLATED, NOT PASSED AS AN ARGUMENT. `client.ts` already reads 300
+    // characters of the provider's own response body into the message, and a console renders a
+    // trailing `Error` object as the bare word "Error" — so passing it discarded the only thing
+    // that names the cause. A batch of 62 was lost to an unexplained 403 on 2026-08-16 and the
+    // body that would have identified it had been read and thrown away here.
+    warn(`could not compile "${item.label ?? item.id}": ${reasonOf(result.error)}`);
   });
 
   bumpStats({ chatTurns: ok });

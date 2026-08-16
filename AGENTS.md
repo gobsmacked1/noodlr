@@ -131,6 +131,79 @@ about the model. All three fixes are here; the reading half is in
     world the descriptor will run in** rather than against anything of ours — which is the same principle
     as the trigger events and effect kinds, applied to a list only Foundry can supply.
 
+### And then it was measured, and the three fixes cost more than they bought (2026-08-16)
+
+A full-world recompile at v0.7.2 — 1,022 abilities, 87 minutes — re-read 145 of the 223 wordings the
+previous cache held, same model slug both halves, so the two censuses are comparable on that population
+(`npm run census:subset` then `census:yield` in `noodlr-hooks-55e`). **All three of the fixes above landed
+exactly as designed, and the model became so much more conservative overall that the automation yield fell
+by a factor of five.** Both halves of that sentence are the finding; reporting either alone would be a lie.
+
+- **What landed.** Guards filed under the plural `conditions`: **168 → 0**. Predicates naming an
+  unresolvable subject: **82 in 61 rules → 0**. `damage` effects, the restated printed damage line the
+  refusal guard was built for: **66 → 29**. Nothing had to be repaired at the cache boundary and nothing
+  was rejected.
+- **What it cost.** `adjudication: "engine"` **137 → 29**, straight into `gm` (62.6% → 86.0% of rules).
+  Rules that RUN 25 → 10, standing facts 33 → 2, and the Phase 3 yield the whole dispatch plan is scored
+  against went `on_hit` 23 → 2 and `on_save_failed` 18 → 5. **An 86%-`gm` compiler is honest and is
+  barely an automation layer.**
+- **THE MOST LIKELY CAUSE IS THE SUBJECT WHITELIST, NOT THE BOUNDARY CLAUSE, and the mechanism is that
+  VALIDATION TAUGHT THE MODEL TO GIVE UP RATHER THAN TO REPHRASE.** `caster` ×20 and `secondary target`
+  ×8 were the commonest illegal subjects; with only `self | target | attacker | trigger` legal and no
+  aliasing, a rule about "the caster" cannot be *stated*, so it is downgraded to `gm` instead of being
+  written correctly. The counts line up: 61 rules lost their bad subjects and 108 lost `engine`.
+  - **The cheap fix is doctrine wording, not a schema change.** This file already records that `caster`
+    "means `self` every time" — so SAY that: name the aliases (caster, wielder, owner, user, ability
+    owner → `self`) rather than leaving the model to discover that its word is not on the list.
+    `secondary target` is a genuine vocabulary gap and a separate decision.
+- **`grant_capability` 45 → 12 is a smaller loss than it looks.** That kind is free text nobody wires;
+  it feeds the prompt, not the executor. Distinguish it from the `engine` collapse when scoring this.
+- **The specimens that had to survive did.** Regeneration is byte-identical and still `engine` with both
+  guards; Loathsome Limbs still summons on `on_turn_end` behind `hp_fraction_at_most` + `damage_taken`.
+  It did lose its `spend_resource` allowance rule (8 → 2 across the corpus), which is the 4/day limit.
+  Word of Misfortune, Charge and Booming Blade all regressed to `gm`, and Booming Blade now emits its
+  damage line three times.
+- **NEVER SPEND A WORLD RECOMPILE TO TEST A PROMPT AGAIN.** 87 minutes and real credit bought one data
+  point, and 62 of the 1,022 failed on provider 403s at the end so the population had to be subsetted
+  before it could be read at all. `composeSystemMessage` is exported from `vocabulary.ts` precisely so
+  `noodlr-rules-corpus` can run a prompt change over mined atoms with no Foundry, no world and no cache —
+  **that is the loop for doctrine work**, and a recompile is only for shipping a doctrine already measured.
+- **Caveat that cannot be closed retrospectively: `~openai/gpt-latest` is a floating alias.** Both halves
+  record the same slug and the two halves are weeks apart, so "same model" is not provable and some of the
+  drift may not be ours. **Pin an explicit slug before the next measured comparison**, or the next one has
+  the same hole.
+
+### The 62 failures were two defects of ours, and the second one is a doctrine about errors (v0.7.3)
+
+The provider refused the run's last 62 requests inside one second, each in about **52ms**. Nothing that
+fast can have read a prompt, so it was the gateway turning requests away at the door rather than a verdict
+on any wording — and both of the things that made it unrecoverable were in this repo.
+
+- **`compile.ts` handed the `Error` OBJECT to `warn`, so every log line read "could not compile X: Error"
+  and the provider's own explanation was discarded before it was printed.** `client.ts` had put the status
+  and the whole response body on `.message` all along. A console renders an argument that is an Error as
+  its class name, so **the one channel that could have named the cause was formatting it away**, and
+  62 identical useless lines is what a real diagnosis looked like. `reasonOf()` reads `.message` and
+  stringifies anything that is not an Error, because a thrown string is still the only account we have.
+  **Generalisable: interpolate an error's message into the line; never pass the object as an argument.**
+- **403 was non-retryable BY OMISSION**, which is the expensive half. `retryable` enumerated 429 and 5xx,
+  so a status nobody had thought about defaulted to permanent, and 62 wordings were abandoned in 52ms with
+  no wait, no pause and no second attempt. **A retry policy written as a whitelist of known-transient
+  statuses fails closed on every status it has not met yet** — the opposite of the failure this repo
+  usually guards against, and it costs work rather than causing a wrong answer.
+- **The fix is not "add 403 to the list", because OpenRouter uses one status for two opposite things.**
+  Moderation flagged the prompt, which is permanent for that wording — asking again buys the same answer
+  and the repair prompt is the only route left. Or the gateway refused the account, which is a threshold
+  and passes with time exactly like a 429. **`moderationRefusal()` READS THE BODY** rather than inferring
+  from the status, and an unreadable or unfamiliar body is treated as transient: one needless retry costs
+  a request, while calling a threshold permanent loses the batch. `test/client.test.ts` pins both
+  directions, because each is silent — a permanent-verdict mistake loses abilities with nothing
+  explaining itself, and a transient mistake re-sends a flagged wording five times per scene load for ever.
+- **A retryable 403 arms the process-wide `pausedUntil` gate**, same as a 429. Without that, sixteen
+  concurrent requests each back off privately and all sixteen return together into the same refusal —
+  the stall-burst cycle `noodlr-memory` documents at length, rebuilt from parts on a different status.
+  This is the third place that gate has earned itself.
+
 ## Reading a held action's trigger (v0.7.0, 2026-08-14) — `src/watch/`
 
 The second thing a rules module asks noodlr to read, and the second time the division has held without
@@ -1943,6 +2016,33 @@ never at fault.
     It exists because the old form saved every field on every Save, so upgrading worlds hold explicit
     empty strings for prompts nobody ever edited; reading those verbatim would strip the DM prompt.
     "Deliberately empty" was not expressible before v0.4.18, which is what makes this safe exactly once.
+  - **IMPROVING A SHIPPED PROMPT DOES NOT REACH A WORLD THAT HAS ALREADY STORED ONE, AND THAT IS THIS
+    INVARIANT'S COST RATHER THAN A BUG IN IT (2026-08-16).** Verbatim reads plus once-per-world seeding
+    mean the default is a value for NEW worlds only; every existing world keeps the text it stored, so a
+    doctrine edit ships to nobody until somebody presses Reset. Caught on the live world moments before
+    the v0.7.2 full-world recompile: `capability.systemPrompt` held **3,286** characters against a shipped
+    **5,035**, missing the whole `## WHAT THE PLATFORM ALREADY DOES` section — so 1,022 compiles were
+    about to be bought against the previous doctrine, which is the entire point of that release not
+    happening while reporting success.
+    - **It is silent in the worst direction.** A stale prompt is a working prompt: output validates,
+      descriptors store, the cache reports hits, and the only symptom is that a measured improvement
+      does not appear. There is nothing to grep and no error to read.
+    - **VERIFY THE STORED TEXT AGAINST `game.settings.settings.get("<ns>.<key>").default` BEFORE
+      SPENDING ANYTHING ON A PROMPT CHANGE.** One `.includes()` on the clause you just added is the
+      whole check. Do it as a release step for any change to `prompts/index.ts`, not as a debugging
+      step afterwards.
+    - **Diff before resetting, and keep the backup.** A purely additive diff proves the stored copy is
+      an unmodified older default and the reset costs nothing; a diff with removals is a GM's own
+      wording and must not be overwritten to suit us. Both texts went to
+      `C:\Project\noodlr-vtt\prompt-backups\` first.
+    - **Which half a change lands in decides whether any of this applies.** The generated half
+      (`describeVocabulary` — the vocabulary tables and the literal example rule object) reaches every
+      world on upgrade, because it is composed at request time. Only the stored doctrine is frozen. So
+      **prefer the generated half for anything load-bearing**: v0.7.2's example arrived everywhere and
+      its boundary clause arrived nowhere, from one release.
+    - Do NOT "fix" this with `stored || DEFAULT`, and do not re-seed on version change. The first is
+      the exact pattern this invariant exists to forbid, and the second silently discards a GM's edits
+      on upgrade — which is worse than a stale prompt, because it is unrecoverable.
 - **The Noodlr control group's `activeTool` must name a tool that is not one of the real buttons.**
   Foundry requires `activeTool` to name an existing tool, and the active tool is skipped when clicked —
   so pointing it at the chat button stops that button from reopening a panel you closed. The inert

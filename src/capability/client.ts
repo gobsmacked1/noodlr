@@ -33,6 +33,24 @@ export class CompileError extends Error {
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Whether a 403 is a verdict on the CONTENT or a refusal at the door.
+ *
+ * OpenRouter uses one status for two opposite things. Moderation flagged the prompt, which is
+ * permanent for that wording — asking again spends a request to be told the same thing, and the
+ * repair prompt is the only route left. Or the gateway refused the account outright, which is a
+ * threshold and passes with time exactly like a 429.
+ *
+ * The body is the only thing that tells them apart, so it is READ rather than inferred from the
+ * status. An unreadable or unfamiliar body is treated as transient, because the two mistakes are not
+ * the same size: one needless retry costs a request, while calling a threshold permanent loses the
+ * whole batch. That asymmetry is why 403 must not simply be added to the retryable list either —
+ * a flagged wording would then be re-sent five times on every scene load, for ever.
+ */
+export function moderationRefusal(detail: string): boolean {
+  return /moderation|flagged|content[_ -]?polic/i.test(String(detail ?? ""));
+}
+
+/**
  * A rate limit belongs to the account, so backing off from one has to as well.
  *
  * With several requests in flight a 429 means the key is over its limit, not that one request was
@@ -135,10 +153,13 @@ export async function completeJson(
         const detail = (await res.text().catch(() => "")).slice(0, 300);
         // 429 is a rate limit and 5xx is the provider having a moment; both pass with time.
         // 400/401/402 is a fault in how we are asking and will never pass, so retrying only
-        // multiplies the error.
+        // multiplies the error. 403 is the one status that is BOTH — see `moderationRefusal`.
         throw new CompileError(`HTTP ${res.status}: ${detail}`, {
           status: res.status,
-          retryable: res.status === 429 || res.status >= 500,
+          retryable:
+            res.status === 429 ||
+            res.status >= 500 ||
+            (res.status === 403 && !moderationRefusal(detail)),
           retryAfter: Number(res.headers.get("retry-after")) || 0,
         });
       }
@@ -169,9 +190,14 @@ export async function completeJson(
       warn(
         `compile retry ${attempt}/${maxRetries} in ${Math.round(wait / 1000)}s: ${error.message}`,
       );
-      // Only a rate limit is everybody's problem. Stalling the other workers for one 500 or one
-      // timeout would throw away throughput for nothing.
-      if (error?.status === 429) pausedUntil = Math.max(pausedUntil, Date.now() + wait);
+      // Only a refusal aimed at the ACCOUNT is everybody's problem. Stalling the other workers for
+      // one 500 or one timeout would throw away throughput for nothing — but a 429 and a gateway
+      // 403 are both about to be handed to every request in flight, and private backoff marches
+      // them into the same wall in lockstep. That is not hypothetical: on 2026-08-16 a batch of 62
+      // died inside 52ms, four at a time, because each worker spent its one attempt independently.
+      if (error?.status === 429 || (error?.status === 403 && error.retryable === true)) {
+        pausedUntil = Math.max(pausedUntil, Date.now() + wait);
+      }
       await sleep(wait);
     } finally {
       clearTimeout(timer);
