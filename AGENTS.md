@@ -142,7 +142,7 @@ only what is different:
 - `C:\Project\noodlr-main\` — **this project**: the AI game master. Own git repo on GitHub.
 - `C:\Project\noodlr-hooks-55e\` — the **D&D 5e (2024) rules automation** split out of this one. Own git repo, own `AGENTS.md`. Every dnd5e and midi-qol internals note lives there now.
 - `C:\Project\noodlr-memory\` — the standalone **vector/RAG memory service** (Node >= 20). COMPLETE and fully ours. Own git repo on GitHub.
-- `C:\Project\noodlr-vtt\` — reserved for an **optional external control bridge** (drive Foundry from external AI clients over MCP/WebSocket). Deferred; may never be built. Currently holds the sheet-survey JSON captures.
+- `C:\Project\noodlr-vtt\` — was reserved for an **optional external control bridge** (drive Foundry from external AI clients over MCP/WebSocket), still deferred and may never be built. In practice it is now the **test-capture folder**: sheet-survey JSON, chat exports, HARs, and `harness/` (below). Not a git repo, deliberately — nothing here ships.
 - `C:\Project\_research\` — the reference corpus (dnd5e source, Foundry client source, v14 types, the community modules we compare against, and `_audit\`). Outside every workspace root, so tools must be pointed at it explicitly. Primarily serves `noodlr-hooks-55e`; see that module's AGENTS.md for the research method.
 
 ## Provenance rules (clean-room discipline — do NOT break)
@@ -714,6 +714,88 @@ Packaging done and shipped to GitHub. Version stays 0.1.0 (pre-parity, pre-smoke
 - **External deps** (e.g. `noodlr-memory`) deploy to **`/opt/<service-name>`** → `/opt/noodlr-memory`.
 - **Cursor agent worker:** runs as user `cursorbot` under systemd unit `cursor-worker.service` (name `noodlr-cursorbot`, workerId `afb4e5c1-...`), survives reboot (verified). Its serving directory is **`/opt`**, so a Cloud Agent driving this worker has `/opt` as workspace root. Drive it from cursor.com/agents, not from this chat.
 - Give the worker scoped power to bounce Foundry via a sudoers drop-in (`cursorbot ALL=(root) NOPASSWD: /usr/bin/systemctl {start,stop,restart,status} foundryvtt`).
+
+### The Data tree is served to the public internet with no authentication (verified 2026-08-15)
+
+Measured from a machine with no session and no credentials: `GET https://<host>/vtt/assets/noodlr-out/survey/noodlr-sheet-survey.json`
+returns **200** and 75 KB, and `GET /vtt/modules/<any>/module.json` returns 200. Directory listing is
+refused (301), so a filename has to be known or guessed, but nothing else stands in the way. This is how
+Foundry works rather than a misconfiguration — the Data tree is served so every client can load images
+and audio — and it is worth writing down because it has consequences in both directions.
+
+- **Anything a diagnostic writes into `assets/` is published.** The sheet survey alone gives an attacker
+  the exact Foundry version, system version and complete module inventory with version numbers, which is
+  the reconnaissance half of exploiting any one of them. A **console log** would be far worse: it would
+  carry GM-only narration, `gm_*` retrieval hits, and any bearer token that appears in a failed fetch's
+  error text. So a log sink writing there needs a narrow nginx deny beside it.
+- **The deny must be narrow, and this is the part that breaks things if rushed.** `assets/noodlr-out/` is
+  where generated portraits, tokens, maps, scene art, music and video are saved, and every one of them is
+  referenced from a chat card **by path** precisely so players' browsers can fetch it (see the v0.2.3
+  media round — base64 in chat is stripped, which is why paths are used at all). Denying that tree wholesale
+  breaks media sharing for the table. Deny the diagnostic subtrees only: `logs/`, `survey/`.
+- **The same property is a genuine convenience and is now load-bearing for the test loop.** A file written
+  by `FilePicker.upload` is readable over HTTPS from anywhere immediately, with no SSH, no cursorbot and no
+  browser automation. That is why the diagnostics-to-file pattern (`api.surveyActions({saveToFile: true})`)
+  is worth extending rather than replacing.
+- Not verified and worth knowing before relying on either: whether `worlds/` is reachable by filename (the
+  listing is refused, and a world's LevelDB directory would need names guessed), and whether the reverse
+  proxy logs these fetches anywhere useful.
+
+### The GM harness — `C:\Project\noodlr-vtt\harness\` (2026-08-15)
+
+Built because the test loop's slowest step was a human: reproduce it, export the console, attach the
+file, describe what happened. `watch-gm.mjs` runs the GM session inside a Playwright Firefox, writes
+every console record to a file, and opens a localhost port an agent can run diagnostics through.
+
+```
+cd C:\Project\noodlr-vtt\harness
+npm install && npm run setup      # once — `setup` fetches Playwright's Firefox
+npm run watch                     # log in by hand the first time; the profile remembers you
+```
+
+- `logs/latest.log` is everything; `logs/latest.signal.log` is warnings, errors, failed requests, HTTP
+  4xx/5xx and anything matching `/noodlr/i`. **Both files are written, and the filtering is deliberate
+  rather than lazy:** the line that explains one of our failures is routinely an `info` from another
+  module, so the noisy file stays complete and the signal file is only a first read. Rotated on launch.
+- **`POST /eval` answers with the value AND the console output the call produced**, which is the half
+  that carries the answer — most diagnostics in these two modules PRINT and return a count.
+  `curl -s -X POST --data-raw "noodlrHooks.surveyCapabilities()" http://127.0.0.1:3111/eval`
+- Also `GET /health`, `GET /tail?n=200&signal=1`, `POST /screenshot`.
+- **Binds 127.0.0.1 only and must stay that way.** `/eval` runs arbitrary JavaScript inside a logged-in
+  GM session, which is every permission in the world plus whatever that browser can reach.
+- **Playwright cannot attach to a browser that is already open.** It ships its own patched Firefox and
+  speaks the Juggler protocol, so watching a stock Firefox is not possible at any price — do not go
+  looking for the flag. The persistent profile is the mitigation: one manual login, then the cookie
+  survives. Chrome/Edge with `--remote-debugging-port` plus `connectOverCDP` is the only attach-style
+  alternative, and recent Chrome refuses that flag against the default profile anyway, so it also ends
+  up a separate profile.
+- **Install the browser to the standard location explicitly.** The agent shell sets
+  `PLAYWRIGHT_BROWSERS_PATH` into a sandbox temp cache, so an install run from here is invisible to the
+  user's own terminal — set `$env:PLAYWRIGHT_BROWSERS_PATH = "$env:LOCALAPPDATA\ms-playwright"` before
+  `playwright install`. A stale `firefox-<older>` in that directory from a previous Playwright is not a
+  substitute: the version is pinned per Playwright release (1.62.1 wants `firefox-1538`).
+- The default target is `/vtt/join`, not `/vtt/`. Measured: the route root 301s onward and lands on
+  `/vtt/auth`, the **admin** access-key page. `/join` redirects to `/game` once a session exists.
+- It sees the GM client only. Player-side errors need the in-module sink instead.
+
+### What each diagnostic channel can actually see (2026-08-15)
+
+Established while wiring the test loop, because the reasonable assumption — that the server sees what
+happens in the game — is wrong, and acting on it wastes a detour.
+
+- **Module code is browser-only ESM, so nothing it logs reaches the server.** The `Combatant5e ...
+  initiative: must be a number` report is the specimen: its stack is entirely client-side `foundry.mjs`,
+  meaning the client rejected the document and the server never heard about it. A whole class of bug is
+  therefore invisible to any server-side channel, `journalctl` included.
+- **The chat log IS a server-side channel, and it carries our own failure notices.** Chat messages are
+  documents in the world database, and cards like *"Troll Limb: Noodlr could not carry that out (the token
+  would not move)"* land in it. So the movement bug was recoverable from the server all along. Reading it
+  needs a LevelDB reader (v11+ dropped NeDB), or — cheaper — `log/chat-sniffer.ts` already distills chat to
+  one line per message and could write a file as easily as it ingests to RAG.
+- **`noodlr-memory`'s log is the one channel that is server-side by nature**, and the whole rate-limit,
+  pacing and refusal-classification family only exists there. `journalctl -u noodlr-memory`.
+- **A file named `fvtt-log-<date>.txt` in `noodlr-vtt` is a CHAT EXPORT, not a server log.** Both were in
+  play at once and the name invites the wrong reading.
 
 ## Model-filter round (2026-07-24) — v0.2.4
 
