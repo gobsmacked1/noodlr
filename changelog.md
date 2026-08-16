@@ -2,6 +2,24 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.7.2
+
+**The ability compiler is told what Foundry already does.** When it reads a creature's abilities off its
+sheet, it now knows that the game itself rolls the attack, the damage printed on the ability, and the
+saving throw — so it describes only what nothing else handles. Before this it would faithfully write down
+a spell's own damage line as though it were an extra effect, and a rules module acting on that would deal
+the damage twice.
+
+**Three smaller corrections in the same prompt**, all found by reading a real compiled cache rather than
+by guessing: the closing instructions now show a worked example of the shape being asked for, which is
+the difference between a nine-in-ten and a ten-in-ten hit rate on one particular field; the list of
+creatures a rule can refer to ("itself", "its target", "whoever attacked it") is spelled out and checked
+rather than left to invention; and a condition a rule wants to apply is checked against the conditions
+your world actually has, so "sheathed in booming energy" is repaired rather than stored.
+
+Nothing here changes how Noodlr plays. It changes what the compiler produces the next time a scene is
+read, and the companion rules module refuses the doubled damage whether or not this update is installed.
+
 ## 0.7.1
 
 **Memory no longer learns the notes a game system's authors wrote about Foundry.** D&D 5e's own

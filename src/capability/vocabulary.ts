@@ -29,6 +29,21 @@ export interface Vocabulary {
   units: string[];
   namedQuantities: string[];
   adjudication: string[];
+  /**
+   * Whom a predicate may ask about. Empty when the asking module does not declare them, in which case
+   * `who` is left unchecked — an older rules module must not have its descriptors rejected for a field
+   * this side has learned about since.
+   */
+  subjects: string[];
+  /**
+   * The status ids this world can actually apply. Empty when the asking module does not declare them,
+   * and then unchecked, for the same reason as `subjects`.
+   *
+   * Worth sending rather than correcting afterwards: an invented status ("sheathed in booming energy")
+   * is absent from every creature, so a guard asking whether somebody LACKS it passes always. Being
+   * handed the list turns a repair round into a first-time answer.
+   */
+  statuses: string[];
 }
 
 /**
@@ -51,6 +66,8 @@ export function asVocabulary(raw: unknown): Vocabulary | null {
     units: (v.units ?? []).map(String),
     namedQuantities: (v.namedQuantities ?? []).map(String),
     adjudication: (v.adjudication ?? ["engine", "narration", "gm"]).map(String),
+    subjects: (v.subjects ?? []).map(String),
+    statuses: (v.statuses ?? []).map(String),
   };
 }
 
@@ -111,6 +128,48 @@ function checkParams(
 }
 
 /**
+ * Whom a predicate asks about. Three keys carry a subject, not one — `who` is the commonest and
+ * `whom`/`of` are the second party in a two-creature question, and leaving those two unchecked would
+ * let exactly the same unresolvable value through by a different door.
+ *
+ * Only checked when the asking module declared its subjects: an unchecked value is a guard that
+ * silently resolves to nobody, while rejecting one on a module that never sent the list would be this
+ * side inventing a constraint. See `Vocabulary.subjects`.
+ */
+function checkSubjects(
+  node: Record<string, unknown>,
+  label: string,
+  vocab: Vocabulary,
+  errors: string[],
+): void {
+  if (!vocab.subjects.length) return;
+  for (const key of ["who", "whom", "of"] as const) {
+    const value = node?.[key];
+    if (value === undefined || vocab.subjects.includes(String(value))) continue;
+    errors.push(
+      `${label}.${key} "${String(value)}" names nobody the engine can resolve; use one of: ` +
+        `${vocab.subjects.join(", ")} (the creature whose ability this is, is "self")`,
+    );
+  }
+}
+
+/** A status the world cannot apply. Unchecked when the asking module declared no list. */
+function checkStatus(
+  node: Record<string, unknown>,
+  label: string,
+  vocab: Vocabulary,
+  errors: string[],
+): void {
+  if (!vocab.statuses.length || node?.status === undefined) return;
+  const wanted = String(node.status).toLowerCase();
+  if (vocab.statuses.some((id) => id.toLowerCase() === wanted)) return;
+  errors.push(
+    `${label}.status "${String(node.status)}" is not a status this world has; choose one of the ` +
+      `listed status ids, or drop the rule if none of them is what the text means`,
+  );
+}
+
+/**
  * Validate one compiled capability against the vocabulary we were handed.
  *
  * Returns EVERY problem rather than the first, because the errors are fed straight back to the model
@@ -158,6 +217,7 @@ export function validateAgainst(
       );
     } else {
       checkParams(vocab.effects[kind], rule.effect, `${at}.effect`, vocab, errors);
+      checkStatus(rule.effect, `${at}.effect`, vocab, errors);
     }
 
     if (rule.condition !== undefined && !Array.isArray(rule.condition)) {
@@ -171,6 +231,8 @@ export function validateAgainst(
           return;
         }
         checkParams(vocab.predicates[pKind], predicate, pAt, vocab, errors);
+        checkSubjects(predicate, pAt, vocab, errors);
+        checkStatus(predicate, pAt, vocab, errors);
       });
     }
 
@@ -286,5 +348,65 @@ export function describeVocabulary(vocab: Vocabulary): string {
     `Any predicate may also carry "negate": true to mean "unless".`,
     `A quantity is {"value": <number>} or {"dice": "<formula>"} or {"named": "<one of: ${vocab.namedQuantities.join(", ")}>"}, optionally with "units" from: ${vocab.units.join(", ")}.`,
     `uses.per must be one of: ${vocab.usePeriods.join(", ")}.`,
+    ...(vocab.subjects.length
+      ? [
+          `"who" (and "whom", and "of") name whom a predicate asks about. The ONLY values are: ${vocab.subjects.join(", ")}. Nothing else resolves — a role ("the caster", "the owner"), a creature's name, or an object is read as nobody, and a guard about nobody stops the rule. The creature whose ability this is, is "self".`,
+        ]
+      : []),
+    ...(vocab.statuses.length
+      ? [
+          `A "status" parameter must be one of these ids exactly. There is no other way to name a condition, and an id this world does not have can never be applied or tested for:\n${vocab.statuses.join(", ")}`,
+        ]
+      : []),
+    "",
+    describeShape(vocab),
+  ].join("\n");
+}
+
+/**
+ * One complete rule object, spelled out.
+ *
+ * Generated from the vocabulary rather than written into the doctrine, for two reasons that pull the
+ * same way. It cannot contradict the tables above it, so a rules module that renames a kind gets a
+ * correct example for free — and a hand-written example naming D&D kinds would be the one place in this
+ * file that knew D&D, which is the rule the header states.
+ *
+ * WHY THIS EXISTS AT ALL: 576 of 693 guards in a live cache were filed under `conditions`, plural,
+ * because the prompt named that field only as an English noun ("the conditions under which it fires")
+ * while every key it spelled in dotted form came back correct 100% of the time. **A field named in
+ * prose is a field returned at chance.** The skeleton is the cheapest possible fix and the parameter
+ * placeholders are deliberately `<...>` rather than plausible values: a filled-in example gets copied.
+ */
+function describeShape(vocab: Vocabulary): string {
+  const event = vocab.triggerEvents.find((e) => e !== "always") ?? vocab.triggerEvents[0] ?? "always";
+  const [effectKind, effectSpec] =
+    Object.entries(vocab.effects).find(([, s]) => s.executable && s.required.length) ??
+    Object.entries(vocab.effects)[0] ??
+    ["", undefined];
+  const [predKind, predSpec] =
+    Object.entries(vocab.predicates).find(([, s]) => s.required.length) ??
+    Object.entries(vocab.predicates)[0] ??
+    ["", undefined];
+
+  const params = (spec: ParamSpec | undefined): string =>
+    (spec?.required ?? [])
+      .map((key) =>
+        spec?.quantities.includes(key)
+          ? `, "${key}": {"value": <number>}`
+          : `, "${key}": <${key}>`,
+      )
+      .join("");
+
+  return [
+    "THE SHAPE OF ONE RULE. Every key here is spelled the only way it is read:",
+    "{",
+    `  "trigger": {"event": "${event}"},`,
+    `  "condition": [{"kind": "${predKind}"${params(predSpec)}}],`,
+    `  "effect": {"kind": "${effectKind}"${params(effectSpec)}},`,
+    '  "adjudication": "engine",',
+    '  "uses": {"max": <number>, "per": "<one of the periods above>"},',
+    '  "note": "<only when adjudication is not engine, or when a human needs telling something>"',
+    "}",
+    '"condition" is an array and is spelled in the singular. "uses" and "note" are optional; the other three are not.',
   ].join("\n");
 }

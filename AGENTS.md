@@ -98,6 +98,39 @@ patterns, reused rather than re-derived.
   **Do not inline them back into `compile.ts`** — a divergence there is invisible and makes every
   regression number a lie. `test/seam.test.mjs` in the corpus repo is the guard.
 
+### What a live cache proved about the prompt (v0.7.2, 2026-08-16)
+
+The first audit of a real compiled cache — 686 rules over 187 abilities from the user's own world — read
+back as a report card on `composeSystemMessage`, and three of its findings are about this file rather than
+about the model. All three fixes are here; the reading half is in
+[`noodlr-hooks-55e`](../noodlr-hooks-55e/AGENTS.md).
+
+- **A KEY NAMED IN DOTTED FORM WAS RIGHT 100% OF THE TIME; THE ONE KEY NAMED ONLY AS AN ENGLISH NOUN WAS
+  RIGHT 26% OF THE TIME.** `trigger.event` and `effect.kind` never came back wrong. The guard array was
+  described as "conditions" in prose and filed under `conditions` in 576 of 693 cases against a schema
+  that reads `condition` — so the model was following the prompt and the prompt was the thing that was
+  wrong. `describeVocabulary` now closes with a **literal example rule object**, which is the cheapest
+  possible statement of a shape and the one form that cannot be misread. Generalisable: **name every key
+  in the shape it is read at, and show the object.** Prose about a schema is a paraphrase.
+- **The compiler's own premise was nowhere in the prompt it received.** Nothing told the model that the
+  system already rolls the attack, the damage on `damage.parts`, the save and the activity's own effects —
+  so 45 of 71 `on_hit` rules were the spell's own printed damage line, faithfully extracted. `## WHAT THE
+  PLATFORM ALREADY DOES` states the boundary once. Note what this does **not** buy: a prompt cannot be
+  relied on never to re-emit a doubling, so the rules module refuses it at execution as well. **A doctrine
+  clause and a guard are not alternatives**; the clause reduces the spend, the guard prevents the bug.
+- **A closed vocabulary is only closed on the axes it enumerates.** Effect kinds and predicate parameters
+  were listed and were near-perfect; **subjects and statuses were not listed, and both drifted into free
+  text** — `hit target`, `saving creature`, `familiar`, a player character's proper name, and
+  `apply_status: "sheathed in booming energy"`. `vocab.subjects` and `vocab.statuses` are declared,
+  rendered and validated now (`checkSubjects`, `checkStatus`).
+  - **A parameter the ASKING module did not declare is passed through unchecked, not rejected.** Same
+    rule as everywhere else on this seam: a `noodlr-hooks-pf2e` sending an older vocabulary must keep
+    working, and validating against a list nobody supplied would reject correct answers. Pinned by
+    `test/vocabulary.test.ts`.
+  - The statuses list arrives on the request from `CONFIG.statusEffects`, so this validates against **the
+    world the descriptor will run in** rather than against anything of ours — which is the same principle
+    as the trigger events and effect kinds, applied to a list only Foundry can supply.
+
 ## Reading a held action's trigger (v0.7.0, 2026-08-14) — `src/watch/`
 
 The second thing a rules module asks noodlr to read, and the second time the division has held without

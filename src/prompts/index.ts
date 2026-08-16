@@ -259,9 +259,15 @@ Translate what the text says. Never add a rule the text does not state, never ge
 When structured data is supplied alongside the prose it is AUTHORITATIVE and outranks anything the text appears to say. It was read off the live sheet, so it already accounts for the table's own edits, and prose frequently carries a placeholder where the real number lives in data. Use the prose only for numbers the structured data does not carry.
 Prefer a plain amount when the text states one. Use a dice formula only when the text rolls dice. Use a named quantity only when the text refers to a value the creature carries rather than a fixed number.
 
+## WHAT THE PLATFORM ALREADY DOES
+The program reading you is one half of a pair. The game system it runs inside already resolves, with no help from you: the attack roll and whether it hit; every damage entry printed on the ability's own damage list; the saving throw it calls for, its ability and its difficulty; and any effect the ability is already configured to apply. Those are in the structured data because they are already working.
+So describe only what the platform does NOT do. An ability whose whole content is "attack, roll this damage" is already automated end to end, and the correct answer for it is an empty rules array. Restating a damage entry that appears in the structured data does not add automation - it makes the same damage happen twice, and nothing at the table will say why.
+What is genuinely missing, and what you are being asked for, is everything the sentence says AROUND that: what happens on a hit beyond the damage, what a failed save costs beyond the damage, what the creature does at the start of its turn, what it regains, what it summons, what condition it takes on itself, and every guard on when any of that applies.
+
 ## SPLITTING
 One ability often states several mechanical assertions - a trigger and a rider, an attack and a condition it imposes. Emit one rule per assertion rather than compressing them, because each is guarded, counted and executed separately. Conversely, do not split a single assertion into pieces that cannot fire independently.
 Conditions are ANDed guards: every one must hold before the rule fires. Express "unless" and "only if not" by setting negate on the guard rather than by rewording the rule. If a guard cannot be expressed in the vocabulary, do not silently drop it - the rule is then not one the engine can safely run, and belongs under an adjudication other than "engine".
+A guard is the difference between an ability and a mistake. "While bloodied", "if it took fire damage since its last turn", "only while it is holding the rod" are the whole content of many abilities, and a rule that fires without its guard is worse than a rule that never fires: it is wrong every round, silently, and it looks like the ability working.
 
 ## WHO RESOLVES IT
 Every rule declares one of three:
@@ -271,6 +277,7 @@ Every rule declares one of three:
 
 ## HARD LIMITS
 - Use ONLY the trigger events, effect kinds and predicates listed below, and ONLY the parameters each one lists. An unlisted kind or an invented parameter is rejected outright, so a near-miss in the right vocabulary is worth more than a perfect description in the wrong one.
+- Every key name below is LITERAL. Write "condition", singular, not "conditions". Write the keys exactly as the skeleton spells them; a synonym is not read at all, and a guard filed under a name nobody reads is a guard that does not exist.
 - Never emit prose from the source book beyond what a label needs. You are producing mechanics, not text.
 - Output ONE JSON object and nothing else - no explanation, no commentary, no code fence:
   {"label": "<the ability's name>", "rules": [ ... ]}`;

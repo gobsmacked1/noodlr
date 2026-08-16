@@ -145,6 +145,93 @@ test("the prompt is generated from the vocabulary, including kinds nobody has he
   assert.match(text, /half_speed/);
 });
 
+/**
+ * The same vocabulary, plus the two lists that only exist on a newer rules module. Separate rather
+ * than added to VOCAB above, because the interesting property is the OLD one: a module that sends
+ * neither must have its descriptors accepted unchanged, or upgrading this side breaks that side.
+ */
+const DECLARED: Vocabulary = asVocabulary({
+  schema: 1,
+  triggerEvents: ["on_turn_start"],
+  effects: {
+    // Invented, as above. `status` is a parameter name rather than a D&D concept.
+    daub: { required: ["status"], optional: [], quantities: [], executable: true },
+  },
+  predicates: {
+    lacks_status: { required: ["status"], optional: ["who"], quantities: [], executable: true },
+  },
+  usePeriods: ["turn"],
+  units: [],
+  namedQuantities: [],
+  adjudication: ["engine", "narration", "gm"],
+  subjects: ["self", "target"],
+  statuses: ["speckled", "smudged"],
+})!;
+
+const daubed = (over: Record<string, unknown> = {}) => ({
+  label: "Daubing",
+  rules: [
+    {
+      trigger: { event: "on_turn_start" },
+      condition: [{ kind: "lacks_status", status: "speckled", who: "self" }],
+      effect: { kind: "daub", status: "speckled" },
+      adjudication: "engine",
+      ...over,
+    },
+  ],
+});
+
+test("a declared subject validates and an unresolvable one does not", () => {
+  assert.equal(validateAgainst(DECLARED, daubed()).ok, true);
+  const cap: any = daubed();
+  cap.rules[0].condition[0].who = "the owner";
+  const result = validateAgainst(DECLARED, cap);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(" "), /the owner/);
+});
+
+test("whom and of are checked too, or the same bad value walks in another door", () => {
+  const cap: any = daubed();
+  cap.rules[0].condition[0].whom = "Rogwiz Ardue";
+  assert.equal(validateAgainst(DECLARED, cap).ok, false);
+});
+
+test("a status the world does not have is refused, on the effect and on the guard", () => {
+  const onEffect: any = daubed();
+  onEffect.rules[0].effect.status = "sheathed in booming energy";
+  assert.equal(validateAgainst(DECLARED, onEffect).ok, false);
+
+  // The one that matters: a guard asking whether somebody LACKS an invented status passes always,
+  // so the rule fires unconditionally and nothing anywhere reports why.
+  const onGuard: any = daubed();
+  onGuard.rules[0].condition[0].status = "sheathed in booming energy";
+  assert.equal(validateAgainst(DECLARED, onGuard).ok, false);
+});
+
+test("a module that declares neither list has both left unchecked", () => {
+  // The same specs with only the two lists removed, so the one variable under test is their absence.
+  // A rules module older than this check sends no lists at all, and its descriptors must still be
+  // accepted — an upgrade on this side that rejected them would take that table's compiler away.
+  const older: Vocabulary = { ...DECLARED, subjects: [], statuses: [] };
+  const cap: any = daubed();
+  cap.rules[0].condition[0].who = "the owner";
+  cap.rules[0].condition[0].status = "sheathed in booming energy";
+  cap.rules[0].effect.status = "sheathed in booming energy";
+  assert.equal(validateAgainst(older, cap).ok, true);
+  // And the same descriptor is refused the moment the lists arrive, which is what makes the pass above
+  // permission rather than the checks silently not running.
+  assert.equal(validateAgainst(DECLARED, cap).ok, false);
+});
+
+test("both lists reach the prompt when they are declared", () => {
+  const text = describeVocabulary(DECLARED);
+  assert.match(text, /"who"/);
+  assert.match(text, /self, target/);
+  assert.match(text, /speckled, smudged/);
+  // And are absent rather than described as empty when they are not.
+  assert.doesNotMatch(describeVocabulary(VOCAB), /status" parameter must be one of/);
+});
+
 test("a fenced reply still parses, because models fence even in JSON mode", () => {
   assert.deepEqual(parseJsonReply('```json\n{"rules": []}\n```'), { rules: [] });
   assert.deepEqual(parseJsonReply('Here you go: {"rules": []} — hope that helps'), { rules: [] });
