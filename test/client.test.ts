@@ -34,7 +34,10 @@ test("a spending cap is permanent and is not the pause gate's business", () => {
     "budget",
   );
   assert.equal(refusalKind('{"error":{"message":"Insufficient credits"}}'), "budget");
-  assert.equal(refusalKind('{"error":{"message":"spending limit reached for this key"}}'), "budget");
+  assert.equal(
+    refusalKind('{"error":{"message":"spending limit reached for this key"}}'),
+    "budget",
+  );
 });
 
 test("a refusal that names no reason is treated as a threshold", () => {

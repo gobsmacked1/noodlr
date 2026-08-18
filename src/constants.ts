@@ -176,9 +176,13 @@ export const MEDIA_SETTINGS = {
   imagePositive: "image.positive",
   imageNegative: "image.negative",
   imageSize: "image.size",
-  // Where generated images are written (relative to Foundry's data root). Default is an
-  // allowed top-level upload target in v13 (assets/…), created on load if missing.
+  // Where generated media is written (relative to Foundry's data root), created on load if
+  // missing. Registered with an EMPTY default and resolved to `worlds/<id>/assets/noodlr-out` at
+  // read time, because one registered literal cannot be per-world.
   imageMediaFolder: "image.mediaFolder",
+  // Set once the v0.7.5 world-scoping migration has RUN for a world, whatever it decided. A flag
+  // rather than a version check: re-running on upgrade would overwrite a path the GM chose.
+  mediaFolderScoped: "image.mediaFolderScoped",
   // Persist generated images to disk + record their prompt/seed for continuity.
   imagePersist: "image.persist",
   // Enable the "Generate Image:" / "Generate Portrait:" chat-command trigger.

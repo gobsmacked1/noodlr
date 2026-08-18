@@ -17,7 +17,7 @@ import {
   imageKey,
   type ImageKind,
 } from "../media/config";
-import { getMediaFolder } from "../media/storage";
+import { defaultMediaFolder, getMediaFolder } from "../media/storage";
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
 
 export class NoodlrImageGenApp extends NoodlrConfigApp {
@@ -85,6 +85,9 @@ export class NoodlrImageGenApp extends NoodlrConfigApp {
         chatTrigger: getImageChatTrigger(kind),
         allowPlayers: getImageAllowPlayers(kind),
         mediaFolder: getMediaFolder(),
+        // The placeholder, so an emptied field advertises where the files will actually go rather
+        // than a path that has not been the default since v0.7.5.
+        mediaFolderDefault: defaultMediaFolder(),
       };
     });
 
@@ -150,7 +153,10 @@ export class NoodlrImageGenApp extends NoodlrConfigApp {
     const folder = String(o.image?.mediaFolder ?? "")
       .trim()
       .replace(/^\/+|\/+$/g, "");
-    await set(MEDIA_SETTINGS.imageMediaFolder, folder || "assets/noodlr-out");
+    // A cleared field stores this world's own folder rather than "", so the box always shows the
+    // path media is actually going to. Storing it explicitly also takes the world out of the
+    // one-time scoping seed, which is right: the GM has now stated a value.
+    await set(MEDIA_SETTINGS.imageMediaFolder, folder || defaultMediaFolder());
 
     await set(MEDIA_SETTINGS.videoEnabled, Boolean(o.video?.enabled));
     await set(MEDIA_SETTINGS.videoChatTrigger, Boolean(o.video?.chatTrigger));
@@ -168,8 +174,11 @@ export class NoodlrImageGenApp extends NoodlrConfigApp {
 
   /**
    * Open Foundry's FilePicker in folder mode to choose/create the media output folder. The
-   * FilePicker is constrained to the "data" source, so users can't traverse above the data root —
-   * and v13 only permits uploads to allowed folders (assets/… or new top-level dirs).
+   * FilePicker is constrained to the "data" source, so users can't traverse above the data root.
+   *
+   * Note the picker's own UI refuses to UPLOAD into `worlds/`, which is where this world's folder
+   * now lives — irrelevant here, because it is opened in folder mode to pick a path, and every
+   * write goes through `saveMedia`'s own `upload` call, which the server allows.
    */
   static async #onBrowseMediaFolder(this: NoodlrImageGenApp): Promise<void> {
     const input = this.rootEl()?.querySelector<HTMLInputElement>('input[name="image.mediaFolder"]');
@@ -183,7 +192,7 @@ export class NoodlrImageGenApp extends NoodlrConfigApp {
     const picker = new (FP as new (opts: Record<string, unknown>) => unknown)({
       type: "folder",
       source: "data",
-      current: input.value.trim() || "assets/noodlr-out",
+      current: input.value.trim() || defaultMediaFolder(),
       callback: (path: string) => {
         input.value = String(path ?? "").replace(/^\/+|\/+$/g, "");
       },

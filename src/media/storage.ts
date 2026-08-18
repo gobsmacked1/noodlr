@@ -1,23 +1,81 @@
 // Persistent media storage for generated images. Foundry modules can write to the server's
-// "data" filesystem via FilePicker; in v13 uploads into modules/systems/worlds/the data root
-// are prohibited, but the top-level `assets` folder (and any new top-level folder) is allowed —
-// so the default target is `assets/noodlr-out`, which also keeps users from traversing up into
-// the install. We never persist audio (too large; transcription captures the meaning instead);
-// images earn persistence because portrait/location continuity is worth the disk.
+// "data" filesystem via FilePicker. We never persist audio (too large; transcription captures the
+// meaning instead); images earn persistence because portrait/location continuity is worth the disk.
+//
+// WORLD-SCOPED SINCE v0.7.5, and the reason is not tidiness. `assets/` is a sibling of `worlds/`,
+// so the old default put every world on a host in ONE output folder — and RAG Lite keeps its silos
+// under this same folder (`<mediaFolder>/memory/<silo>.json`), so two campaigns shared one memory
+// index and each retrieved the other's lore. That is the GM's own secrets crossing between
+// campaigns, which is a far worse failure than a portrait being overwritten.
+//
+// The v13 note this file used to carry — that uploads into `worlds/` are prohibited — is about the
+// FilePicker's own BROWSER UI. It does not apply to a module's `upload` call, and `worlds/<id>/assets`
+// is where core itself puts a world's extracted media. Verified against a live server: the write
+// succeeds and the file is fetchable over the routed URL exactly like one under `assets/`.
 
 import { MODULE_ID, MEDIA_SETTINGS, log } from "../constants";
 import { imageKey, type ImageKind } from "./config";
 
-/** Resolve the v13 FilePicker class (namespaced), falling back to the legacy global. */
+/**
+ * Where every world's media went before v0.7.5. Read by NOTHING — it exists only so the migration
+ * below can recognise the literal a world may still hold in its setting.
+ */
+const LEGACY_MEDIA_FOLDER = "assets/noodlr-out";
+
 function filePicker(): any {
   const ns = (foundry as any).applications?.apps?.FilePicker;
   return ns ?? (globalThis as any).FilePicker;
 }
 
+/**
+ * This world's media folder, used when the setting is empty.
+ *
+ * NOTHING falls back to the shared folder — retiring it is the point of this release, and a world
+ * must never read or write another world's tree. `game.world.id` is present for the whole lifetime
+ * of a loaded world, which is the only context module code runs in, so the placeholder is a guard
+ * against building a path out of `undefined` rather than a case that happens.
+ */
+export function defaultMediaFolder(): string {
+  return `worlds/${(game as any)?.world?.id ?? "unknown"}/assets/noodlr-out`;
+}
+
 /** Configured base media output folder (relative to the data root), sans slashes. */
 export function getMediaFolder(): string {
   const raw = (game.settings.get(MODULE_ID, MEDIA_SETTINGS.imageMediaFolder) as string) ?? "";
-  return raw.trim().replace(/^\/+|\/+$/g, "") || "assets/noodlr-out";
+  return raw.trim().replace(/^\/+|\/+$/g, "") || defaultMediaFolder();
+}
+
+/**
+ * Move a world off the pre-v0.7.5 shared literal, once, and only if it still holds exactly that.
+ *
+ * Every world that has ever opened the Image window holds an explicit value, because the old form
+ * saved `folder || "assets/noodlr-out"` on every save — so "deliberately shared" was never
+ * expressible and cannot be distinguished now. The literal comparison is what bounds the damage:
+ * any OTHER path is a value somebody chose and is left alone, which is the case worth protecting.
+ * A world that meant to share the old default is moved and says so in the log. Same shape as
+ * `seedPromptDefaults`, and the same reason it is safe exactly once.
+ *
+ * It clears the setting rather than writing the new path, so the folder keeps resolving from the
+ * world id — a stored literal would go stale if the world were ever duplicated under a new id.
+ *
+ * FILES ARE NOT MOVED. Foundry offers no rename and copying a campaign's art through the browser
+ * would be a long unattended upload; every path already written into a chat card or an actor's
+ * `img` stays valid. Anything the GM wants in the new tree they move on the server.
+ */
+export async function scopeMediaFolder(): Promise<void> {
+  try {
+    if (game.settings.get(MODULE_ID, MEDIA_SETTINGS.mediaFolderScoped)) return;
+    const raw = (game.settings.get(MODULE_ID, MEDIA_SETTINGS.imageMediaFolder) as string) ?? "";
+    if (raw.trim() === LEGACY_MEDIA_FOLDER) {
+      await game.settings.set(MODULE_ID, MEDIA_SETTINGS.imageMediaFolder, "");
+      log(
+        `media folder is now this world's own (${defaultMediaFolder()}); files already written stay where they are`,
+      );
+    }
+    await game.settings.set(MODULE_ID, MEDIA_SETTINGS.mediaFolderScoped, true);
+  } catch (err) {
+    log("scopeMediaFolder:", String(err));
+  }
 }
 
 /**

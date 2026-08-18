@@ -425,7 +425,7 @@
   "NOODLR.Media.Kind.Map.Button": "Generate map",
   "NOODLR.Media.ImageParamsNote": "The steps / CFG / sampler / seed values only matter for Stable-Diffusion-style servers; OpenRouter and OpenAI-style image models ignore them.",
   "NOODLR.Media.ImageFolder.Name": "Where to save generated images",
-  "NOODLR.Media.ImageFolder.Hint": "A folder under Foundry's data area. Default assets/noodlr-out is created automatically. Browse to pick or make another — you can't go above the data folder, and Foundry blocks saving into modules/systems/worlds.",
+  "NOODLR.Media.ImageFolder.Hint": "A folder under Foundry's data area. Leave it empty and this world gets its own — worlds/<this world>/assets/noodlr-out — created automatically, so two campaigns on one server never overwrite each other's art or share a Memory Lite index. Browse to pick or make another; you can't go above the data folder.",
   "NOODLR.Media.ImageFolder.Browse": "Browse…",
   "NOODLR.Media.ImageFolder.NoPicker": "Foundry's file picker isn't available; type the folder path by hand.",
   "NOODLR.Media.ImagePersist.Name": "Save images to disk (keep for continuity)",

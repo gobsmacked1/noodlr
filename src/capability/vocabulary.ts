@@ -378,22 +378,21 @@ export function describeVocabulary(vocab: Vocabulary): string {
  * placeholders are deliberately `<...>` rather than plausible values: a filled-in example gets copied.
  */
 function describeShape(vocab: Vocabulary): string {
-  const event = vocab.triggerEvents.find((e) => e !== "always") ?? vocab.triggerEvents[0] ?? "always";
-  const [effectKind, effectSpec] =
-    Object.entries(vocab.effects).find(([, s]) => s.executable && s.required.length) ??
-    Object.entries(vocab.effects)[0] ??
-    ["", undefined];
-  const [predKind, predSpec] =
-    Object.entries(vocab.predicates).find(([, s]) => s.required.length) ??
-    Object.entries(vocab.predicates)[0] ??
-    ["", undefined];
+  const event =
+    vocab.triggerEvents.find((e) => e !== "always") ?? vocab.triggerEvents[0] ?? "always";
+  const [effectKind, effectSpec] = Object.entries(vocab.effects).find(
+    ([, s]) => s.executable && s.required.length,
+  ) ??
+    Object.entries(vocab.effects)[0] ?? ["", undefined];
+  const [predKind, predSpec] = Object.entries(vocab.predicates).find(
+    ([, s]) => s.required.length,
+  ) ??
+    Object.entries(vocab.predicates)[0] ?? ["", undefined];
 
   const params = (spec: ParamSpec | undefined): string =>
     (spec?.required ?? [])
       .map((key) =>
-        spec?.quantities.includes(key)
-          ? `, "${key}": {"value": <number>}`
-          : `, "${key}": <${key}>`,
+        spec?.quantities.includes(key) ? `, "${key}": {"value": <number>}` : `, "${key}": <${key}>`,
       )
       .join("");
 

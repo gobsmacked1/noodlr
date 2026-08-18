@@ -873,9 +873,65 @@ and audio — and it is worth writing down because it has consequences in both d
   by `FilePicker.upload` is readable over HTTPS from anywhere immediately, with no SSH, no cursorbot and no
   browser automation. That is why the diagnostics-to-file pattern (`api.surveyActions({saveToFile: true})`)
   is worth extending rather than replacing.
-- Not verified and worth knowing before relying on either: whether `worlds/` is reachable by filename (the
-  listing is refused, and a world's LevelDB directory would need names guessed), and whether the reverse
-  proxy logs these fetches anywhere useful.
+- **`worlds/` IS reachable by filename, measured 2026-08-17, which closes half of the open question
+  below.** `GET /vtt/worlds/<id>/world.json` returns **200**, and a file this module wrote to
+  `worlds/<id>/assets/…` fetches exactly like one under `assets/`. Every directory path — `worlds/<id>/`,
+  `.../assets/`, `.../data/` — 301s, same as `assets/`. So **moving output into `worlds/<id>/assets/`
+  changes nothing about exposure in either direction**: media stays shareable with the table, and a
+  diagnostic written there is still published. The nginx deny is still the only answer to the second, and
+  it now has to name the world-scoped subtrees too.
+- Still not verified: whether the reverse proxy logs these fetches anywhere useful.
+
+### One host, two worlds, one memory index (v0.7.5, 2026-08-17)
+
+`assets/` is a **sibling** of `worlds/`, not a child of any one of them, so `assets/noodlr-out` was one
+output folder for every world on a Foundry install. Read as a media problem that is a naming collision
+somebody would notice. It is not a media problem: **RAG Lite keeps its silos at
+`<mediaFolder>/memory/<silo>.json`, so two campaigns on one host shared one memory index and each
+retrieved the other's `gm_*` lore.** That is the GM's own secrets crossing between campaigns, silently,
+with retrieval behaving perfectly — and it is the same shape as the capability-cache hazard
+[`noodlr-hooks-55e`](../noodlr-hooks-55e/AGENTS.md) found the same day, which is what prompted looking.
+
+- **`defaultMediaFolder()` is `worlds/<id>/assets/noodlr-out`, and the setting registers EMPTY.** A
+  literal default could not be world-specific: settings are registered once per install, so the same
+  string would be handed to every world. Empty means "resolve it from the world", and `getMediaFolder()`
+  is the only reader.
+- **THE V13 NOTE THIS REPO CARRIED — that Foundry prohibits uploads into `worlds/` — IS ABOUT THE
+  FILEPICKER'S BROWSER UI AND NOT ABOUT A MODULE'S `upload` CALL.** The blacklist is client-side; the
+  server allows it, and `worlds/<id>/assets/` is where **core itself** puts a world's extracted media.
+  Verified against the live server before anything was moved: the write succeeds, `createDirectory`
+  succeeds per segment, and the file is fetchable over the routed URL. Do not re-derive this from the
+  picker's behaviour — the picker will refuse and the API will not.
+- **The migration compares against the LITERAL old default and moves nothing else.** Every world that has
+  ever opened the Image window holds an explicit `assets/noodlr-out`, because the old form saved
+  `folder || "assets/noodlr-out"` on every save — so "deliberately shared" was never expressible and
+  cannot be distinguished now. Any *other* path is a value somebody chose and is left alone, which is the
+  case worth protecting. Same shape as `seedPromptDefaults` and safe for the same reason: a
+  `mediaFolderScoped` flag, not a version check, because re-running on upgrade would overwrite a GM's path.
+- **It CLEARS the setting rather than writing the new path.** A stored literal goes stale the moment a
+  world is duplicated under a new id; an empty value keeps resolving.
+- **FILES ARE NOT MOVED, and that is the whole reason this is safe to ship.** Foundry offers no rename,
+  and copying a campaign's art through the browser is a long unattended upload. Every path already written
+  into a chat card or an actor's `img` stays valid — those are absolute data paths, and the old tree is
+  still served.
+- **RAG LITE READS THIS WORLD'S SILOS AND NOTHING ELSE, AND A READ-THROUGH WAS BUILT AND THEN REMOVED
+  BEFORE RELEASE (user, 2026-08-17).** The argument for one is real and is worth stating, because it will
+  be made again: an ingested index that suddenly reads as empty means retrieval returns nothing, the GM
+  sees a working service with no memory, and the obvious fix is re-embedding a corpus they already paid
+  for. It was gated as tightly as it could be — on the file being ABSENT rather than empty, so a
+  deliberate reset was respected, and on a `mediaFolderMoved` flag set only for the one world the
+  migration actually moved, so a new world could not inherit. **Removed anyway**, for the same reason
+  `noodlr-hooks-55e` removed its capability-cache adoption the same day: a world reading another
+  campaign's data is a fault that surfaces weeks later as retrieval saying something impossible, with
+  nothing traceable back to an adoption, and here the payload is the GM's own lore and `gm_*` secrets
+  rather than mechanics that can be re-bought. **Every path in and out of these modules is
+  world-scoped, with no legacy fallback anywhere.** A corpus in the old tree gets re-ingested.
+  - The corollary is the same one the cache has: **a world with unreadable `game.world.id` writes and
+    reads nothing** rather than falling back. That is not a case worth code — this project runs on one
+    host — and a fallback is precisely what would resurrect the sharing.
+- Ordered in `module.ts`: `scopeMediaFolder()` before `ensureMediaFolder()`, or the first thing a load
+  does is create the shared folder it is moving away from. Primary GM only — it writes two world
+  settings (the folder and `mediaFolderScoped`).
 
 ### The GM harness — `C:\Project\noodlr-vtt\harness\` (2026-08-15)
 
@@ -1717,8 +1773,9 @@ Image pipeline overhaul + media storage + dropdown UX (all requested after the s
   `ImagePopout(...).render(true)` + `shareImage()` (broadcasts to all) → chat card referencing the
   **file path** (never base64). `display.ts` deleted.
 - **Persistent media storage** (`media/storage.ts`): images saved via `FilePicker.upload("data", …)`
-  to a configurable folder, default **`assets/noodlr-out`** (v13 allows uploads to `assets/…` and new
-  top-level dirs, but blocks modules/systems/worlds/root — also keeps users from traversing up).
+  to a configurable folder, default **`worlds/<id>/assets/noodlr-out`** since v0.7.5 (`assets/noodlr-out`
+  before it — see the one-host-two-worlds note; the "v13 blocks worlds/" claim that used to be here is
+  about the picker's UI, not a module's `upload`).
   Auto-created on ready (GM). Config has a FilePicker **folder picker** (folder mode, `data` source).
   **No audio is ever persisted** (transcription covers memory).
 - **Continuity ledger** (world setting `image.ledger`): entityKey → {seed, prompt(anchor), model,

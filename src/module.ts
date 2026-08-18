@@ -24,7 +24,7 @@ import { NoodlrRagBrowserApp } from "./apps/rag-browser-app";
 import { speak, stopSpeaking } from "./media/tts";
 import { createAndShareImage } from "./media/scene-art";
 import { createAndPlayMusic, createAndShareVideo } from "./media/av-gen";
-import { ensureMediaFolder } from "./media/storage";
+import { ensureMediaFolder, scopeMediaFolder } from "./media/storage";
 import {
   getImageChatTrigger,
   getImageAllowPlayers,
@@ -208,7 +208,13 @@ Hooks.once("ready", () => {
 
   // Ensure the media output folder exists (GM only — creating dirs needs upload permission).
   if (game.user?.isGM) {
-    void ensureMediaFolder();
+    // Ordered: move a pre-0.7.5 world onto its own folder BEFORE creating one, or the first thing
+    // this load does is create the shared folder we are moving away from. Primary GM only — it
+    // writes two world settings, and once per table is the rule for those.
+    void (async () => {
+      if (isPrimaryGM()) await scopeMediaFolder();
+      await ensureMediaFolder();
+    })();
     // One-time: fill prompt fields left empty under the old "empty means use the default" rule.
     void seedPromptDefaults();
     // Native Foundry chat-log capture -> unfiltered_chat silo (only the primary GM records; the

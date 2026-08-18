@@ -4,7 +4,6 @@
 // and parsing fast. An in-memory index (Map<silo, records[]>) is loaded lazily on the GM's
 // client; retrieval is GM-gated, so only the GM ever holds it.
 
-import { log } from "../../constants";
 import { getMediaFolder, ensureMediaFolder } from "../../media/storage";
 import type { SiloId } from "../silos";
 
@@ -74,21 +73,32 @@ function routeUrl(path: string): string {
   return typeof getRoute === "function" ? getRoute(path) : `/${path}`;
 }
 
+/** A silo that has never been ingested is the normal case, not an error worth a console line. */
+async function readSilo(path: string): Promise<LocalRecord[]> {
+  try {
+    const resp = await fetch(routeUrl(path), { cache: "no-store" });
+    if (!resp.ok) return [];
+    const data = JSON.parse(await resp.text());
+    return Array.isArray(data?.records) ? (data.records as LocalRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * THIS WORLD'S SILOS AND NOTHING ELSE. Silos moved to `worlds/<id>/assets/noodlr-out/memory` with
+ * the media folder in v0.7.5, and a read-through to the pre-v0.7.5 shared folder was built and then
+ * removed before release on the user's instruction (2026-08-17), for the same reason the capability
+ * cache's adoption was: a brand-new campaign silently inheriting the previous one's lore, secrets
+ * and `gm_*` entries is a fault that surfaces weeks later as retrieval saying something impossible,
+ * with nothing traceable back to an adoption. Worse here than for the cache, because a silo holds
+ * the GM's own writing. A world whose corpus is in the old tree re-ingests it.
+ */
 async function loadSilo(silo: SiloId): Promise<LocalRecord[]> {
   if (loaded.has(silo)) return cache.get(silo) ?? [];
-  let records: LocalRecord[] = [];
-  try {
-    const resp = await fetch(routeUrl(siloPath(silo)), { cache: "no-store" });
-    if (resp.ok) {
-      const data = JSON.parse(await resp.text());
-      if (Array.isArray(data?.records)) records = data.records as LocalRecord[];
-    }
-  } catch (err) {
-    log(`RAG Lite: no existing store for "${silo}" (${String(err)})`);
-  }
-  cache.set(silo, records);
+  cache.set(silo, await readSilo(siloPath(silo)));
   loaded.add(silo);
-  return records;
+  return cache.get(silo) ?? [];
 }
 
 async function saveSilo(silo: SiloId): Promise<void> {

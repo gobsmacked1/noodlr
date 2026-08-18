@@ -186,11 +186,13 @@ export function registerMediaSettings(): void {
     game.settings.register(MODULE_ID, k("allowPlayers"), { ...worldBool, default: false });
     game.settings.register(MODULE_ID, k("ledger"), { ...worldStr, default: "{}" });
   }
-  // The base media output folder is shared; per-kind subfolders derive from it.
-  game.settings.register(MODULE_ID, M.imageMediaFolder, {
-    ...worldStr,
-    default: "assets/noodlr-out",
-  });
+  // The base media output folder is shared across kinds; per-kind subfolders derive from it.
+  //
+  // EMPTY, not a literal path: `getMediaFolder()` resolves an empty value to this world's own
+  // folder, and a literal registered here could not be world-specific — settings are registered
+  // once, and the same default would then be handed to every world on the host.
+  game.settings.register(MODULE_ID, M.imageMediaFolder, { ...worldStr, default: "" });
+  game.settings.register(MODULE_ID, M.mediaFolderScoped, { ...worldBool, default: false });
 
   // --- Push-to-log transcription ---
   game.settings.register(MODULE_ID, M.transcriptionEnabled, { ...worldBool, default: false });

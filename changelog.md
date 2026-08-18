@@ -2,6 +2,21 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.7.5
+
+**Generated art, music, video and RAG Lite memory are now kept inside the world that made them.** The
+output folder used to sit beside Foundry's `worlds` directory rather than inside any one of them, so every
+world on one server shared it. For pictures that only meant filename collisions; for **RAG Lite it meant
+two campaigns shared one memory index**, and each retrieved the other's GM-only lore with no sign that
+anything was wrong. New default: `worlds/<your world>/assets/noodlr-out`.
+
+**Existing files are not moved, and every path already written into a chat card or onto a token still
+works.** A world that had never changed the folder setting is simply pointed at its own from now on; a
+folder you chose yourself is left exactly as it is. **Nothing is inherited from the old shared location,
+deliberately** — a RAG Lite silo that lived there is not read, so if you had ingested lore into RAG Lite
+and want it in this world, copy `Data/assets/noodlr-out/memory` into
+`Data/worlds/<your world>/assets/noodlr-out/memory`, or ingest it again.
+
 ## 0.7.4
 
 **Noodlr now tells you when your AI account has hit a spending limit, instead of quietly reading
