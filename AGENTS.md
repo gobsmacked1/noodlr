@@ -234,6 +234,61 @@ the mirror of the bug it had just fixed: same one status, and the two-way test p
   separate from the account's credit balance.** Nothing in the module can see it and topping up
   credits does not lift it.
 
+### THREE RULES THE VALIDATOR ENFORCED AND NO GENERATED PROMPT EVER STATED (v0.7.6, 2026-08-18)
+
+A recompile on the second test world was watched in the console for the first time, and it was a scroll
+of `capability compile needs repair`. Censused off the harness log: **96 of 1,069 wordings (9.0%) needed
+a second request, carrying 114 errors between them.** Three distinct problems, in a distribution that is
+the finding rather than the errors themselves — **99 of the 114 were one missing field.** Every one of
+the three was a rule `validateAgainst` has always rejected and that nothing the model reads ever said.
+
+- **99 × a `gm` rule with no `note`, and this one was worse than unstated: the skeleton called the field
+  optional IN AS MANY WORDS.** The requirement was written down once, in the doctrine — which is
+  **frozen per world** and therefore reaches nobody who upgrades — while `describeShape`, the last and
+  most literal thing the model reads, said `"note"` was optional. So a twelfth of the run bought a
+  repair prompt to recover a field the prompt had told it to omit. **A validator rule that is not in the
+  GENERATED half of the prompt is enforced at chance**, and this is the second time that half has been
+  the one that mattered (v0.7.2's example object arrived everywhere; its boundary clause arrived
+  nowhere).
+- **13 × `unknown parameter "target"`, and THE MODEL WAS RIGHT.** `modify_speed` — a spell that slows
+  what it hits — had no way to say whose Speed changed, while `describe.ts` had been rendering
+  `who(effect.target)` for that kind all along. **The omission contradicted our own renderer**, so this
+  was a vocabulary gap measured onto us rather than a hallucination. Widened.
+  - **In the log the two are INDISTINGUISHABLE**, which is why `checkParams` now names the kind:
+    `"modify_speed" does not take it` invites the right question, while a bare `unknown parameter
+    "target" — remove it` reads as the model inventing a field and closes it.
+- **2 × no `rules` array at all.** `describeShape` was titled "the shape of one rule" and showed only a
+  rule, so the object the rules go in was described nowhere. It states the whole envelope now.
+- **Three more of the same shape were found by auditing the two against each other rather than by
+  waiting for a wording to trip them**: the three `adjudication` values were never enumerated (only
+  `"engine"` appeared, as an example — and an example is not an enumeration, on the most consequential
+  choice the model makes), `uses.max` never had to be positive, and `voice_entity` never had to be
+  `narration`. None was a large share of the errors, and that is not the reason to fix them: an
+  unstated rule costs nothing visible until it costs a request.
+
+**THE COST WAS INVISIBLE BECAUSE A REPAIR IS A SUCCESS.** The batch line said `compiled 120/120` and
+meant it; the surcharge existed only as one `debug()` line per wording, in a channel nobody totals, on a
+client nobody was watching. Nine percent of a run went unremarked through three doctrine releases
+because **nothing counted it** — so `RepairTally` now puts it on the batch line with a code histogram
+(`compiled 120/120 … — 12 needed a second request to fix the shape of the answer: gm-note x11,
+param-unknown x2`). Generalisable well past this file: **a retry that succeeds is a cost, and a log that
+reports only outcomes cannot show it.**
+
+- **`validateAgainst` returns `codes` beside `errors` for that histogram, and the reason is that the
+  message is PROSE FOR A HUMAN and prose is not countable.** Every number above was reached by regex
+  over a harness log, wrongly twice — once for a context window too tight to match, once for JSON
+  quote-escaping. A stable code per problem family is the difference between a measurement and an
+  estimate.
+- **`ADJUDICATION_GLOSS` is a map with a bare fallback rather than a sentence**, because the values
+  arrive ON the request: a rules module that adds a fourth gets its name rendered unglossed instead of
+  mislabelled.
+- **The run was stopped at 1,069 of 1,105 deliberately** rather than paying the remainder at the old
+  doctrine. That is this file's own rule (never spend a world recompile to test a prompt) applied
+  mid-flight, and the remaining wordings cost one `recompileWorld({ since })` once the fix ships.
+- **No RAG implication whatever, asked and answered:** the compile path shares nothing with ingest —
+  `capability/` never touches `rag/`, a descriptor is never a document, and a repair round is one extra
+  chat request against the capability model.
+
 ## Reading a held action's trigger (v0.7.0, 2026-08-14) — `src/watch/`
 
 The second thing a rules module asks noodlr to read, and the second time the division has held without

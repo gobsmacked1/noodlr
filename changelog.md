@@ -2,6 +2,26 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.7.6
+
+**Roughly one ability in eleven was costing two AI requests instead of one, and the second one was
+buying back a field Noodlr's own instructions had told the model to leave out.** Watching a full-world
+compile in the browser console for the first time turned up 96 abilities out of 1,069 needing a second
+attempt — and 99 of the 114 problems between them were the same missing field on rules that hand a
+decision to you. The instructions called that field optional; the checker rejected every rule without
+it. Both halves are corrected, so those abilities now compile on the first request.
+
+Two smaller mismatches went with it: the instructions described the shape of a single rule without ever
+describing the object the rules sit in, and they gave one example of the engine/narration/GM choice
+rather than listing all three. Three further rules that had never been stated at all — a use limit has
+to be a positive number, a spoken line is always narration, and a GM rule's note has to say what the
+human is deciding — are now spelled out where the model reads them.
+
+**The reason none of this had been noticed is that a retry that works looks like a success.** The log
+line said "compiled 120/120" and was telling the truth; the surcharge showed up only as a scroll of
+debug lines nobody was adding up. Every compile batch now reports how many abilities needed a second
+request and why, on the same line as the result.
+
 ## 0.7.5
 
 **Generated art, music, video and RAG Lite memory are now kept inside the world that made them.** The

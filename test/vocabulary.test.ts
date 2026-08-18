@@ -54,7 +54,7 @@ const regeneration = () => ({
 });
 
 test("a well-formed capability validates", () => {
-  assert.deepEqual(validateAgainst(VOCAB, regeneration()), { ok: true, errors: [] });
+  assert.deepEqual(validateAgainst(VOCAB, regeneration()), { ok: true, errors: [], codes: [] });
 });
 
 test("an empty rules array is a legitimate answer, not an error", () => {
@@ -76,6 +76,47 @@ test("an invented parameter is rejected — the whole reason the level is closed
   const result = validateAgainst(VOCAB, cap);
   assert.equal(result.ok, false);
   assert.match(result.errors.join(" "), /healingType/);
+  // NAMES THE KIND AND LISTS WHAT IT DOES TAKE. The parameter set is per-kind and the label
+  // ("rules[0].effect") does not carry it, so the bare message could not distinguish "the model
+  // invented a field" from "our vocabulary has a gap" — which is exactly the call that had to be
+  // made 13 times over one live recompile, on a parameter that turned out to be a real omission.
+  assert.match(result.errors.join(" "), /"heal" takes only: amount, target/);
+});
+
+/**
+ * Every code `validateAgainst` can emit, asserted as a set rather than one at a time.
+ *
+ * These strings are a REPORTING CONTRACT, not decoration: `compile.ts` tallies repair rounds by code
+ * so a run says "gm-note x99" in the one line an operator reads, and a rename that nobody notices
+ * turns that line into a lie by silently zeroing a family. The messages are free to be reworded; the
+ * codes are not.
+ */
+test("every problem carries a stable code beside its message", () => {
+  const result = validateAgainst(VOCAB, {
+    label: "Nonsense",
+    rules: [
+      {
+        trigger: { event: "on_moonrise" },
+        condition: [{ kind: "is_a_wizard" }],
+        effect: { kind: "heal", healingType: "fast" },
+        uses: { max: 0, per: "fortnight" },
+        adjudication: "vibes",
+      },
+    ],
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.codes.length, result.errors.length);
+  assert.deepEqual([...new Set(result.codes)].sort(), [
+    "adjudication",
+    "param-missing",
+    "param-unknown",
+    "predicate-kind",
+    "trigger-event",
+    "uses-max",
+    "uses-per",
+  ]);
+  assert.deepEqual(validateAgainst(VOCAB, "not an object").codes, ["not-object"]);
+  assert.deepEqual(validateAgainst(VOCAB, { label: "x" }).codes, ["rules-not-array"]);
 });
 
 test("a bare number where a quantity belongs is rejected, and the message says what to write", () => {
@@ -112,6 +153,62 @@ test("a gm rule has to say what the human is deciding", () => {
   assert.equal(validateAgainst(VOCAB, cap).ok, false);
   cap.rules[0].note = "whether the ritual site counts as consecrated";
   assert.equal(validateAgainst(VOCAB, cap).ok, true);
+});
+
+/**
+ * The rule above, asserted from the other end. The validator has always rejected a noteless `gm` rule
+ * and the skeleton used to call the field optional, which cost 51 repair prompts in one 480-wording
+ * recompile. A validator requirement the prompt does not state is a bill, so both halves are pinned.
+ */
+test("the prompt states the one case where a note is not optional", () => {
+  const text = describeVocabulary(VOCAB);
+  assert.match(text, /"note" is REQUIRED on every rule whose "adjudication" is "gm"/);
+  assert.doesNotMatch(text, /"note" are optional/);
+});
+
+/**
+ * The other four rules the validator enforces and the prompt never stated, pinned in the same shape as
+ * the note above and for the same reason.
+ *
+ * A CENSUS FOUND THESE, NOT A READING. Each was written down once, in the doctrine — which is frozen
+ * per world and therefore reaches nobody who upgrades — while this half of the prompt is composed at
+ * request time and reaches everybody. **An unstated requirement is enforced at chance**, so its cost
+ * stays invisible until a wording happens to trip it: 2 answers in one 960-wording recompile came back
+ * with no `rules` array at all, and the envelope was described nowhere the model could not miss it.
+ */
+test("the prompt states the envelope, the adjudication values, and the two hard rules", () => {
+  const text = describeVocabulary(VOCAB);
+  // The object the rules go in. This function was titled "the shape of one rule" and showed one rule.
+  assert.match(text, /"rules": \[/);
+  assert.match(text, /"rules" is REQUIRED and is ALWAYS an array/);
+  // All three values, glossed. An example is not an enumeration, and only "engine" was ever shown —
+  // on the most consequential choice the model makes (a live census put 86% of rules on "gm").
+  assert.match(text, /"adjudication" must be exactly one of: .*"engine".*"narration".*"gm"/);
+  assert.match(text, /a human has to decide/);
+  assert.match(text, /"max" must be a positive number/);
+  assert.match(text, /"voice_entity" effect is always adjudication "narration"/);
+});
+
+/**
+ * ...and the last of those is conditional on the vocabulary declaring the kind, which is the rule this
+ * whole file exists to assert: nothing here may know a specific effect. A `noodlr-hooks-pf2e` without
+ * `voice_entity` must not be told about it.
+ */
+test("a rule about a kind this vocabulary lacks is not stated", () => {
+  const without = asVocabulary({
+    schema: 1,
+    triggerEvents: ["on_hit"],
+    effects: { heal: { required: ["amount"], optional: [], quantities: [], executable: true } },
+    predicates: { damage_taken: { required: [], optional: [], quantities: [], executable: true } },
+    usePeriods: ["turn"],
+    units: [],
+    namedQuantities: [],
+    adjudication: ["engine"],
+  })!;
+  assert.doesNotMatch(describeVocabulary(without), /voice_entity/);
+  // And an unfamiliar adjudication value is rendered bare rather than mislabelled with a gloss we
+  // invented — the failure direction that costs nothing.
+  assert.match(describeVocabulary(without), /must be exactly one of: "engine"/);
 });
 
 test("voice_entity is always narration", () => {

@@ -103,6 +103,40 @@ export function registerCapabilityCompiler(): void {
   log("listening for noodlrHooks.compile");
 }
 
+/**
+ * What a batch spent on repairs, and on what.
+ *
+ * WHY THIS IS COUNTED AT ALL: a repair round is a whole extra request per wording, and until
+ * 2026-08-18 the only trace of one was a `debug` line per ability — off by default, and one line among
+ * hundreds when on. So a 960-wording recompile bought 96 repair rounds, 99 of whose 114 errors were a
+ * single unstated prompt rule, and the run reported `compiled 120/120` nine times over and looked
+ * perfect. **A cost that is only ever reported per item is a cost nobody can see the size of.** The
+ * tally rides in the one line everybody reads, and it is by CODE rather than by message so a rename
+ * cannot silently zero it.
+ */
+interface RepairTally {
+  /** Wordings whose first answer did not validate. */
+  asked: number;
+  /** ...of which the repair round fixed. The rest throw and are counted as failures. */
+  recovered: number;
+  /** Every problem the first answers carried, by `validateAgainst` code. */
+  codes: Map<string, number>;
+}
+
+function describeRepairs(tally: RepairTally): string {
+  if (!tally.asked) return "";
+  const families = [...tally.codes.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([code, n]) => `${code} x${n}`)
+    .join(", ");
+  const lost = tally.asked - tally.recovered;
+  return (
+    ` — ${tally.asked} needed a second request to fix the shape of the answer` +
+    (lost ? ` (${lost} still failed)` : "") +
+    (families ? `: ${families}` : "")
+  );
+}
+
 async function compileBatch(
   event: CompileEvent,
   items: CompileItem[],
@@ -113,8 +147,9 @@ async function compileBatch(
   const started = Date.now();
   log(`compiling ${items.length} ability/abilities with ${cfg.model}…`);
 
+  const tally: RepairTally = { asked: 0, recovered: 0, codes: new Map() };
   const results = await runPool(items, getCapabilityConcurrency(), (item) =>
-    compileOne(cfg, vocabulary, system, item),
+    compileOne(cfg, vocabulary, system, item, tally),
   );
 
   const compiled = (event.compiled ??= {});
@@ -145,7 +180,8 @@ async function compileBatch(
   bumpStats({ chatTurns: ok });
   log(
     `compiled ${ok}/${items.length} ability/abilities in ${Math.round((Date.now() - started) / 1000)}s` +
-      (failed ? ` (${failed} could not be compiled and were left out)` : ""),
+      (failed ? ` (${failed} could not be compiled and were left out)` : "") +
+      describeRepairs(tally),
   );
 
   // ONCE PER BATCH, AND TO THE SCREEN. A spending cap is the only provider refusal a GM can do
@@ -164,6 +200,7 @@ async function compileOne(
   vocabulary: Vocabulary,
   system: string,
   item: CompileItem,
+  tally: RepairTally,
 ): Promise<Record<string, unknown>> {
   const messages: ChatMessage[] = [
     { role: "system", content: system },
@@ -171,7 +208,8 @@ async function compileOne(
   ];
 
   let answer = await completeJson(cfg, { messages });
-  let { errors } = validateAgainst(vocabulary, answer);
+  const first = validateAgainst(vocabulary, answer);
+  let errors = first.errors;
 
   if (errors.length > 0) {
     // One repair round, carrying every error at once. A model that produced a near-miss usually
@@ -179,11 +217,17 @@ async function compileOne(
     // reading. A second round is not attempted: past one, the failure is comprehension rather than
     // formatting, and paying repeatedly to watch it fail the same way is how a scene load gets
     // expensive.
+    //
+    // Tallied on the FIRST answer's codes only. A repair's own errors are a different question (did
+    // the model take the correction) and folding them in would double-count the same wording.
+    tally.asked++;
+    for (const code of first.codes) tally.codes.set(code, (tally.codes.get(code) ?? 0) + 1);
     debug("capability compile needs repair", { label: item.label, errors });
     messages.push({ role: "assistant", content: JSON.stringify(answer) });
     messages.push({ role: "user", content: composeRepairMessage(errors) });
     answer = await completeJson(cfg, { messages });
     errors = validateAgainst(vocabulary, answer).errors;
+    if (errors.length === 0) tally.recovered++;
   }
 
   if (errors.length > 0) {
