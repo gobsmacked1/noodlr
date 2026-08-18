@@ -2,6 +2,15 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.7.7
+
+**Reading a creature's written abilities no longer uses the chatbot's model.** There is a field at
+the bottom of Text Generation — "Model used to compile world rules" — with its own default
+(`google/gemini-3.7-flash`). Leave the chatbot at the top set to whatever you want telling the
+story; a cheap, fast model is the right choice for compiling, and the two are no longer the same
+setting. Clearing the compile field puts the default back rather than falling through to the
+chatbot.
+
 ## 0.7.6
 
 **Roughly one ability in eleven was costing two AI requests instead of one, and the second one was

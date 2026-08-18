@@ -43,6 +43,7 @@ import { exportPacks } from "./dev/pack-export";
 import { loadBanter } from "./behavior/banter-library";
 import { registerBehaviorHooks } from "./behavior/listen";
 import { registerCapabilityCompiler } from "./capability/compile";
+import { getCapabilityModel } from "./capability/config";
 import { registerWatchListener } from "./watch/watch";
 import { detectHooksModules } from "./integration/hooks-modules";
 import {
@@ -78,6 +79,8 @@ export interface NoodlrApi {
   surveyPlayed(): Record<string, unknown>;
   /** Every active `noodlr-hooks-*` rules module and what it says it enforces. */
   hooksModules(): unknown;
+  /** Slug used to compile world rules. Independent of the chatbot. */
+  capabilityModel(): string;
   /** Developer only: write compendiums to disk as JSONL for the offline rules miner. */
   exportPacks(packIds: string[]): Promise<unknown>;
 }
@@ -128,6 +131,8 @@ const api: NoodlrApi = {
   surveyPlayed: () => surveyPlayed(),
   /** Which rules modules are installed, and what each declares. First stop when rules go unenforced. */
   hooksModules: () => detectHooksModules(),
+  /** The slug the compiler and Ready-trigger reader send. Not the chatbot. */
+  capabilityModel: () => getCapabilityModel(),
   /**
    * Bulk export for the rules miner. Ticking sixty checkboxes is worse than one console call, and
    * this is the path a repeat run will actually use:

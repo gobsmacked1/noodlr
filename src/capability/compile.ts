@@ -42,9 +42,18 @@ type CompileEvent = Record<string, any> & {
   items?: CompileItem[];
   vocabulary?: unknown;
   compiled?: Record<string, unknown>;
+  /** Optional slug the asking module fetched from our own API. Honoured when present. */
+  model?: string;
   waitFor?: (p: Promise<unknown>) => void;
   handled?: boolean;
 };
+
+/** Chat's endpoint, this job's model — the request may already have fetched the slug from our API. */
+function compileConfigOf(event: CompileEvent) {
+  const cfg = getCapabilityConfig();
+  const hinted = String(event.model ?? "").trim();
+  return hinted ? { ...cfg, model: hinted } : cfg;
+}
 
 /**
  * The readable half of a thrown error, for a log line.
@@ -81,11 +90,12 @@ export function registerCapabilityCompiler(): void {
     const items = (event.items ?? []).filter((i) => String(i?.prose ?? "").trim() !== "");
     if (items.length === 0) return;
 
-    const cfg = getCapabilityConfig();
+    const cfg = compileConfigOf(event);
     if (!isConfigured(cfg)) {
       warn(
         `${items.length} ability/abilities need compiling, but the Chat provider is not configured. ` +
-          "Set a provider, key and model in Text Generation, or turn the setting off in the rules module.",
+          "Set a provider and key in Text Generation (the compile model is its own field at the bottom), " +
+          "or turn the setting off in the rules module.",
       );
       return;
     }
@@ -142,7 +152,7 @@ async function compileBatch(
   items: CompileItem[],
   vocabulary: Vocabulary,
 ): Promise<void> {
-  const cfg = getCapabilityConfig();
+  const cfg = compileConfigOf(event);
   const system = composeSystemMessage(getCapabilityPrompt(), vocabulary);
   const started = Date.now();
   log(`compiling ${items.length} ability/abilities with ${cfg.model}…`);

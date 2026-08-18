@@ -9,6 +9,16 @@ import { getFeatureConfig } from "../providers/config";
 import type { FeatureProviderConfig } from "../providers/types";
 import { promptDefault, promptValue } from "../prompts/fields";
 
+/**
+ * The cheap, fast slug the compiler and the Ready-trigger reader share.
+ *
+ * Independent of Chat on purpose: the narrating model is chosen for prose, and this one is chosen
+ * for following a schema. A blank stored value used to mean "whatever Chat uses", which is how a
+ * world-recompile slug ended up Gamemastering the campaign (2026-08-18). Empty now resolves to
+ * the default rather than to Chat.
+ */
+export const DEFAULT_CAPABILITY_MODEL = "google/gemini-3.7-flash";
+
 export function registerCapabilitySettings(): void {
   game.settings.register(MODULE_ID, CAPABILITY_SETTINGS.enabled, {
     scope: "world",
@@ -26,7 +36,7 @@ export function registerCapabilitySettings(): void {
     scope: "world",
     config: false,
     type: String,
-    default: "",
+    default: DEFAULT_CAPABILITY_MODEL,
   });
   game.settings.register(MODULE_ID, CAPABILITY_SETTINGS.concurrency, {
     scope: "world",
@@ -49,18 +59,29 @@ export function getCapabilityPrompt(): string {
   return promptValue(game.settings.get(MODULE_ID, CAPABILITY_SETTINGS.systemPrompt));
 }
 
+/** The slug that will actually be sent. Empty or whitespace is the default, never Chat's model. */
+export function resolveCapabilityModel(stored: string | null | undefined): string {
+  const slug = String(stored ?? "").trim();
+  return slug || DEFAULT_CAPABILITY_MODEL;
+}
+
+export function getCapabilityModel(): string {
+  try {
+    return resolveCapabilityModel(game.settings.get(MODULE_ID, CAPABILITY_SETTINGS.model));
+  } catch {
+    return DEFAULT_CAPABILITY_MODEL;
+  }
+}
+
 /**
- * The provider to compile with: Chat's, with the model swapped when an override is set.
+ * Chat's provider and key, this job's model.
  *
- * Sharing Chat's provider and key rather than adding a sixth feature block is deliberate — this is
- * the same endpoint doing a different job, and a GM should not have to configure a second one. But
- * the MODEL wants to differ: the narrating model is chosen for prose and the compiling model for
- * following a schema, and those are rarely the same choice.
+ * Sharing the endpoint rather than adding a sixth feature block is deliberate — same key, different
+ * job. The model is never Chat's unless the GM typed that slug into this field on purpose.
  */
 export function getCapabilityConfig(): FeatureProviderConfig {
   const cfg = getFeatureConfig("chat");
-  const model = String(game.settings.get(MODULE_ID, CAPABILITY_SETTINGS.model) ?? "").trim();
-  return model ? { ...cfg, model } : cfg;
+  return { ...cfg, model: getCapabilityModel() };
 }
 
 /** How many features to compile at once. Clamped: the API key and its rate limit are shared. */

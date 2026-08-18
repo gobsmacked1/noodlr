@@ -112,7 +112,7 @@ export const CAPABILITY_SETTINGS = {
   enabled: "capability.enabled",
   /** The doctrine half of the compiler's system message; the vocabulary is generated, not stored. */
   systemPrompt: "capability.systemPrompt",
-  /** Model slug for compilation. Blank means "whatever Chat uses". */
+  /** Model slug for compilation. Independent of Chat — reading a stat block is a different job. */
   model: "capability.model",
   /** How many features to compile at once. */
   concurrency: "capability.concurrency",
@@ -128,8 +128,8 @@ export const CAPABILITY_SETTINGS = {
  * separate prompts. A GM who declines to pay for a scene load still wants the Ready action to work.
  *
  * The MODEL is shared with the compiler, deliberately. Both jobs are "read a sentence and answer to a
- * schema", which is a different choice from the model that narrates, and a second slug to keep in step
- * would be a knob whose right value is always the same as the one beside it.
+ * schema", which is a different choice from the model that narrates. That slug is `capability.model`
+ * (default `google/gemini-3.7-flash`), never Chat's.
  */
 export const WATCH_SETTINGS = {
   /** Whether Noodlr reads a Ready trigger written in words. Off leaves the rules module its picker. */

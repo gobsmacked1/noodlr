@@ -28,7 +28,12 @@ import {
 } from "../prompt/settings";
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
 import { isBehaviorEnabled, isNpcBanterEnabled } from "../behavior/config";
-import { getCapabilityConcurrency, isCapabilityCompilerEnabled } from "../capability/config";
+import {
+  getCapabilityConcurrency,
+  getCapabilityModel,
+  isCapabilityCompilerEnabled,
+  resolveCapabilityModel,
+} from "../capability/config";
 import { isWatchEnabled } from "../watch/watch";
 import { detectHooksModules } from "../integration/hooks-modules";
 import {
@@ -131,9 +136,8 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       npcBanter: isNpcBanterEnabled(),
       capability: {
         enabled: isCapabilityCompilerEnabled(),
-        // Shown as stored rather than resolved: a blank box means "whatever Chat uses", and filling
-        // it in with the chat model would make that indistinguishable from a deliberate override.
-        model: String(game.settings.get(MODULE_ID, CAPABILITY_SETTINGS.model) ?? ""),
+        // Resolved, not raw: an empty stored value now means the default compile slug, not Chat.
+        model: getCapabilityModel(),
         concurrency: getCapabilityConcurrency(),
       },
       watch: isWatchEnabled(),
@@ -198,9 +202,11 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
     // body, and a smart quote pasted from a web page is a 400 nobody can see the cause of.
     await set(
       CAPABILITY_SETTINGS.model,
-      sanitizeUserText(o.capabilityModel, { maxLength: 200, allowNewlines: false }).replace(
-        /[^\x20-\x7e]/g,
-        "",
+      resolveCapabilityModel(
+        sanitizeUserText(o.capabilityModel, { maxLength: 200, allowNewlines: false }).replace(
+          /[^\x20-\x7e]/g,
+          "",
+        ),
       ),
     );
     const lanes = Number(o.capabilityConcurrency);

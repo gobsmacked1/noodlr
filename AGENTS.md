@@ -323,6 +323,10 @@ only what is different:
  through `askGm` and this listener declines anywhere else. Same reasoning as `compile.ts`.
 - **The model is shared with the capability compiler, deliberately.** Both jobs are "read a sentence and
  answer to a strict schema", which is a different selection from the model that tells the story.
+ That slug is `capability.model` (default `google/gemini-3.7-flash` as of v0.7.7), never Chat's.
+ A blank used to mean "whatever Chat uses", which is how a world-recompile slug ended up
+ Gamemastering the campaign. Empty now resolves to the default. `api.capabilityModel()` is how
+ a hooks module reads it without owning a second field.
 - Setting: `watch.enabled` (world, default **on**) plus its own prompt field in Text Generation. Unlike
  `capabilities.compile` it defaults on, because a `judge: false` descriptor spends nothing after the one
  compile and the failure mode of being off is a player writing a careful trigger and getting a shrug.

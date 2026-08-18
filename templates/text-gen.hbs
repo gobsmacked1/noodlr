@@ -120,14 +120,6 @@
       <p class="notes">{{localize "NOODLR.Capability.Enabled.Hint"}}</p>
 
       <div class="noodlr-field">
-        <label>{{localize "NOODLR.Capability.Model.Name"}}</label>
-        <p class="notes">{{localize "NOODLR.Capability.Model.Hint"}}</p>
-        <input type="text" name="capabilityModel" value="{{capability.model}}" autocomplete="off"
-          list="noodlr-or-models"
-          placeholder="{{localize 'NOODLR.Capability.Model.Placeholder'}}" />
-      </div>
-
-      <div class="noodlr-field">
         <label>{{localize "NOODLR.Capability.Concurrency.Name"}}</label>
         <p class="notes">{{localize "NOODLR.Capability.Concurrency.Hint"}}</p>
         <input type="number" name="capabilityConcurrency" value="{{capability.concurrency}}"
@@ -191,5 +183,17 @@
       {{localize "NOODLR.Prompt.TipsterPlayers.Name"}}
     </label>
     <p class="notes">{{localize "NOODLR.Prompt.TipsterPlayers.Hint"}}</p>
+  </fieldset>
+
+  {{! Compile slug is independent of Chat: a cheap schema-follower is the wrong voice for the campaign. }}
+  <fieldset class="noodlr-settings__section">
+    <legend><i class="fa-solid fa-gears"></i> {{localize "NOODLR.Capability.CompileLegend"}}</legend>
+    <div class="noodlr-field">
+      <label>{{localize "NOODLR.Capability.Model.Name"}}</label>
+      <p class="notes">{{localize "NOODLR.Capability.Model.Hint"}}</p>
+      <input type="text" name="capabilityModel" value="{{capability.model}}" autocomplete="off"
+        list="noodlr-or-models"
+        placeholder="{{localize 'NOODLR.Capability.Model.Placeholder'}}" />
+    </div>
   </fieldset>
 </section>
