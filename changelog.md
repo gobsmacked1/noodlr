@@ -2,6 +2,29 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.7.9
+
+**A Ready trigger written in a player's own words now maps their verbs onto the closed list of
+things the table can actually watch.** "Flees", "approaches", "I hear shouting" and "hostile"
+are translated into the names the rules module already understands, instead of being dropped
+silently and leaving the player with the ordinary picker. Whether the sentence needs a later
+judgement (meaning — fleeing, threatening, anything heard) or can be watched for free
+(measurement — a side, a distance, a condition) is decided in the half of the instructions that
+is built at request time, so it applies even if this world saved an older Ready-reader prompt.
+
+**When something happens and the reader is asked "is this the moment?", it judges the player's
+sentence, not its own earlier reading of it.** A creature that walked five feet has not fled. If
+the event is too thin to tell, it prefers offering the trigger (the player can decline) over a
+confident no that silently spends the Action.
+
+**Worlds that already saved the Ready-trigger prompt keep that saved text until you press Reset
+on it.** The translations, the meaning-versus-measurement test, and the "this is a filter, not
+the thing to judge" wording still apply on the next Ready without Reset. Reset applies the rest
+of the new wording (prefer the mistake the player can still decline; the summary names what they
+are waiting for, never what they will do).
+
+This does not change memory ingest or the ability compiler.
+
 ## 0.7.8
 
 **The ability compiler is told how the books name creatures, and what the game already rolls.** When

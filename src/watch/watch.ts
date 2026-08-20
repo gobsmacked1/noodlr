@@ -46,7 +46,7 @@ const PATIENCE = {
 } as const;
 
 /** The vocabulary as the asking module sent it. Everything optional; an absent list means unrestricted. */
-interface WatchVocabulary {
+export interface WatchVocabulary {
   protocol: number;
   events: string[];
   sides: string[];
@@ -181,26 +181,301 @@ export function composeSystemMessage(
   vocabulary: WatchVocabulary,
   verb: "compile" | "judge",
 ): string {
-  const lines: string[] = [doctrine.trim(), "", "# VOCABULARY", ""];
-  lines.push("Event kinds you may name:");
+  return verb === "judge"
+    ? composeJudgeSystem(doctrine, vocabulary)
+    : composeCompileSystem(doctrine, vocabulary);
+}
+
+/**
+ * Event-verb aliases. Prompt text only — a row prints if and only if its write token arrived on
+ * this request. A pf2e vocabulary that never sent `creature_moves` must not be taught to write it.
+ */
+const EVENT_ALIASES: { write: string; lines: string[] }[] = [
+  {
+    write: "creature_moves",
+    lines: [
+      "moves / walks / runs / flees / approaches / closes in / backs off  -> creature_moves",
+      "      (and judge true when the verb carries meaning, not just gait: fleeing is meaning,",
+      "       moving is gait)",
+    ],
+  },
+  {
+    write: "creature_attacks",
+    lines: [
+      "attacks / swings / shoots / strikes / takes a swing at              -> creature_attacks",
+    ],
+  },
+  {
+    write: "creature_casts",
+    lines: ["casts / starts a spell / begins an incantation                     -> creature_casts"],
+  },
+  {
+    write: "creature_appears",
+    lines: [
+      "appears / comes into view / steps out / shows itself               -> creature_appears",
+    ],
+  },
+  {
+    write: "creature_damaged",
+    lines: [
+      "is hurt / takes damage / is wounded / gets hit for damage          -> creature_damaged",
+    ],
+  },
+  {
+    write: "creature_drops",
+    lines: [
+      "falls / drops / dies / goes down / goes unconscious (at 0 HP)      -> creature_drops",
+    ],
+  },
+  {
+    write: "creature_condition",
+    lines: [
+      "becomes prone / grappled / frightened, or any system condition     -> creature_condition",
+      '      ("falls prone" is a condition being applied, not creature_drops)',
+    ],
+  },
+  {
+    write: "creature_turn_ends",
+    lines: [
+      "finishes its turn / after it acts / when its turn ends             -> creature_turn_ends",
+    ],
+  },
+  {
+    write: "door_changes",
+    lines: ["a door opens / closes / unlocks / is opened                       -> door_changes"],
+  },
+  {
+    write: "narration",
+    lines: [
+      'shouting / a cry / someone says something / "if I hear ..." with',
+      "      no token to watch                                             -> narration",
+    ],
+  },
+];
+
+const SIDE_ALIASES: { write: string; lines: string[] }[] = [
+  {
+    write: "enemy",
+    lines: ['hostile / foe / opponent / monster, meaning the other side -> side "enemy"'],
+  },
+  {
+    write: "ally",
+    lines: ['friend / companion / party / us / my allies                -> side "ally"'],
+  },
+  {
+    write: "self",
+    lines: [
+      'I / me / myself / my character, as the SUBJECT of the trigger -> side "self"',
+      "      (not merely because the player is who it happens TO: \"if the ogre comes at me\"",
+      "       is about the ogre)",
+    ],
+  },
+  {
+    write: "any",
+    lines: ['anyone / somebody / whoever / anything                     -> side "any"'],
+  },
+];
+
+function composeCompileSystem(doctrine: string, vocabulary: WatchVocabulary): string {
+  const lines: string[] = [
+    doctrine.trim(),
+    "",
+    "# VOCABULARY",
+    "",
+    "If anything in this block disagrees with the instructions above it, this block wins.",
+    "",
+    "Event kinds you may name — a closed list. A name that is not on it is DROPPED, and if",
+    "none survive the trigger cannot be watched at all:",
+  ];
   for (const name of vocabulary.events) lines.push(`- ${name}`);
-  if (vocabulary.sides.length) lines.push("", `Sides: ${vocabulary.sides.join(", ")}`);
-  if (vocabulary.senses.length) lines.push(`Senses: ${vocabulary.senses.join(", ")}`);
-  if (vocabulary.where.length) lines.push(`Placement keys: ${vocabulary.where.join(", ")}`);
+
+  if (vocabulary.sides.length) {
+    lines.push("", `Sides — the only legal values for subject.side: ${vocabulary.sides.join(", ")}`);
+  }
+  if (vocabulary.senses.length) {
+    lines.push(
+      `Senses — the only legal values for subject.sense: ${vocabulary.senses.join(", ")}`,
+    );
+  }
+  lines.push(...describePlacement(vocabulary.where));
+
   if (vocabulary.notes.length) {
     lines.push("", "From the module that asked:");
     for (const note of vocabulary.notes) lines.push(`- ${note}`);
   }
-  lines.push("", "# THE ANSWER", "");
+
+  const aliases = aliasLines(vocabulary);
+  if (aliases.length) {
+    lines.push("", "WRITE THE LEGAL TOKEN, NOT THE SYNONYM.");
+    lines.push(...aliases);
+  }
+
   lines.push(
-    verb === "compile"
-      ? 'Output exactly: {"events": [...], "subject": {"names": [...], "side": "...", "sense": "..."}, ' +
-          '"where": {...}, "statuses": [...], "judge": true|false, "summary": "...", "problem": "..."}\n' +
-          "Omit any field you have nothing to say about. `problem` is for a sentence that names nothing " +
-          "watchable at all, and replaces the rest of the answer rather than accompanying it."
-      : 'Output exactly: {"fires": true|false, "why": "..."}',
+    "",
+    "SETTING judge — set it yourself, one way or the other, on every watchable trigger.",
+    "  judge false: side + event kind(s) + where and/or statuses say the WHOLE sentence.",
+    "    That is measurement: watched deterministically, free, forever, and the point of",
+    "    compiling. A sentence fully said by side + an event + a placement or status —",
+    "    write false. So is a condition being applied, or a door changing.",
+    "  judge true: the sentence turns on MEANING the predicates cannot say — fleeing,",
+    '    threatening, going for the door, "tries anything", "looks suspicious" — or on',
+    "    hearing, or whenever you name narration. narration is judged no matter what you",
+    "    write, so write true when you name it, or the player is shown a promise that is",
+    "    not what happens.",
+    "  If a predicate cannot be written without guessing, OMIT the predicate and set judge",
+    "    true. Never drop the meaning in order to keep false.",
+    "",
+    "OMIT WHAT YOU ARE GUESSING. A missing predicate PASSES — it does not restrict, and the",
+    "judgement behind it catches what it lets through. Never invent a distance from a word",
+    'like "approaches", "near" or "backs off"',
+    ...(vocabulary.where.includes("inReach")
+      ? [
+          ", and never turn the watcher's own reach into a number: when the player means their",
+          "own melee reach, write inReach true.",
+        ]
+      : ["."]),
+    "",
+    "Compile only what they are WAITING FOR. What they intend to do about it is not part of",
+    "the answer and has no field.",
+    "",
+    "# THE ANSWER",
+    "",
+    "Output exactly one JSON object and nothing else — no explanation, no commentary, no code",
+    "fence. These are the only keys read:",
+    "  events, subject.names, subject.side, subject.sense,",
+    `  where.${
+      vocabulary.where.length ? vocabulary.where.join(" / ") : "<placement keys listed above>"
+    }, statuses, judge, summary, problem`,
+    "Omit any field you have nothing honest to say about. subject.names are lowercase kinds or",
+    "names taken from the sentence, at most 8. statuses are the game system's own condition",
+    "ids, lowercase. summary and problem are at most 200 characters each.",
+    "",
+    "EXAMPLE ONLY — this shows the SHAPE, not defaults. The event kinds here are an",
+    "illustration of an array that can hold several names; choose your own, and choose as many",
+    "as the sentence could arrive as:",
+    exampleCompile(vocabulary),
+    "",
+    "UNWATCHABLE EXAMPLE — when nothing on the event list could carry the sentence (weather,",
+    'an hour passing, a feeling, "when it feels right"), answer with problem ALONE. It',
+    "replaces the whole answer; it never accompanies events, judge or summary:",
+    '{"problem": "<one sentence telling the player why this cannot be watched>"}',
+    "",
+    "Do not invent an event so the answer looks complete. An honest problem sends the player",
+    "to the ordinary trigger list; an invented event sends them to a held action that never",
+    "fires.",
   );
   return lines.join("\n");
+}
+
+function composeJudgeSystem(doctrine: string, vocabulary: WatchVocabulary): string {
+  const lines: string[] = [
+    doctrine.trim(),
+    "",
+    "# VOCABULARY",
+    "",
+    "If anything in this block disagrees with the instructions above it, this block wins.",
+    "",
+    "The kind of the event you are shown is one of these names, spelled exactly:",
+  ];
+  for (const name of vocabulary.events) lines.push(`- ${name}`);
+
+  if (vocabulary.notes.length) {
+    lines.push("", "From the module that asked:");
+    for (const note of vocabulary.notes) lines.push(`- ${note}`);
+  }
+
+  lines.push(
+    "",
+    "You are judging ONE event against the player's own sentence. The descriptor you wrote",
+    "earlier is only the filter that routed this event to you — it is not the thing to judge,",
+    "and satisfying it is not the same as satisfying the sentence. \"Moves\" is not \"flees\": a",
+    "creature that walked five feet toward someone has not fled.",
+    "",
+    "Lean towards firing. A wrongly offered trigger is shown to the player and can be",
+    "declined; a wrongly withheld one silently costs their turn. When the payload is not",
+    "enough to tell, prefer fires true and let the why name exactly what happened. Never",
+    "answer false to look decisive — false is the one answer nothing downstream can undo.",
+    "Answer false when the payload is enough to tell that this is NOT the moment, not when it",
+    "is merely thin.",
+    "",
+    "For a narration event, read the said text against the sentence; narration reaches you",
+    "whatever the descriptor said, and there may be no subject at all.",
+    "",
+    "# THE ANSWER",
+    "",
+    "Output exactly one JSON object and nothing else — no explanation, no commentary, no code",
+    "fence. The only keys read are fires and why. fires is a real boolean. why is one short",
+    "clause addressed to the player, naming what just happened, at most 200 characters.",
+    "",
+    "EXAMPLE ONLY — the shape, not the answer:",
+    '{"fires": true, "why": "<one short clause naming what happened>"}',
+  );
+  return lines.join("\n");
+}
+
+function describePlacement(where: string[]): string[] {
+  if (!where.length) return [];
+  const lines = [
+    "",
+    `Placement keys — the only legal keys inside "where": ${where.join(", ")}.`,
+    "  Copy those key spellings exactly as printed, including their capitals.",
+  ];
+  const hasReach = where.includes("inReach");
+  const numeric = where.filter((key) => key !== "inReach");
+  if (hasReach) lines.push("  inReach takes only true.");
+  if (numeric.length) {
+    const sample = numeric[0];
+    lines.push(
+      `  ${hasReach ? "The others take" : "Each takes"} a bare number greater than zero, in the scene's own units:`,
+      `  {"${sample}": 20}, never "20", never "20 feet", never 0 or less.`,
+    );
+  }
+  return lines;
+}
+
+function aliasLines(vocabulary: WatchVocabulary): string[] {
+  const events = new Set(vocabulary.events);
+  const sides = new Set(vocabulary.sides);
+  const senses = new Set(vocabulary.senses);
+  const out: string[] = [];
+  for (const row of EVENT_ALIASES) {
+    if (events.has(row.write)) out.push(...row.lines);
+  }
+  for (const row of SIDE_ALIASES) {
+    if (sides.has(row.write)) out.push(...row.lines);
+  }
+  if (senses.has("sight")) {
+    out.push('"I can see" / in sight / visible / where I can watch it     -> sense "sight"');
+  }
+  if (senses.has("hearing") || events.has("narration")) {
+    out.push(
+      '"I hear" / a sound / a voice                                -> sense "hearing" when',
+      '      there is a token to watch; otherwise events ["narration"] with no invented subject',
+    );
+  }
+  if (senses.has("sight")) {
+    out.push("Only sight is checkable here, so any hearing-based trigger also needs judge true.");
+  }
+  return out;
+}
+
+/**
+ * A filled-in first list entry teaches that name onto every sentence. Skip events[0]; prefer
+ * the next two so the example can hold more than one name without becoming the first token.
+ */
+function exampleCompile(vocabulary: WatchVocabulary): string {
+  const kinds = vocabulary.events.slice(1, 3);
+  const events = kinds.length > 0 ? kinds : vocabulary.events.slice(0, 1);
+  const subject: Record<string, unknown> = {
+    names: ["<lowercase name from the sentence>"],
+  };
+  if (vocabulary.sides[0]) subject.side = vocabulary.sides[0];
+  if (vocabulary.senses[0]) subject.sense = vocabulary.senses[0];
+  const shaped: Record<string, unknown> = { events, subject };
+  if (vocabulary.where.includes("inReach")) shaped.where = { inReach: true };
+  shaped.judge = true;
+  shaped.summary = "<one sentence the player would recognise as their own>";
+  return JSON.stringify(shaped);
 }
 
 /** The player's sentence and who wrote it. */
@@ -230,7 +505,7 @@ export function composeJudgeMessage(
     "Their trigger, in their own words:",
     prose,
     "",
-    "Your earlier reading of it, which is why this event reached you:",
+    "Your earlier reading of it — the filter that routed this event to you, not the thing to judge:",
     JSON.stringify(descriptor ?? {}),
     "",
     "What just happened:",

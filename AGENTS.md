@@ -333,6 +333,30 @@ only what is different:
  compile and the failure mode of being off is a player writing a careful trigger and getting a shrug.
  Off, the rules module offers its canned list instead and still works.
 
+### Watch Fusion pass (v0.7.9, 2026-08-20)
+
+Reviewed against `C:\Project\noodlr-vtt\FromFusion2.md`. The schema did not move. No compile
+repair, no judge repair: a second compile with a player on a dialog degrades into a guessed
+`judge:false` descriptor, which is the wrong-fire failure. The canned picker is the fallback.
+
+- **Generated half wins if it disagrees with frozen doctrine** — first line of `# VOCABULARY`.
+- **Compile and judge get different generated halves.** Judge never writes a side, a sense, a
+  placement key or an event-verb alias; emitting those into a 20-second no-retry call invites
+  judging the descriptor. Event kinds stay so `kind` is recognisable.
+- **Event / side / sense aliases are prompt text, never extra vocabulary values.** A row prints
+  only if its write token arrived on the request. `DECLARED` in `test/watch.test.ts` has
+  `token_steps | token_speaks | gate_shifts` and pins that `creature_moves` / `flees` / `hostile`
+  do not appear. A second compose against a 5e-shaped vocab pins that they do.
+- **The compile example skips `events[0]`.** A filled-in first event teaches that name onto
+  every sentence (Fusion F6). Prefer `slice(1, 3)`. `inReach: true` is included only when that
+  key arrived.
+- **`composeJudgeMessage` names the stored descriptor as a filter**, not as the reason the
+  event is here. Satisfying the descriptor is not satisfying the sentence.
+- **Still never spend a live Ready or `recompileWorld` to A/B a prompt.** Measure against
+  specimens in a harness, or against `test/watch.test.ts` for the generated half. Reset of
+  `watch.systemPrompt` is optional: it applies the new doctrine. The aliases, the judge test,
+  the placement-key spellings and the unwatchable example reach every compile either way.
+
 ### Fusion prompt pass (v0.7.8, 2026-08-20)
 
 Reviewed against `C:\Project\noodlr-vtt\FromFusion.md`. The schema did not move. What moved is the
