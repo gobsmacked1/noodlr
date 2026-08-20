@@ -2,6 +2,21 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.7.8
+
+**The ability compiler is told how the books name creatures, and what the game already rolls.** When
+it reads a creature's written abilities, "the caster", "the wielder", "you" and the creature's own
+name now compile as that creature — they are no longer a reason to hand the rule to you. A printed
+attack, save or damage line that already fires when the ability is used is left alone, so the same
+damage does not land twice. A sentence about when a creature dies is treated as a limit on the
+ordinary death rule, not as an instruction to apply it.
+
+**Worlds that already saved the compile prompt keep that saved text until you press Reset on it.**
+The new translations and the "already rolled" rule still apply on the next compile without Reset:
+those live in the half of the instructions that is built at request time. Reset applies the rest of
+the new wording (prefer an understood-but-not-yet-run kind over rewriting it; a limiting clause is
+not an instruction).
+
 ## 0.7.7
 
 **Reading a creature's written abilities no longer uses the chatbot's model.** There is a field at

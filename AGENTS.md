@@ -152,10 +152,11 @@ by a factor of five.** Both halves of that sentence are the finding; reporting e
   ×8 were the commonest illegal subjects; with only `self | target | attacker | trigger` legal and no
   aliasing, a rule about "the caster" cannot be *stated*, so it is downgraded to `gm` instead of being
   written correctly. The counts line up: 61 rules lost their bad subjects and 108 lost `engine`.
-  - **The cheap fix is doctrine wording, not a schema change.** This file already records that `caster`
-    "means `self` every time" — so SAY that: name the aliases (caster, wielder, owner, user, ability
-    owner → `self`) rather than leaving the model to discover that its word is not on the list.
-    `secondary target` is a genuine vocabulary gap and a separate decision.
+  - **The cheap fix is doctrine wording, not a schema change.** Shipped in v0.7.8 as generated-half
+    prompt text (Fusion pass): caster / wielder / owner / user / you → `self`, and saving / moving /
+    acting / damaged creature → `trigger`. Those words are never added to the subject list — the
+    validator still accepts only what the asking module sent. `secondary target` is a genuine
+    vocabulary gap and a separate decision.
 - **`grant_capability` 45 → 12 is a smaller loss than it looks.** That kind is free text nobody wires;
   it feeds the prompt, not the executor. Distinguish it from the `engine` collapse when scoring this.
 - **The specimens that had to survive did.** Regeneration is byte-identical and still `engine` with both
@@ -331,6 +332,30 @@ only what is different:
  `capabilities.compile` it defaults on, because a `judge: false` descriptor spends nothing after the one
  compile and the failure mode of being off is a player writing a careful trigger and getting a shrug.
  Off, the rules module offers its canned list instead and still works.
+
+### Fusion prompt pass (v0.7.8, 2026-08-20)
+
+Reviewed against `C:\Project\noodlr-vtt\FromFusion.md`. The schema did not move. What moved is the
+half of the prompt that is composed at request time, so a world that already stored
+`capability.systemPrompt` still gets the load-bearing fixes without pressing Reset.
+
+- **Generated half wins if it disagrees with frozen doctrine** — first line of `## VOCABULARY`.
+- **Structured data is already executed** on the ability's own use. `composeUserMessage` says so on
+  the request; `describeVocabulary` says so before the kind tables. Regeneration (heal, no
+  activation, "start of turn") is the specimen that must still compile.
+- **Subject aliases are prompt text, never extra subject values.** Only alias rows whose `write`
+  value is in `vocab.subjects` are printed. `DECLARED` in `test/vocabulary.test.ts` has only
+  `self | target` and pins that `trigger` / `attacker` do not appear as legal writes.
+- **`damage_taken.window` and reserved statuses** fall back when the asking module omitted the lists,
+  so an older `noodlr-hooks-*` still gets a closed window list and only hears about `dead` if this
+  world's live status list already contains one.
+- **Repair names `condition` singular** and says dropping a guard while keeping `engine` is worse
+  than dropping the rule.
+- **Still never spend `recompileWorld` to A/B a prompt.** Measure in `noodlr-rules-corpus`. A
+  recompile after this release is a ship of a doctrine already written, not a test of it.
+- Reset of `capability.systemPrompt` is optional for this compile: it applies the new doctrine
+  (limiting clauses, prefer inert kinds). The aliases, the already-dispatched test, the windows and
+  the reserved statuses reach every compile either way.
 
 ## Workspace layout (multi-root)
 

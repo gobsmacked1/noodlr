@@ -44,6 +44,17 @@ export interface Vocabulary {
    * handed the list turns a repair round into a first-time answer.
    */
   statuses: string[];
+  /**
+   * Closed windows for `damage_taken.window`. Empty when the asking module does not declare them;
+   * the prompt then falls back to the four strings that kind was designed around, so an older
+   * rules module still gets a closed list instead of free text.
+   */
+  damageWindows: string[];
+  /**
+   * Status ids the executor will never apply. Empty when undeclared; the prompt then names the
+   * four terminal ids only if this world's live status list already contains one of them.
+   */
+  reservedStatuses: string[];
 }
 
 /**
@@ -68,6 +79,8 @@ export function asVocabulary(raw: unknown): Vocabulary | null {
     adjudication: (v.adjudication ?? ["engine", "narration", "gm"]).map(String),
     subjects: (v.subjects ?? []).map(String),
     statuses: (v.statuses ?? []).map(String),
+    damageWindows: (v.damageWindows ?? []).map(String),
+    reservedStatuses: (v.reservedStatuses ?? []).map(String),
   };
 }
 
@@ -334,14 +347,14 @@ export function composeUserMessage(item: CompileItem): string {
   if (item.structured && Object.keys(item.structured).length > 0) {
     parts.push(
       "",
-      "STRUCTURED DATA read off the live sheet. AUTHORITATIVE for every number it carries:",
+      "STRUCTURED DATA read off the live sheet. AUTHORITATIVE for every number it carries - and ALREADY EXECUTED: every attack, save, damage and healing entry below already fires when this ability is used, without any rule from you. Do not re-emit those entries. Use their numbers only for effects the text triggers some other way (start of turn, on being damaged, on a rest, while a condition holds):",
       JSON.stringify(item.structured, null, 2),
     );
   }
   if (item.context && Object.keys(item.context).length > 0) {
     parts.push(
       "",
-      "WHOSE ABILITY THIS IS, for resolving what the text calls 'the creature':",
+      'WHOSE ABILITY THIS IS. Every role word for this creature - "the caster", "the wielder", "the owner", "you", its own name, "the creature" - is the subject self:',
       JSON.stringify(item.context, null, 2),
     );
   }
@@ -357,48 +370,163 @@ export function composeUserMessage(item: CompileItem): string {
  */
 export function composeRepairMessage(errors: string[]): string {
   return [
-    "That did not validate. Fix EVERY problem below and return the corrected JSON object only.",
+    "That did not validate. Fix EVERY problem below and return the corrected JSON object only - the whole object, not a patch, and no commentary or code fence.",
     "",
     ...errors.map((e) => `- ${e}`),
     "",
-    "Remember: an empty rules array is a valid answer. Dropping a rule you cannot express in the",
-    "vocabulary is better than inventing a kind or a parameter that is not listed.",
+    "Before you answer, check all five: the guard array is spelled condition, singular; every rule has trigger, effect and adjudication; every rule with adjudication gm has a non-empty note saying what the human decides; uses.max, if present, is a positive number; every damage_taken guard has window set to one of this_turn, since_last_turn, this_round, ever.",
+    "",
+    "An empty rules array is a valid answer. Dropping a rule you cannot express in the",
+    "vocabulary is better than inventing a kind or a parameter that is not listed - and dropping a guard you cannot express, while keeping engine, is worse than either.",
   ].join("\n");
+}
+
+/** The four windows `damage_taken` was designed around, used only when the asking module omitted a list. */
+const DEFAULT_DAMAGE_WINDOWS = ["this_turn", "since_last_turn", "this_round", "ever"];
+
+/** Terminal ids the executor refuses. Named here only when the live status list already contains one. */
+const DEFAULT_RESERVED_STATUSES = ["dead", "defeated", "slain", "destroyed"];
+
+/**
+ * Role words the books use, mapped onto a subject the asking module declared.
+ *
+ * THE WHITELIST WITHOUT THIS TABLE TAUGHT THE MODEL TO GIVE UP: a live census lost 108 engine
+ * rules after `caster` and `owner` were rejected with no translation. Aliases are prompt text,
+ * never extra subject values — the validator still accepts only what the asking module sent.
+ */
+const SUBJECT_ALIASES: { write: string; from: string }[] = [
+  {
+    write: "self",
+    from: 'the caster, the wielder, the owner, the user, the bearer, the holder, "you", "yourself", the creature\'s own name, "the creature" when it means this sheet\'s creature',
+  },
+  {
+    write: "trigger",
+    from: 'the saving creature, the moving creature, the acting creature, the damaged creature, the creature that was hit, "it" where "it" is whoever the event happened to',
+  },
+  { write: "target", from: "the target of the attack or spell, the chosen creature" },
+  { write: "attacker", from: "the attacker, the creature making the attack" },
+];
+
+function kindLine(kind: string, spec: ParamSpec): string {
+  const req = spec.required.length
+    ? ` required: ${spec.required.join(", ")}`
+    : " no required parameters";
+  const opt = spec.optional.length ? `; optional: ${spec.optional.join(", ")}` : "";
+  const q = spec.quantities.length ? `; quantities: ${spec.quantities.join(", ")}` : "";
+  const inert = spec.executable ? "" : " [not executed yet]";
+  return `- ${kind}:${req}${opt}${q}${inert}`;
+}
+
+function damageWindowsOf(vocab: Vocabulary): string[] {
+  if (vocab.damageWindows.length) return vocab.damageWindows;
+  return vocab.predicates.damage_taken ? DEFAULT_DAMAGE_WINDOWS : [];
+}
+
+function reservedStatusesOf(vocab: Vocabulary): string[] {
+  if (vocab.reservedStatuses.length) return vocab.reservedStatuses;
+  const live = new Set(vocab.statuses.map((s) => s.toLowerCase()));
+  return DEFAULT_RESERVED_STATUSES.some((id) => live.has(id)) ? DEFAULT_RESERVED_STATUSES : [];
+}
+
+function describeSubjects(vocab: Vocabulary): string {
+  const has = (id: string) => vocab.subjects.includes(id);
+  const meaning: string[] = [];
+  if (has("self")) meaning.push('"self" is the creature whose ability this is.');
+  if (has("trigger")) {
+    meaning.push(
+      '"trigger" is the creature the event is about - the one who was hit, the one who saved, the one who moved.',
+    );
+  }
+  const aliases = SUBJECT_ALIASES.filter((row) => has(row.write));
+  const rows = aliases.map((row) => `${row.from} -> "${row.write}"`);
+  const translate =
+    aliases.length > 0
+      ? [
+          `The source text almost never uses these words. Translate its role words before you write the rule:`,
+          ...rows,
+        ]
+      : [];
+  const selfAlias = has("self")
+    ? 'Emit only the value, never the alias: write "self", not "caster". A rule about "the caster" is a rule about "self" and is fully expressible - never send it to a human for that word alone. Same for "you", "the wielder", "the owner".'
+    : "Emit only a value from the list, never a role word or a creature's name.";
+  return [
+    `SUBJECTS. "who", "whom" and "of" on a guard, and "target", "against" and "speaker" on an effect, name a creature. The ONLY values are: ${vocab.subjects.join(", ")}. ${meaning.join(" ")}`.trim(),
+    ...translate,
+    selfAlias,
+    'Only a subject that is not a creature at all has no value here: a rod, a weapon, a spell\'s own effect, a point or location, "a flammable object", "an ally", "one of its allies". For those, either use adjudication "gm" with a note stating the guard the human must check, or drop the rule. Never invent a fifth subject value, and never write an alias into a subject field.',
+  ].join("\n");
+}
+
+function describeTriggerChoice(vocab: Vocabulary): string | null {
+  const has = (name: string) => vocab.triggerEvents.includes(name);
+  const lines: string[] = ["Use the event the mechanic names, not the event after it."];
+  if (has("on_attack_roll") && has("on_hit")) {
+    lines.push(
+      "Something that changes a roll uses on_attack_roll; only a rider that requires a hit uses on_hit.",
+    );
+  }
+  if (has("on_save_failed") || has("on_save_succeeded")) {
+    lines.push("A save's consequence uses on_save_failed or on_save_succeeded.");
+  }
+  if (has("on_turn_end") && vocab.predicates.damage_taken) {
+    lines.push(
+      'A threshold the text measures across a turn ("if it takes at least 15 damage in one turn") is a damage_taken guard with window this_turn on an on_turn_end rule, unless the text says the effect happens the instant the damage lands.',
+    );
+  }
+  return lines.length > 1 ? lines.join(" ") : null;
 }
 
 /** The vocabulary, rendered for a prompt. Generated rather than written, so it cannot drift. */
 export function describeVocabulary(vocab: Vocabulary): string {
-  const line = (kind: string, spec: ParamSpec): string => {
-    const req = spec.required.length
-      ? ` required: ${spec.required.join(", ")}`
-      : " no required parameters";
-    const opt = spec.optional.length ? `; optional: ${spec.optional.join(", ")}` : "";
-    const q = spec.quantities.length ? `; quantities: ${spec.quantities.join(", ")}` : "";
-    // Marked rather than hidden: an inert kind is still the honest reading of a rule, and the sheet
-    // shows it as understood-but-not-run. Mangling it into an executable kind would be worse.
-    const inert = spec.executable ? "" : " [not executed yet]";
-    return `- ${kind}:${req}${opt}${q}${inert}`;
-  };
+  const windows = damageWindowsOf(vocab);
+  const reserved = reservedStatusesOf(vocab);
+  const predLines: string[] = [];
+  for (const [kind, spec] of Object.entries(vocab.predicates)) {
+    predLines.push(kindLine(kind, spec));
+    if (kind === "damage_taken" && windows.length) {
+      predLines.push(
+        `"window" on damage_taken is required and must be EXACTLY one of: ${windows.map((w) => `"${w}"`).join(", ")}. Any other phrasing - "since the start of its previous turn", "in one turn", "recently" - is unreadable, and an unreadable window means the guard never passes and the rule never fires. Map the text: "in one turn" or "at once" -> "this_turn"; "since its last turn" or "since the end of its previous turn" -> "since_last_turn"; "this round" -> "this_round"; "has ever" -> "ever".`,
+      );
+    }
+  }
+  const triggerChoice = describeTriggerChoice(vocab);
+
   return [
+    "Everything in this section is generated from the live schema and is current. Where any stance above disagrees with a key name, a legal value, or a list printed here, this section wins.",
+    "",
+    "WHAT THE STRUCTURED DATA ALREADY DOES. The STRUCTURED DATA in the request is authoritative for every number it carries, and it is already dispatched by the platform whenever using the ability is the trigger. Before you write any rule, ask: does the platform already know when to do this?",
+    '- If the trigger is the ability\'s own use - the attack roll, the hit, the saving throw it calls for and its DC, a damage or healing entry that fires on activation - then yes, and you emit nothing for it. Do not emit a damage effect whose amount and type match a listed damage entry: that makes the same damage land twice. Do not emit the save, its ability or its DC as an effect. If nothing is left once those entries are set aside, the answer is "rules": [].',
+    '- If the text names any other trigger - the start or end of a turn, taking damage, a rest, entering an area, a standing condition - then no, the platform does not know, and you must emit the rule. Here a structured number is exactly the right amount to use: the entry supplies the number, the text supplies the rule. A healing entry with no activation, next to prose saying "at the start of each of its turns", is a rule you must compile, not one to suppress.',
+    "Do not turn a clause about scenery or objects into a status on a creature just to avoid an empty array.",
+    "",
+    "THE SHAPE OF THE WHOLE ANSWER. Your entire reply is one JSON object with exactly two keys:",
+    '{"label": "<the ability\'s own name>", "rules": []}',
+    '"rules" is REQUIRED and is ALWAYS an array, even when it is empty. "rules": [] is a complete, correct answer - the right one for flavour text, and the right one for an ability the platform already runs end to end. Add no other top-level key.',
+    "",
     `TRIGGER EVENTS (trigger.event):\n${vocab.triggerEvents.join(", ")}`,
+    ...(triggerChoice ? ["", triggerChoice] : []),
     "",
     `EFFECT KINDS (effect.kind), with the ONLY parameters each may carry:`,
-    ...Object.entries(vocab.effects).map(([k, s]) => line(k, s)),
+    ...Object.entries(vocab.effects).map(([k, s]) => kindLine(k, s)),
+    "",
+    "Where a parameter's legal values are printed above, use one of them exactly. Where they are not - rollType, ability, resource, creature, capability, direction, until, placement, information - write a short lowercase phrase, no punctuation, no sentence from the book. Prefer the plainest word the mechanic uses. Where a parameter is listed under that kind's quantities, it must be a quantity object, not a bare number and not a phrase.",
     "",
     `PREDICATES (condition[].kind), with the ONLY parameters each may carry:`,
-    ...Object.entries(vocab.predicates).map(([k, s]) => line(k, s)),
+    ...predLines,
     "",
     `Any predicate may also carry "negate": true to mean "unless".`,
     `A quantity is {"value": <number>} or {"dice": "<formula>"} or {"named": "<one of: ${vocab.namedQuantities.join(", ")}>"}, optionally with "units" from: ${vocab.units.join(", ")}.`,
     `uses.per must be one of: ${vocab.usePeriods.join(", ")}.`,
-    ...(vocab.subjects.length
-      ? [
-          `"who" (and "whom", and "of") name whom a predicate asks about. The ONLY values are: ${vocab.subjects.join(", ")}. Nothing else resolves — a role ("the caster", "the owner"), a creature's name, or an object is read as nobody, and a guard about nobody stops the rule. The creature whose ability this is, is "self".`,
-        ]
-      : []),
+    ...(vocab.subjects.length ? ["", describeSubjects(vocab)] : []),
     ...(vocab.statuses.length
       ? [
+          "",
           `A "status" parameter must be one of these ids exactly. There is no other way to name a condition, and an id this world does not have can never be applied or tested for:\n${vocab.statuses.join(", ")}`,
+          ...(reserved.length
+            ? [
+                `Four ids are reserved: ${reserved.join(", ")}. The executor will never apply them, and dying at 0 hit points is already the platform's job. Never emit apply_status with one of them. A sentence about when a creature dies - especially "dies only if...", "doesn't die unless..." - is a restriction on the platform's own death rule, not an instruction: compile nothing for it.`,
+              ]
+            : []),
         ]
       : []),
     "",
@@ -442,38 +570,13 @@ export function describeVocabulary(vocab: Vocabulary): string {
  * enforced at chance, so its cost is invisible until a wording happens to trip it.
  */
 function describeShape(vocab: Vocabulary): string {
-  const event =
-    vocab.triggerEvents.find((e) => e !== "always") ?? vocab.triggerEvents[0] ?? "always";
-  const [effectKind, effectSpec] = Object.entries(vocab.effects).find(
-    ([, s]) => s.executable && s.required.length,
-  ) ??
-    Object.entries(vocab.effects)[0] ?? ["", undefined];
-  const [predKind, predSpec] = Object.entries(vocab.predicates).find(
-    ([, s]) => s.required.length,
-  ) ??
-    Object.entries(vocab.predicates)[0] ?? ["", undefined];
-
-  const params = (spec: ParamSpec | undefined): string =>
-    (spec?.required ?? [])
-      .map((key) =>
-        spec?.quantities.includes(key) ? `, "${key}": {"value": <number>}` : `, "${key}": <${key}>`,
-      )
-      .join("");
-
   return [
-    "THE SHAPE OF THE WHOLE ANSWER. One JSON object, with every rule inside one array:",
+    'THE SHAPE OF ONE RULE. Each element of "rules" is one object. Every key below is spelled the only way it is read; angle brackets mark a placeholder you replace, and are never emitted.',
     "{",
-    '  "label": "<the ability\'s own name>",',
-    '  "rules": [ <zero or more rule objects, shaped as below> ]',
-    "}",
-    '"rules" is REQUIRED and is ALWAYS an array. An ability with nothing mechanical in it is "rules": [] — a complete and correct answer, not a failure.',
-    "",
-    "THE SHAPE OF ONE RULE. Every key here is spelled the only way it is read:",
-    "{",
-    `  "trigger": {"event": "${event}"},`,
-    `  "condition": [{"kind": "${predKind}"${params(predSpec)}}],`,
-    `  "effect": {"kind": "${effectKind}"${params(effectSpec)}},`,
-    `  "adjudication": "${vocab.adjudication[0] ?? "engine"}",`,
+    '  "trigger": {"event": "<one trigger event from the list above>"},',
+    '  "condition": [ <zero or more guards, each shaped as in the predicate table> ],',
+    '  "effect": {"kind": "<one effect kind from the list above>", <only that kind\'s listed parameters>},',
+    '  "adjudication": "<one of the adjudication values listed below>",',
     '  "uses": {"max": <positive number>, "per": "<one of the periods above>"},',
     '  "note": "<what a human is being told or asked to decide>"',
     "}",
@@ -483,12 +586,13 @@ function describeShape(vocab: Vocabulary): string {
           `"adjudication" must be exactly one of: ${vocab.adjudication.map((a) => `"${a}"${ADJUDICATION_GLOSS[a] ? ` (${ADJUDICATION_GLOSS[a]})` : ""}`).join(", ")}.`,
         ]
       : []),
-    '"note" is REQUIRED on every rule whose "adjudication" is "gm", and must say what the human is deciding — a "gm" rule without one is rejected. Elsewhere it is optional.',
+    '"note" is REQUIRED on every rule whose "adjudication" is "gm", and must say what the human is deciding - a "gm" rule without one is rejected. Elsewhere it is optional.',
     ...(vocab.effects.voice_entity
       ? [
           'A "voice_entity" effect is always adjudication "narration"; nothing else is accepted for it.',
         ]
       : []),
+    'Kinds marked [not executed yet] are valid answers and are stored as understood. Prefer an exact inert kind over a running kind that says something else, and over "gm".',
   ].join("\n");
 }
 

@@ -3,6 +3,8 @@ import { test } from "node:test";
 
 import {
   asVocabulary,
+  composeRepairMessage,
+  composeUserMessage,
   describeVocabulary,
   validateAgainst,
   type Vocabulary,
@@ -327,6 +329,53 @@ test("both lists reach the prompt when they are declared", () => {
   assert.match(text, /speckled, smudged/);
   // And are absent rather than described as empty when they are not.
   assert.doesNotMatch(describeVocabulary(VOCAB), /status" parameter must be one of/);
+});
+
+test("damage_taken windows are closed in the prompt when that predicate exists", () => {
+  const text = describeVocabulary(VOCAB);
+  assert.match(text, /"this_turn"/);
+  assert.match(text, /"since_last_turn"/);
+  assert.match(text, /"this_round"/);
+  assert.match(text, /"ever"/);
+  // An older module that never sent the list still gets the four strings, not free text.
+  assert.match(text, /"window" on damage_taken is required/);
+});
+
+test("caster means self when the asking module declared that subject", () => {
+  const text = describeVocabulary(DECLARED);
+  assert.match(text, /caster/);
+  assert.match(text, /-> "self"/);
+  // DECLARED has no trigger subject, so that alias row must not appear as a legal write.
+  assert.doesNotMatch(text, /-> "trigger"/);
+  assert.doesNotMatch(text, /-> "attacker"/);
+});
+
+test("reserved statuses are named only when this world already has one", () => {
+  assert.doesNotMatch(describeVocabulary(DECLARED), /Never emit apply_status/);
+  const withDead: Vocabulary = { ...DECLARED, statuses: ["speckled", "dead"] };
+  const text = describeVocabulary(withDead);
+  assert.match(text, /Never emit apply_status/);
+  assert.match(text, /dead/);
+});
+
+test("the user message tells the model the sheet numbers already fire", () => {
+  const text = composeUserMessage({
+    label: "Fire Bolt",
+    prose: "A mote of fire.",
+    structured: { damage: [{ formula: "1d10", types: ["fire"] }] },
+    context: { name: "Archmage" },
+  });
+  assert.match(text, /ALREADY EXECUTED/);
+  assert.match(text, /subject self/);
+  assert.match(text, /ABILITY: Fire Bolt/);
+  assert.match(text, /TEXT:/);
+});
+
+test("the repair prompt names the guard array in the singular", () => {
+  const text = composeRepairMessage(['rules[0]: unknown parameter "target"']);
+  assert.match(text, /condition, singular/);
+  assert.match(text, /the whole object/);
+  assert.match(text, /dropping a guard/);
 });
 
 test("a fenced reply still parses, because models fence even in JSON mode", () => {
