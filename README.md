@@ -9,8 +9,9 @@ design, with D&D 5e as the first-class test case.
 - real vector/RAG memory, queried at prompt-assembly time — either in-browser (zero setup) or via the
   standalone [`noodlr-memory`](https://github.com/gobsmacked1/noodlr-memory) service;
 - ground-truth state injected from Foundry itself (HP, initiative, conditions, scene contents, dice); and
-- a deliberate refusal to AI-ify mechanics that automation modules (Midi QoL, DAE, Chris's Premades,
-  Gambit's, …) already handle perfectly.
+- a deliberate refusal to AI-ify mechanics — those live in
+  [Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e) for D&D 5e, not in this
+  module and not in Midi QoL.
 
 > **Status: v0.5.x, pre-1.0.** Running and actively tested in a live Foundry world, but not yet at the
 > parity bar we've set for 1.0.0. Expect rough edges, and expect settings to move.
@@ -26,8 +27,10 @@ design, with D&D 5e as the first-class test case.
 1. **No hardcoded game-system rules.** Rules live in retrieval and in the model's own competence. The
    module ships zero rules logic, so it works for any system whose books you feed it.
 2. **Mechanics belong to mechanics modules.** Noodlr narrates, decides, and adjudicates; it never
-   re-implements what a mundane automation module resolves instantly and for free. Its own rules
-   automation lives in a separate, optional module for the same reason.
+   re-implements what a mundane automation module resolves instantly and for free. For D&D 5e that
+   module is [Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e). **Midi QoL, Chris's
+   Premades, Gambit's Premades and Automated Conditions 5e are not compatible** with that stack —
+   disable them, and ingest DDB content with Midi / DAE automation flags off.
 3. **Two provider shapes only.** OpenRouter (API key) or any hand-entered OpenAI-compatible base URL
    (+ optional key), applied uniformly to chat, embeddings, rerank, TTS, image, music, video, and
    transcription. No per-vendor client zoo, no asking you for six consumer API keys.
@@ -42,7 +45,8 @@ design, with D&D 5e as the first-class test case.
   voice, images, music, video, transcription — is optional and configured independently.
 - **A rules module is optional.** Without one, Noodlr plays a game it is told about rather than one it
   enforces. With [Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e), it also hears
-  every ruling as it happens and speaks for the creatures the planner is running.
+  every ruling as it happens and speaks for the creatures the planner is running. Do not also run
+  Midi QoL (or the other combat-automation packages named above) beside that module.
 - **Memory is optional to set up.** The default backend runs entirely in your browser with a bundled
   embedding model and needs no server, no key, and no configuration. Point Noodlr at a
   [`noodlr-memory`](https://github.com/gobsmacked1/noodlr-memory) service instead when you want memory

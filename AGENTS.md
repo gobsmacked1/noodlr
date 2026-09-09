@@ -404,15 +404,15 @@ half of the prompt that is composed at request time, so a world that already sto
    months at a stretch, so anything built on it strands the table when it lapses. The rule is *learn
    from them, depend on none of them*. Read their source to find out how a thing is done, then implement
    it against core Foundry and the game system's own API, which are the only two things guaranteed to be
-   there. Where a module IS present it may raise fidelity — our item-use path already routes through
-   midi when it exists, so reactions get its full workflow — but every feature must work with nothing
-   installed but Foundry and a system. Principle #2 below (mechanics belong to mechanics modules) is
-   about not *duplicating* their work when they are present; it is not licence to require them.
+   there. Every feature must work with nothing installed but Foundry and a system. **Amended
+   2026-09-03:** operators are advised that Midi QoL, Chris's Premades, Gambit's Premades and
+   Automated Conditions 5e are **not compatible** with `noodlr-hooks-55e`. Research them in
+   `_research`; do not add a route or stand-aside that presumes a user is hosting them. DDB
+   content was re-ingested with Midi / DAE automation flags off. This principle still explains
+   why noodlr never *requires* a rules module either.
    Corollary for detection triggers: prefer signals core cannot take away. Token position hooks and a
    hit-point decrease are available in every system and every version; "the attack roll is about to
-   resolve" is not. This principle now applies mainly to `noodlr-hooks-55e`, which is where every
-   third-party stand-aside lives; here it survives as the reason noodlr never *requires* a rules
-   module either.
+   resolve" is not.
 
 0. **Rules versus tactics (amended 2026-08-02, relocated 2026-08-08).** The distinction that unblocked
    the NPC combatant work — a module may know where a system keeps its numbers and which options are
@@ -1051,18 +1051,38 @@ every console record to a file, and opens a localhost port an agent can run diag
 cd C:\Project\noodlr-vtt\harness
 npm install && npm run setup      # once — `setup` fetches Playwright's Firefox
 npm run watch                     # log in by hand the first time; the profile remembers you
+npm run watch-player              # second Firefox, port 3112; log in as a player once
 ```
 
-- `logs/latest.log` is everything; `logs/latest.signal.log` is warnings, errors, failed requests, HTTP
-  4xx/5xx and anything matching `/noodlr/i`. **Both files are written, and the filtering is deliberate
-  rather than lazy:** the line that explains one of our failures is routinely an `info` from another
-  module, so the noisy file stays complete and the signal file is only a first read. Rotated on launch.
+- `logs/latest.log` is the **current slice**; `logs/latest.signal.log` is warnings, errors, failed
+  requests, HTTP 4xx/5xx and anything matching `/noodlr/i`. **Both files are written, and the
+  filtering is deliberate rather than lazy:** the line that explains one of our failures is routinely
+  an `info` from another module, so the noisy file stays complete and the signal file is only a first
+  read. The player instance writes the same pair under `logs-player/`.
+- **Slices roll without restarting the harness** (2026-09-09). Launch still archives whatever was
+  left in `latest.log`, but a harness that stays up overnight used to keep last night's DDB munch in
+  the same file as this afternoon's fight. Now it also rolls:
+  - **combat start** — our `perception: …; starting combat` line (before the initiative wait, so the
+    spots line is the first line of the fight). A GM who starts the tracker by hand is caught by a
+    2 s poll of `game.combat.started`.
+  - **combat end** — `combat ended` from `noodlr-hooks-55e` (logged on every `deleteCombat`, including
+    full automation, which never opted anyone in) plus the same poll. The finished slice is copied to
+    `logs/latest.combat.log` / `latest.combat.signal.log`.
+  - **idle hour** or **16 MB**, only when no fight is live, so a munch cannot grow unbounded and
+    cannot split a fight across two files.
+  Review a live fight in `latest.log`; review the one that just finished in `latest.combat.log`.
+  `POST /roll` forces a slice (body = reason). Restart the harness after this change.
+  **Archives older than seven days are deleted** on launch and after each roll — `latest.log`,
+  `latest.signal.log`, and the last-fight copies are never touched. `logs/llm/` captures age
+  the same way. Restart the harness after this change.
 - **`POST /eval` answers with the value AND the console output the call produced**, which is the half
   that carries the answer — most diagnostics in these two modules PRINT and return a count.
   `curl -s -X POST --data-raw "noodlrHooks.surveyCapabilities()" http://127.0.0.1:3111/eval`
-- Also `GET /health`, `GET /tail?n=200&signal=1`, `POST /screenshot`.
+- Player client: same endpoints on `http://127.0.0.1:3112`. Do not log a player into the GM profile —
+  that cookie is the GM session, and this class of bug is exactly the GM/player split.
+- Also `GET /health`, `GET /tail?n=200&signal=1`, `POST /roll`, `POST /screenshot`.
 - **Binds 127.0.0.1 only and must stay that way.** `/eval` runs arbitrary JavaScript inside a logged-in
-  GM session, which is every permission in the world plus whatever that browser can reach.
+  session, which is every permission that user has plus whatever that browser can reach.
 - **Playwright cannot attach to a browser that is already open.** It ships its own patched Firefox and
   speaks the Juggler protocol, so watching a stock Firefox is not possible at any price — do not go
   looking for the flag. The persistent profile is the mitigation: one manual login, then the cookie
@@ -1076,7 +1096,15 @@ npm run watch                     # log in by hand the first time; the profile r
   substitute: the version is pinned per Playwright release (1.62.1 wants `firefox-1538`).
 - The default target is `/vtt/join`, not `/vtt/`. Measured: the route root 301s onward and lands on
   `/vtt/auth`, the **admin** access-key page. `/join` redirects to `/game` once a session exists.
-- It sees the GM client only. Player-side errors need the in-module sink instead.
+- The default instance sees the GM client only. Player-side vision, fog, and console errors need
+  `npm run watch-player` (or the in-module sink if that Firefox is not running).
+- **Downloads survive shutdown (2026-09-07).** Playwright's `acceptDownloads` intercepts every file
+  and deletes it when the context closes — even with `downloadsPath` set — which made DDB Import
+  look broken. `watch-gm.mjs` now `saveAs`s each download into `C:\Install` (the profile's existing
+  `browser.download.dir`) or `harness/downloads` if that folder is missing. Override with
+  `--downloads` / `HARNESS_DOWNLOADS`. Restart the harness after this change; a running instance
+  still has the old interceptor. Playwright Firefox stays pinned at `firefox-1538` (Nightly 153)
+  until the `playwright` package is upgraded — desktop Firefox 155 is a different binary.
 
 ### What each diagnostic channel can actually see (2026-08-15)
 
