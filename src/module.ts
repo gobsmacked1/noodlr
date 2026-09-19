@@ -40,12 +40,6 @@ import { initChatSniffer } from "./log/chat-sniffer";
 import { initAdjudicationCapture } from "./players/adjudication";
 import { surveyPlayed } from "./util/played-survey";
 import { exportPacks } from "./dev/pack-export";
-import { loadBanter } from "./behavior/banter-library";
-import { registerBehaviorHooks } from "./behavior/listen";
-import { registerCapabilityCompiler } from "./capability/compile";
-import { getCapabilityModel } from "./capability/config";
-import { registerWatchListener } from "./watch/watch";
-import { detectHooksModules } from "./integration/hooks-modules";
 import {
   PLAYER_ASK,
   PLAYER_ACK,
@@ -77,11 +71,7 @@ export interface NoodlrApi {
   generateVideo(description: string): Promise<void>;
   togglePushToLog(): void;
   surveyPlayed(): Record<string, unknown>;
-  /** Every active `noodlr-hooks-*` rules module and what it says it enforces. */
-  hooksModules(): unknown;
-  /** Slug used to compile world rules. Independent of the chatbot. */
-  capabilityModel(): string;
-  /** Developer only: write compendiums to disk as JSONL for the offline rules miner. */
+  /** Developer only: write compendiums to disk as JSONL. */
   exportPacks(packIds: string[]): Promise<unknown>;
 }
 
@@ -129,13 +119,8 @@ const api: NoodlrApi = {
   togglePushToLog: () => pushToLog.toggle(),
   /** Which character each connected user is actually playing, versus the one Foundry falls back to. */
   surveyPlayed: () => surveyPlayed(),
-  /** Which rules modules are installed, and what each declares. First stop when rules go unenforced. */
-  hooksModules: () => detectHooksModules(),
-  /** The slug the compiler and Ready-trigger reader send. Not the chatbot. */
-  capabilityModel: () => getCapabilityModel(),
   /**
-   * Bulk export for the rules miner. Ticking sixty checkboxes is worse than one console call, and
-   * this is the path a repeat run will actually use:
+   * Bulk compendium export. Ticking sixty checkboxes is worse than one console call:
    *   api.exportPacks(game.packs.filter(p => p.metadata.packageName.startsWith("dnd-")).map(p => p.collection))
    */
   exportPacks: (packIds: string[]) =>
@@ -150,19 +135,6 @@ Hooks.once("init", () => {
   // Shared Handlebars partials for the config windows. Handlebars throws on a missing partial, so
   // this has to finish before a window can render — `init` is early enough that it always does.
   void registerNoodlrPartials();
-
-  // Listen for whichever `noodlr-hooks-*` rules module the table has installed. Registered on every
-  // client and at `init`, because a rules module may announce a turn before `ready` on a slow world,
-  // and because the taunt has to be spoken by the client that hears the hook, GM or not.
-  registerBehaviorHooks();
-
-  // The other direction of the same seam: a rules module handing us prose it cannot interpret. The
-  // listener declines on a non-GM client, so registering it everywhere is free.
-  registerCapabilityCompiler();
-
-  // And the same seam again for prose a PLAYER wrote: the trigger on a readied action. The rules
-  // module routes the question to the GM before firing it, and this declines off-GM regardless.
-  registerWatchListener();
 
   // Expose the API on the module entry so it's reachable as
   // game.modules.get("noodlr").api during development.
@@ -227,8 +199,6 @@ Hooks.once("ready", () => {
     initChatSniffer();
     // Players-bot adjudication: capture player rolls from chat to resolve pending checks.
     initAdjudicationCapture();
-    // Parsed once; a missing file just means silent monsters.
-    void loadBanter();
     // Pick up an ingest queue that a reload interrupted. Primary GM only, and only when memory is
     // still switched on: the expected behaviour is a GM queueing a shelf of compendia and going off
     // to play, so a refresh hours later must not quietly abandon a half-ingested world. Silent
@@ -348,8 +318,6 @@ Hooks.on("getSceneControlButtons", (controls: Record<string, any>) => {
         visible: !isGM,
         onChange: () => api.openPlayerChat(),
       },
-      // The Hide button moved out with the rules: declaring a Hide is a game-system question, so it
-      // belongs to whichever `noodlr-hooks-*` module knows what hiding means in this system.
     };
     if (isGM) {
       // One button per image generator (scene art, portrait, token, map), each with its icon.

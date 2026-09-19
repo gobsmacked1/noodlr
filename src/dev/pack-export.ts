@@ -252,8 +252,8 @@ function activationOf(system: any): string {
 function sourceOf(system: any, packageName: string): Record<string, unknown> {
   const source = system?.source ?? {};
   return {
-    // The Foundry module id. This is what `noodlr-hooks-55e` checks with `game.modules.get(id)`
-    // before applying a rule, so a table never enforces content the operator has not bought.
+    // The Foundry module id, so a consumer can check `game.modules.get(id)` before using content
+    // the operator has not bought.
     sourceBook: packageName,
     // The publisher's own book name where the pack bothers to fill it in. Empty throughout the SRD
     // content, commonly set in premium modules; treated as a label, never as the gate.

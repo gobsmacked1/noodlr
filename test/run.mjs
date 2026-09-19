@@ -6,8 +6,7 @@
 //
 // Only pure logic is testable this way: anything reading a Foundry global has nothing to read. That
 // is a useful constraint rather than a limitation — it keeps module-level code free of globals,
-// which is what lets the bundle import at all. Same runner as `noodlr-hooks-55e`, deliberately: two
-// short copies beat a shared package for fifty lines that almost never change.
+// which is what lets the bundle import at all.
 
 import { build } from "esbuild";
 import { readdirSync, rmSync } from "node:fs";

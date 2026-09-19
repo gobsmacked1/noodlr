@@ -2,6 +2,24 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.8.0
+
+**Noodlr no longer integrates with a rules module.** The companion project (Noodlr Hooks 5.5e) has been
+discontinued, so everything in Noodlr that existed only to talk to it has been removed: the detected
+rules-module entries in the game rules system picker, Behavioral automation, NPC banter, the world rules
+compiler (and its model and concurrency settings), the Ready-trigger reader, and the three prompt fields
+that drove them. The `hooksModules()` and `capabilityModel()` console calls are gone too.
+
+What this means at the table: Noodlr is an AI game master and media generator. It narrates, remembers,
+answers rules questions from the books you ingested, generates art, voice, music and video, and reads the
+live Foundry state (combat tracker, scene, time) into every prompt. It does not roll attacks, apply
+damage, enforce conditions or play monsters — use your game system's own automation modules for that,
+whichever of them support your system version. Noodlr requires none of them and conflicts with none.
+
+Nothing else changed. If your game rules system setting was pointed at a detected rules module, it now
+reads as the default (Dungeons & Dragons Fifth Edition (2024)); pick a different system from the list if
+that is not what you play. Settings the removed features stored in your world are ignored and harmless.
+
 ## 0.7.9
 
 **A Ready trigger written in a player's own words now maps their verbs onto the closed list of

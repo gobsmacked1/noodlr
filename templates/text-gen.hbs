@@ -49,13 +49,6 @@
       <label>{{localize "NOODLR.Settings.Ruleset.Name"}}</label>
       <p class="notes">{{localize "NOODLR.Settings.Ruleset.Hint"}}</p>
       <select name="rulesetChoice" data-role="ruleset-choice">
-        {{#if ruleset.hooks.length}}
-          <optgroup label="{{localize 'NOODLR.Settings.Ruleset.HooksGroup'}}">
-            {{#each ruleset.hooks}}
-              <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
-            {{/each}}
-          </optgroup>
-        {{/if}}
         <optgroup label="{{localize 'NOODLR.Settings.Ruleset.ManualGroup'}}">
           <option value="auto" {{#if ruleset.isAuto}}selected{{/if}}>
             {{localize "NOODLR.Settings.Ruleset.Auto"}}{{#if ruleset.detected}} — {{ruleset.detected}}{{/if}}
@@ -66,9 +59,6 @@
           <option value="custom" {{#if ruleset.isCustom}}selected{{/if}}>{{localize "NOODLR.Settings.Ruleset.Custom"}}</option>
         </optgroup>
       </select>
-      {{#each ruleset.hooks}}
-        {{#if this.warning}}<p class="notes warning">{{this.warning}}</p>{{/if}}
-      {{/each}}
       <div data-role="ruleset-custom">
         <input type="text" name="rulesetCustom" value="{{ruleset.custom}}"
           maxlength="{{ruleset.customMax}}" autocomplete="off"
@@ -80,64 +70,8 @@
       </p>
     </div>
 
-    {{! Rules enforcement lives in a noodlr-hooks-* module. What Noodlr owns is the voice: when a
-        creature decides to run, yield, or talk its way out, this is what plays that out. }}
-    <div class="noodlr-integration {{#unless hooks.any}}noodlr-integration--inactive{{/unless}}">
-      {{#if hooks.any}}
-        <p class="notes">
-          <i class="fa-solid fa-plug-circle-check"></i>
-          {{localize "NOODLR.Settings.Hooks.Detected"}}
-          {{#each hooks.list}}
-            <br /><strong>{{this.title}}</strong> {{this.version}}{{#if this.capabilities}} — {{this.capabilities}}{{/if}}
-          {{/each}}
-        </p>
-      {{else}}
-        <p class="notes">
-          <i class="fa-solid fa-plug-circle-xmark"></i>
-          {{localize "NOODLR.Settings.Hooks.None"}}
-        </p>
-      {{/if}}
-
-      {{! Greyed, never `disabled`: a disabled checkbox submits nothing, so saving this form with no
-          hooks module installed would quietly turn both of these off. Same reasoning as the
-          backend-graying in the Memory window. }}
-      <label class="noodlr-inline">
-        <input type="checkbox" name="behavior" {{#if behavior}}checked{{/if}} />
-        {{localize "NOODLR.Behavior.Enabled.Name"}}
-      </label>
-      <p class="notes">{{localize "NOODLR.Behavior.Enabled.Hint"}}</p>
-
-      <label class="noodlr-inline">
-        <input type="checkbox" name="npcBanter" {{#if npcBanter}}checked{{/if}} />
-        {{localize "NOODLR.Behavior.Banter.Name"}}
-      </label>
-      <p class="notes">{{localize "NOODLR.Behavior.Banter.Hint"}}</p>
-
-      <label class="noodlr-inline">
-        <input type="checkbox" name="capability" {{#if capability.enabled}}checked{{/if}} />
-        {{localize "NOODLR.Capability.Enabled.Name"}}
-      </label>
-      <p class="notes">{{localize "NOODLR.Capability.Enabled.Hint"}}</p>
-
-      <div class="noodlr-field">
-        <label>{{localize "NOODLR.Capability.Concurrency.Name"}}</label>
-        <p class="notes">{{localize "NOODLR.Capability.Concurrency.Hint"}}</p>
-        <input type="number" name="capabilityConcurrency" value="{{capability.concurrency}}"
-          min="1" max="12" step="1" />
-      </div>
-
-      <label class="noodlr-inline">
-        <input type="checkbox" name="watch" {{#if watch}}checked{{/if}} />
-        {{localize "NOODLR.Watch.Enabled.Name"}}
-      </label>
-      <p class="notes">{{localize "NOODLR.Watch.Enabled.Hint"}}</p>
-    </div>
-
     {{> noodlrPromptField playersPrompt}}
     {{> noodlrPromptField adjudicationPrompt}}
-    {{> noodlrPromptField behaviorPrompt}}
-    {{> noodlrPromptField capabilityPrompt}}
-    {{> noodlrPromptField watchPrompt}}
   </fieldset>
 
   {{! ---- Context & injections ---- }}
@@ -183,17 +117,5 @@
       {{localize "NOODLR.Prompt.TipsterPlayers.Name"}}
     </label>
     <p class="notes">{{localize "NOODLR.Prompt.TipsterPlayers.Hint"}}</p>
-  </fieldset>
-
-  {{! Compile slug is independent of Chat: a cheap schema-follower is the wrong voice for the campaign. }}
-  <fieldset class="noodlr-settings__section">
-    <legend><i class="fa-solid fa-gears"></i> {{localize "NOODLR.Capability.CompileLegend"}}</legend>
-    <div class="noodlr-field">
-      <label>{{localize "NOODLR.Capability.Model.Name"}}</label>
-      <p class="notes">{{localize "NOODLR.Capability.Model.Hint"}}</p>
-      <input type="text" name="capabilityModel" value="{{capability.model}}" autocomplete="off"
-        list="noodlr-or-models"
-        placeholder="{{localize 'NOODLR.Capability.Model.Placeholder'}}" />
-    </div>
   </fieldset>
 </section>

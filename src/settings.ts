@@ -12,9 +12,6 @@ import { registerFeatureProviderSettings } from "./providers/config";
 import { registerRagSettings } from "./rag/config";
 import { registerPromptSettings } from "./prompt/settings";
 import { registerMediaSettings } from "./media/config";
-import { registerBehaviorSettings } from "./behavior/config";
-import { registerCapabilitySettings } from "./capability/config";
-import { registerWatchSettings } from "./watch/watch";
 import { registerRulesetSettings } from "./system/ruleset";
 
 export function registerSettings(): void {
@@ -79,16 +76,6 @@ export function registerSettings(): void {
 
   // Media features (TTS, Image, push-to-log transcription).
   registerMediaSettings();
-
-  // Behavioral automation: the voice given to a creature that flees, yields, or parleys.
-  registerBehaviorSettings();
-
-  // The capability compiler: reading a creature's own written abilities into rules a hooks module
-  // can execute.
-  registerCapabilitySettings();
-
-  // Reading a Ready action's trigger, which a player writes in their own words.
-  registerWatchSettings();
 
   // Five topic windows, registered in the order they should appear: memory, then the three
   // generation domains, then credentials. Each opens its own page rather than adding another

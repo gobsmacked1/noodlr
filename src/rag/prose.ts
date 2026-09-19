@@ -13,18 +13,9 @@
 // beside them, so the failure mode is a bot telling a player that their GM applies something by hand
 // — advice about our software, delivered as if it were advice about the game.
 //
-// WHY THIS IS A SEPARATE, SMALLER JOB THAN THE RULES MODULE'S. `noodlr-hooks-55e` scrubs the same
-// notes out of a creature's prose before a model compiles it into a machine-readable descriptor, and
-// there the stakes are much higher: the Troll's note is a plain-English instruction NOT to emit the
-// effect the rule states, a well-behaved model obliges, and the rule silently vanishes with nothing
-// anywhere reporting it. Here the worst case is a badly-worded answer. So this file takes the half of
-// that predicate which pays for itself — hidden sections that talk about the software — and
-// deliberately does not attempt the rest; see `keepOpenProse` below.
-//
-// It is a DELIBERATE SECOND COPY of that module's vocabulary, not an import. Neither module depends
-// on the other and that is the architecture, the same call already made for the title-bar Save
-// button. Twenty lines is cheaper than the coupling, and the two are allowed to diverge because they
-// are answering slightly different questions.
+// THE SCOPE IS DELIBERATELY SMALL. The worst case here is a badly-worded answer, so this file drops
+// only the half that pays for itself — hidden sections that talk about the software — and does not
+// attempt sentence-level scrubbing of open prose; see `keepOpenProse` below.
 
 /** A section `enrichHTML` hides from players. */
 const SECRET =
@@ -36,7 +27,7 @@ const SECRET =
  * Narrow on purpose: a rule is a statement about a world with creatures and dice in it, and it has
  * no reason to mention a tab, an Active Effect or a module. Every term was taken from a note that
  * exists in the shipped dnd5e corpus and then measured against all 31,845 of its ability
- * descriptions (`npm run census:notes` in `noodlr-hooks-55e`).
+ * descriptions (2026-08-15).
  *
  * `compendium` is deliberately absent and is the omission worth knowing about: it reads as pure
  * tooling and is not, because `@UUID[Compendium.dnd5e.…]` is how a link to a spell is written, so
@@ -63,8 +54,7 @@ const TOOLING = new RegExp(
 /**
  * Drop hidden sections that are about the software, and keep every other one.
  *
- * **THE CONDITION IS NOT OPTIONAL POLISH HERE — IT IS THE WHOLE SAFETY ARGUMENT, and the reasoning
- * is stronger on this side of the wire than on the rules module's.** `class="secret"` is what a GM
+ * **THE CONDITION IS NOT OPTIONAL POLISH HERE — IT IS THE WHOLE SAFETY ARGUMENT.** `class="secret"` is what a GM
  * marks their own campaign secrets with: the villain's real name, what is actually behind the door,
  * the faction's plan. Those are precisely what the `gm_*` silos exist to hold, so a scrubber that
  * dropped hidden sections wholesale would quietly delete the most valuable thing a GM ingests, and
@@ -95,11 +85,10 @@ export function dropMetaAsides(html: string): { html: string; removed: number } 
 }
 
 /**
- * Why sentence-level scrubbing of open prose is NOT done here, though the rules module does it.
+ * Why sentence-level scrubbing of open prose is NOT done here.
  *
- * There, an instruction reaching the compiler can suppress a rule outright, so the cost of missing
- * one is a creature that silently stops doing what its stat block says. Here the cost is one noisy
- * retrieved chunk. And the risk runs the other way: this path ingests whatever a GM uploads — their
+ * The cost of a missed note is one noisy retrieved chunk. The risk of deleting runs the other way:
+ * this path ingests whatever a GM uploads — their
  * own journals, their own lore, their own homebrew — where a sentence deleter working on an
  * eleven-term vocabulary will eventually eat a line of somebody's campaign and never mention it.
  *

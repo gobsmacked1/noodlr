@@ -59,7 +59,7 @@ if ($dangling.Count) { Fail ("dangling chunk references:`n  " + ($dangling -join
 # localModelPath from modules/noodlr/models/, so Memory Lite has no remote fallback.
 $weights = "models/Xenova/all-MiniLM-L6-v2/onnx/model_quantized.onnx"
 $paths = @(
-  "banter", "dist", "lang", "models", "prompts", "styles", "templates",
+  "dist", "lang", "models", "prompts", "styles", "templates",
   "changelog.md", "LICENSE", "module.json", "README.md"
 )
 foreach ($p in $paths) {
@@ -76,7 +76,7 @@ $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path module.zip))
 try {
   $required = @(
     "module.json", "dist/noodlr.js", "dist/ort/ort-wasm-simd-threaded.asyncify.wasm",
-    "lang/en.json", "styles/noodlr.css", "banter/banter.txt", "templates/partials/", $weights
+    "lang/en.json", "styles/noodlr.css", "templates/partials/", $weights
   )
   foreach ($r in $required) {
     if (-not ($zip.Entries | Where-Object { $_.FullName -like "$r*" })) { Fail "zip is missing $r" }

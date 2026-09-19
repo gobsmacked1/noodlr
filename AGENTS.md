@@ -58,9 +58,11 @@ find in commit history, the changelog, or a backup of another module.
    architecture, media generation, push-to-log transcription, the Tipster live scene briefing and
    the ground-truth combat state block. The goal is polish and a 1.0.0.
 
-7. **The hooks integration inside noodlr is dead code and comes out next** (task list below).
-   Until it is removed it is harmless: every listener is gated on a `noodlr-hooks-*` module being
-   active, and none is.
+7. **The hooks integration inside noodlr was removed in v0.8.0 (2026-09-19).** `src/behavior/`,
+   `src/capability/`, `src/watch/`, `src/integration/`, the `banter/` library, their settings,
+   prompt fields, i18n keys and the `hooksModules()` / `capabilityModel()` console calls are gone.
+   Nothing in this repo listens for a `noodlrHooks.*` hook. A reference you find to any of it is
+   stale documentation — delete it. The done record is below.
 
 ### Standing "do not" list
 
@@ -80,69 +82,24 @@ find in commit history, the changelog, or a backup of another module.
 - Do not read the hooks `AGENTS.md` backup for guidance on this repo. It describes a module that
   no longer exists and is full of dnd5e internals this module must not learn.
 
-### First task for the next session — remove the rules-module integration, ship v0.8.0
+### Done record — v0.8.0 removed the rules-module integration (2026-09-19)
 
-Current version is 0.7.9. Everything below was written against `noodlrHooks.*` hooks that only
-`noodlr-hooks-55e` ever fired. **Delete outright; do not stub or feature-flag.** Minor bump
-(0.8.0) because features and settings are removed.
+Deleted whole: `src/behavior/`, `src/capability/`, `src/watch/`, `src/integration/`, `banter/`,
+and the four tests that imported only from them. Unwound: `src/module.ts`, `src/settings.ts`,
+`src/constants.ts`, `src/apps/text-gen-app.ts`, `templates/text-gen.hbs`, `src/system/ruleset.ts`,
+`src/chat/conversation.ts`, `src/prompts/fields.ts`, `src/prompts/index.ts`, `lang/en.json`,
+`styles/noodlr.css`, `scripts/package.ps1`, `README.md`, `changelog.md`. `npm run check`, `lint`,
+`build` and `test` (7/7) were green afterwards. The `hooks` parameter of `Conversation.send()` is
+the chat panel's callback bag and was never related.
 
-The call sites below were measured on 2026-09-19 with
-`rg -n -i -w 'capability|behavior|watch|noodlrHooks|hooks' src templates lang`. Work from this
-list; do not widen the search into `rag/`, `providers/`, `apps/config-base.ts` or
-`apps/provider-ui.ts` — those only contain the ordinary English word "behavior" and need no change.
+Two things survive on purpose — do not "clean them up":
+- `LEGACY_HOOKS_PREFIX` (`"hooks:"`) in `src/system/ruleset.ts`. Worlds on 0.5–0.7 could store a
+  ruleset picker value of `hooks:<module id>`; `rulesetChoice()` reads that as the shipped default
+  so every prompt still names a system. A one-line migration, not dead code.
+- `NOODLR.Settings.BehaviorLegend` in `lang/en.json` and the fieldset it labels in
+  `templates/text-gen.hbs`. Despite the name it holds the Tipster and memory-write toggles.
 
-Delete whole:
-- `src/behavior/` (awareness, banter, banter-library, config, listen, narrate),
-  `src/capability/` (client, compile, config, vocabulary), `src/watch/watch.ts`,
-  `src/integration/hooks-modules.ts` (drop each folder once empty).
-- `banter/` at the module root (the taunt library only `src/behavior/banter.ts` read), and its
-  two mentions in `scripts/package.ps1` (the payload list near line 62 and the zip assertion near
-  line 79 — remove `"banter"` and `"banter/banter.txt"`, keep everything else).
-- Tests `test/client.test.ts`, `test/vocabulary.test.ts`, `test/watch.test.ts`,
-  `test/capability-model.test.ts` — they import only from the deleted folders. Keep
-  `test/prose.test.ts` (RAG prose stripping) and `test/run.mjs`.
-
-Then unwind the callers:
-- `src/module.ts` — the six imports near lines 43–48 (`loadBanter`, `registerBehaviorHooks`,
-  `registerCapabilityCompiler`, `getCapabilityModel`, `registerWatchListener`,
-  `detectHooksModules`), the `hooksModules` / `capabilityModel` entries on the exposed `api`
-  object (near line 80), and their `init` / `ready` calls. A comment near line 352 mentions the
-  rules module; reword or drop it.
-- `src/settings.ts` — the three imports and calls `registerBehaviorSettings`,
-  `registerCapabilitySettings`, `registerWatchSettings`.
-- `src/constants.ts` — the `BEHAVIOR_SETTINGS`, `CAPABILITY_SETTINGS`, `WATCH_SETTINGS` blocks
-  (roughly lines 86–140) and their doc comments. Nothing else in that file is involved.
-- `src/apps/text-gen-app.ts` — the imports near lines 12–14 and 30–47, `detectHooksModules()`
-  near line 91, the `hooks:` / `behavior` / `capability` / `watch` / `*Prompt` context entries
-  near lines 116–153, and the `hooks:` prefix acceptance in the save handler near line 184.
-- `templates/text-gen.hbs` — the `ruleset.hooks` optgroup and `{{#each ruleset.hooks}}` hint
-  (lines ~52–70) and the whole `noodlr-integration` fieldset (lines ~83–140: detected-modules
-  list, Behavioral automation, NPC banter, capability compiler, concurrency, watch, and the three
-  `noodlrPromptField` partials). **Keep the fieldset near line 165 whose legend is
-  `NOODLR.Settings.BehaviorLegend`** — despite the name it holds the Tipster and memory-write
-  toggles, which stay.
-- `src/system/ruleset.ts` — `RULESET_HOOKS_PREFIX`, `hooksRulesetOptions`, `hooksModuleById` and
-  the detected-modules group. **Keep** the curated system list, `auto`, `custom`, and the default
-  "Dungeons & Dragons Fifth Edition (2024)" (that default is the v0.4.20 fix; do not regress it).
-- `src/chat/conversation.ts` — the `buildRulingsBlock` / `clearRulings` import from
-  `behavior/awareness` (line ~22) and the rulings block it feeds into the state slot (comment near
-  line 115). The `hooks` parameter of `send()` is the panel's callback bag, unrelated; leave it.
-- `src/prompts/fields.ts` — the three `PROMPT_FIELDS` entries keyed `behavior.systemPrompt`,
-  `capability.systemPrompt`, `watch.systemPrompt`. `src/prompts/index.ts` — their default texts
-  (the sections introduced near lines 93, 240 and 294, including `WATCH_TRIGGER_PROMPT`).
-- `lang/en.json` — every `NOODLR.Behavior.*`, `NOODLR.Capability.*`, `NOODLR.Watch.*` key, plus
-  `NOODLR.Settings.Ruleset.HooksGroup` and `NOODLR.Settings.Hooks.*`. **Keep
-  `NOODLR.Settings.BehaviorLegend`.** Then grep the file for "rules module", "companion" and
-  "noodlr-hooks" and reword those hints.
-- Comment-only mentions that may stay or be trimmed: `src/rag/prose.ts` (lines ~16 and ~39),
-  `src/dev/pack-export.ts` (line ~255).
-- `README.md` — the "Combat, and the rules modules" section and every link to noodlr-hooks-55e;
-  rewrite the compatibility paragraph to say mechanics are the community modules' job and noodlr
-  requires none of them.
-- `changelog.md` — add the 0.8.0 entry in user-facing language.
-- Settings left behind in existing worlds are harmless (Foundry ignores unregistered keys).
-- Then `npm run check`, `npm run lint`, `npm run build`, `npm run package`, and the release
-  discipline below. Verify the assets.
+Settings the removed features left in existing worlds are ignored by Foundry and harmless.
 
 ### What 1.0.0 means now
 
@@ -200,7 +157,7 @@ itself, and a refusal to AI-ify mechanics that automation modules handle determi
 7. **A capability that switches itself off must say so in the interface** (a greyed control or an
    advisory), never only in a comment. Every stand-aside or degradation in this repo follows that.
 
-## What ships today (v0.7.9) — by folder
+## What ships today (v0.8.0) — by folder
 
 - `src/providers/` — per-feature `{provider, baseUrl, apiKey, model}` config; one shared
   OpenRouter key (`SETTINGS.openrouterApiKey`, world scope, write-only in the DOM); streaming SSE
@@ -353,7 +310,7 @@ The default Chat system prompt is preserved verbatim in `prompts/dm-system-promp
 
 ## Remaining roadmap (noodlr only)
 
-1. **v0.8.0 — remove the rules-module integration** (READ FIRST task list).
+1. ~~v0.8.0 — remove the rules-module integration~~ — done 2026-09-19 (READ FIRST done record).
 2. **Prompt defaults:** the `TBD_IGNORE_ME_FOR_NOW` placeholders in `src/prompts/fields.ts`
    (image positive/negative except Map's positive, `authorNote`, `postHistory`) need real text;
    the user is writing it.

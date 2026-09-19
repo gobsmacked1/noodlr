@@ -5,14 +5,7 @@
 // plus the injection slots. The scalars and toggles here used to sit in Foundry's own settings list,
 // where they were separated from the prompts they modify.
 
-import {
-  MODULE_ID,
-  MODULE_TITLE,
-  SETTINGS,
-  BEHAVIOR_SETTINGS,
-  CAPABILITY_SETTINGS,
-  WATCH_SETTINGS,
-} from "../constants";
+import { MODULE_ID, MODULE_TITLE, SETTINGS } from "../constants";
 import { promptFieldView } from "../prompts/fields";
 import { ASSISTANT_NAME_MAX_LENGTH, getAssistantName } from "../chat/assistant";
 import { sanitizeUserText } from "../util/sanitize";
@@ -27,24 +20,14 @@ import {
   isTipsterEnabled,
 } from "../prompt/settings";
 import { CONFIG_WINDOW_DEFAULTS, NoodlrConfigApp } from "./config-base";
-import { isBehaviorEnabled, isNpcBanterEnabled } from "../behavior/config";
-import {
-  getCapabilityConcurrency,
-  getCapabilityModel,
-  isCapabilityCompilerEnabled,
-  resolveCapabilityModel,
-} from "../capability/config";
-import { isWatchEnabled } from "../watch/watch";
-import { detectHooksModules } from "../integration/hooks-modules";
 import {
   detectedSystemLabel,
   getRulesetName,
-  hooksRulesetOptions,
+  rulesetChoice,
   RULESET_AUTO,
   RULESET_CHOICES,
   RULESET_CUSTOM,
   RULESET_DEFAULT,
-  RULESET_HOOKS_PREFIX,
   RULESET_NAME_MAX_LENGTH,
 } from "../system/ruleset";
 
@@ -87,8 +70,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
 
   async _prepareContext(): Promise<Record<string, unknown>> {
     const p = "NOODLR.Feature.Chat";
-    const choice = String(game.settings.get(MODULE_ID, SETTINGS.rulesetChoice) ?? RULESET_DEFAULT);
-    const hooksModules = detectHooksModules();
+    const choice = rulesetChoice();
     return {
       moduleTitle: MODULE_TITLE,
       version: game.modules.get(MODULE_ID)?.version ?? "",
@@ -112,35 +94,11 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
         customMax: RULESET_NAME_MAX_LENGTH,
         detected: detectedSystemLabel(),
         resolved: getRulesetName(),
-        // A rules module states the revision it automates, which detection never can, so those come
-        // first. The curated list stays below for a table running Noodlr with no hooks module.
-        hooks: hooksRulesetOptions(choice),
         // Marked so the picker can pre-select without a Handlebars equality helper.
         options: RULESET_CHOICES.map((name) => ({ name, selected: name === choice })),
         isAuto: choice === RULESET_AUTO,
         isCustom: choice === RULESET_CUSTOM,
       },
-
-      // Everything that automates a game system's rules now lives in a `noodlr-hooks-*` module. With
-      // none installed the integration controls are inert, so they render greyed with a line saying
-      // why rather than silently doing nothing when switched on.
-      hooks: {
-        any: hooksModules.length > 0,
-        list: hooksModules.map((m) => ({
-          title: m.title,
-          version: m.version,
-          capabilities: (m.capabilities ?? []).join(", "),
-        })),
-      },
-      behavior: isBehaviorEnabled(),
-      npcBanter: isNpcBanterEnabled(),
-      capability: {
-        enabled: isCapabilityCompilerEnabled(),
-        // Resolved, not raw: an empty stored value now means the default compile slug, not Chat.
-        model: getCapabilityModel(),
-        concurrency: getCapabilityConcurrency(),
-      },
-      watch: isWatchEnabled(),
 
       chatPrompt: promptFieldView(SETTINGS.chatSystemPrompt),
       playersPrompt: promptFieldView(SETTINGS.playersSystemPrompt),
@@ -148,9 +106,6 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
       authorNote: promptFieldView(SETTINGS.authorNote),
       postHistory: promptFieldView(SETTINGS.postHistory),
       combatReminder: promptFieldView(SETTINGS.combatReminder),
-      behaviorPrompt: promptFieldView(BEHAVIOR_SETTINGS.systemPrompt),
-      capabilityPrompt: promptFieldView(CAPABILITY_SETTINGS.systemPrompt),
-      watchPrompt: promptFieldView(WATCH_SETTINGS.systemPrompt),
 
       authorNoteDepth: getAuthorNoteDepth(),
       contextTokenBudget: getContextBudget(),
@@ -181,11 +136,7 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
 
     const choice = String(o.rulesetChoice ?? RULESET_DEFAULT);
     const known: string[] = [RULESET_AUTO, RULESET_CUSTOM, ...RULESET_CHOICES];
-    // A `hooks:` choice is accepted on its prefix rather than checked against the detected list: a
-    // module can be disabled between rendering the form and saving it, and throwing the GM's choice
-    // away for that would be worse than keeping a selection that falls back to detection.
-    const validChoice = known.includes(choice) || choice.startsWith(RULESET_HOOKS_PREFIX);
-    await set(SETTINGS.rulesetChoice, validChoice ? choice : RULESET_DEFAULT);
+    await set(SETTINGS.rulesetChoice, known.includes(choice) ? choice : RULESET_DEFAULT);
     await set(
       SETTINGS.rulesetCustom,
       sanitizeUserText(o.rulesetCustom, {
@@ -193,26 +144,6 @@ export class NoodlrTextGenApp extends NoodlrConfigApp {
         allowNewlines: false,
       }).replace(/[^\x20-\x7e]/g, ""),
     );
-
-    await set(BEHAVIOR_SETTINGS.enabled, Boolean(o.behavior));
-    await set(BEHAVIOR_SETTINGS.banter, Boolean(o.npcBanter));
-
-    await set(CAPABILITY_SETTINGS.enabled, Boolean(o.capability));
-    // A model slug, so the same ASCII discipline as the assistant's name: it goes into a request
-    // body, and a smart quote pasted from a web page is a 400 nobody can see the cause of.
-    await set(
-      CAPABILITY_SETTINGS.model,
-      resolveCapabilityModel(
-        sanitizeUserText(o.capabilityModel, { maxLength: 200, allowNewlines: false }).replace(
-          /[^\x20-\x7e]/g,
-          "",
-        ),
-      ),
-    );
-    const lanes = Number(o.capabilityConcurrency);
-    await set(CAPABILITY_SETTINGS.concurrency, lanes >= 1 && lanes <= 12 ? Math.round(lanes) : 4);
-
-    await set(WATCH_SETTINGS.enabled, Boolean(o.watch));
 
     await this.savePromptFields(form);
 

@@ -9,28 +9,25 @@ design, with D&D 5e as the first-class test case.
 - real vector/RAG memory, queried at prompt-assembly time — either in-browser (zero setup) or via the
   standalone [`noodlr-memory`](https://github.com/gobsmacked1/noodlr-memory) service;
 - ground-truth state injected from Foundry itself (HP, initiative, conditions, scene contents, dice); and
-- a deliberate refusal to AI-ify mechanics — those live in
-  [Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e) for D&D 5e, not in this
-  module and not in Midi QoL.
+- a deliberate refusal to AI-ify mechanics — those belong to the game system and to the community
+  automation modules, not to this module.
 
-> **Status: v0.5.x, pre-1.0.** Running and actively tested in a live Foundry world, but not yet at the
+> **Status: v0.8.x, pre-1.0.** Running and actively tested in a live Foundry world, but not yet at the
 > parity bar we've set for 1.0.0. Expect rough edges, and expect settings to move.
 >
-> **0.5.0 removed the D&D 5e rules automation** that had accumulated here — the action economy, Speed,
-> conditions, dying, concentration, stealth, forced movement, reactions and the monster tactics planner
-> — into a separate module, [Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e).
-> Install that alongside this one to get all of it back, plus everything since. Noodlr is once again a
-> game-system-agnostic AI game master, which is what principle 1 always said it was.
+> **0.8.0 removed the last of the rules-module integration.** Noodlr no longer looks for, listens to,
+> or compiles rules for any companion module. It is a game-system-agnostic AI game master, which is
+> what principle 1 always said it was; enforcing the rules is the job of the game system and the
+> automation modules written for it.
 
 ## Design principles
 
 1. **No hardcoded game-system rules.** Rules live in retrieval and in the model's own competence. The
    module ships zero rules logic, so it works for any system whose books you feed it.
 2. **Mechanics belong to mechanics modules.** Noodlr narrates, decides, and adjudicates; it never
-   re-implements what a mundane automation module resolves instantly and for free. For D&D 5e that
-   module is [Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e). **Midi QoL, Chris's
-   Premades, Gambit's Premades and Automated Conditions 5e are not compatible** with that stack —
-   disable them, and ingest DDB content with Midi / DAE automation flags off.
+   re-implements what a mundane automation module resolves instantly and for free. Run whichever
+   automation modules your game system has (for D&D 5e: Midi QoL, DAE and their relatives, once they
+   support your dnd5e version). Noodlr requires none of them and conflicts with none of them.
 3. **Two provider shapes only.** OpenRouter (API key) or any hand-entered OpenAI-compatible base URL
    (+ optional key), applied uniformly to chat, embeddings, rerank, TTS, image, music, video, and
    transcription. No per-vendor client zoo, no asking you for six consumer API keys.
@@ -43,10 +40,8 @@ design, with D&D 5e as the first-class test case.
 - **Foundry VTT v13 or newer** (verified against v14).
 - **An OpenRouter API key**, or any OpenAI-compatible endpoint, for chat. Everything else — memory,
   voice, images, music, video, transcription — is optional and configured independently.
-- **A rules module is optional.** Without one, Noodlr plays a game it is told about rather than one it
-  enforces. With [Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e), it also hears
-  every ruling as it happens and speaks for the creatures the planner is running. Do not also run
-  Midi QoL (or the other combat-automation packages named above) beside that module.
+- **No other module.** Noodlr plays the game it is told about (the **game rules system** setting) and
+  enforces nothing itself; pair it with your system's own automation modules for mechanics.
 - **Memory is optional to set up.** The default backend runs entirely in your browser with a bundled
   embedding model and needs no server, no key, and no configuration. Point Noodlr at a
   [`noodlr-memory`](https://github.com/gobsmacked1/noodlr-memory) service instead when you want memory
@@ -157,32 +152,13 @@ and post-history instructions last.
 Every generated artifact arrives as a chat card with Retry and Reject for 60 seconds before it commits
 to memory.
 
-### Combat, and the rules modules
+### Combat
 
 A ground-truth state block is rebuilt from Foundry's own combat tracker each turn — initiative, HP
 (tiered for enemies), conditions, and zone positions — and injected as authoritative context, so the
-model narrates from real state instead of copying its own last message. That much needs nothing else
-installed and works in any system.
-
-Everything beyond it comes from a companion rules module. Noodlr looks for any active module named
-`noodlr-hooks-*`, reads what it declares it enforces, and lists it at the top of the **game rules
-system** picker; with none installed, the game-system integration controls grey out and Noodlr behaves
-as a detached chatbot and media generator. Today that means
-[Noodlr Hooks 5.5e](https://github.com/gobsmacked1/noodlr-hooks-55e), which enforces D&D 5e (2024) and
-plays monsters through a deterministic tactical planner with no AI cost.
-
-When one is present, **Behavioral automation** (on by default) gives Noodlr the social half of combat:
-
-- every ruling the rules module makes is announced to Noodlr, so the chatbots know what happened at the
-  table and can adjudicate, undo or overrule it;
-- a creature that decides to flee, surrender or spare the party asks Noodlr to play that scene — in its
-  own voice, aloud, if TTS is on. Bribery, parley, intimidation, deception, ambush and distraction are
-  declared and wired, waiting on triggers;
-- an automated creature's turn is offered to Noodlr before it is announced, which is where monster
-  banter comes from.
-
-Neither module needs the other, and the hook names are generic, so a future `noodlr-hooks-pf2e` would
-be understood without a change here.
+model narrates from real state instead of copying its own last message. Rules questions asked during a
+fight automatically search the `system_rules` memory silo. Noodlr narrates the fight; it does not roll
+attacks, apply damage, or play the monsters — that is the game system's and its automation modules' job.
 
 ## Chat commands
 
@@ -211,7 +187,7 @@ Settings live in five windows under **Game Settings**, each opening its own page
 | Window | Holds |
 | --- | --- |
 | **Memory Configuration** | memory backend, retrieval tuning, embeddings, rerank, ingestion, plus Manage Memory and Diagnostics |
-| **Text Generation** | chat provider and model, the assistant's name, the game rules system and rules-module integration, every text prompt, author's-note depth, context budget, memory writes, scene awareness |
+| **Text Generation** | chat provider and model, the assistant's name, the game rules system, every text prompt, author's-note depth, context budget, memory writes, scene awareness |
 | **Audio Generation** | TTS, voices, music, push-to-log transcription |
 | **Image Generation** | the four image generators and video |
 | **Security** | provider API keys |
@@ -243,7 +219,6 @@ noodlr.speak("The tavern door creaks open.");
 await noodlr.generateSceneImage("a rain-lashed harbor at dusk");
 await noodlr.generateMusic("a slow dirge for a funeral procession");
 noodlr.togglePushToLog();
-noodlr.hooksModules();        // which rules modules are active, and what each declares it enforces
 noodlr.surveyPlayed();        // which character each connected user is actually playing
 ```
 

@@ -14,15 +14,12 @@ import { MODULE_ID, SETTINGS, warn } from "../constants";
 import { isPrimaryGM } from "../util/gm";
 import {
   DM_SYSTEM_PROMPT,
-  CAPABILITY_COMPILER_PROMPT,
-  DEFAULT_BEHAVIOR_PROMPT,
   DEFAULT_COMBAT_REMINDER,
   PLAYERS_SYSTEM_PROMPT,
   GM_ADJUDICATION_PROMPT,
   IMAGE_EXPAND_SYSTEM_PROMPT,
   MAP_DEFAULT_POSITIVE,
   SYSTEM_PROMPT_MAX_LENGTH,
-  WATCH_TRIGGER_PROMPT,
 } from "./index";
 
 /**
@@ -124,34 +121,6 @@ const TEXT_FIELDS: PromptFieldDef[] = [
     label: "NOODLR.Settings.AdjudicationPrompt.Name",
     hint: "NOODLR.Settings.AdjudicationPrompt.Hint",
     default: GM_ADJUDICATION_PROMPT,
-    rows: 8,
-    maxLength: SYSTEM_PROMPT_MAX_LENGTH,
-  },
-  {
-    key: "behavior.systemPrompt",
-    label: "NOODLR.Behavior.PromptName",
-    hint: "NOODLR.Behavior.PromptHint",
-    default: DEFAULT_BEHAVIOR_PROMPT,
-    rows: 5,
-    maxLength: SYSTEM_PROMPT_MAX_LENGTH,
-  },
-  {
-    // The doctrine half of the capability compiler's system message. The vocabulary half is
-    // generated from the request and is deliberately not editable — see capability/compile.ts.
-    key: "capability.systemPrompt",
-    label: "NOODLR.Capability.PromptName",
-    hint: "NOODLR.Capability.PromptHint",
-    default: CAPABILITY_COMPILER_PROMPT,
-    rows: 8,
-    maxLength: SYSTEM_PROMPT_MAX_LENGTH,
-  },
-  {
-    // Shared by both watch verbs. Which one is being asked, and the vocabulary it must answer in,
-    // are generated from the request — see watch/watch.ts.
-    key: "watch.systemPrompt",
-    label: "NOODLR.Watch.PromptName",
-    hint: "NOODLR.Watch.PromptHint",
-    default: WATCH_TRIGGER_PROMPT,
     rows: 8,
     maxLength: SYSTEM_PROMPT_MAX_LENGTH,
   },

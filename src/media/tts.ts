@@ -125,7 +125,7 @@ const SPEECH_GAP_MS = 250;
  *
  * The fallback when the browser will not report a clip's duration — which returns 0, and a 0-second
  * hold releases the speech queue immediately, so the next line starts over the top of the one still
- * playing on every client. That is exactly the overlapping banter reported from play (2026-08-03):
+ * playing on every client. That is exactly the overlapping speech reported from play (2026-08-03):
  * the queue was working and simply being told every clip was instantaneous.
  *
  * ~150 words per minute is ordinary narration pace. Bounded at both ends: never so short that it fails

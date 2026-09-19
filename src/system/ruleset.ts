@@ -12,24 +12,23 @@
 // name itself, chosen from the systems Foundry supports or typed freely.
 //
 // Auto-detection is a starting point, never the last word: game.system.id is "dnd5e" for both the
-// 2014 and 2024 rules, and a system's title says nothing about which revision a table plays.
-//
-// Since the module split there is a better answer than either: an installed `noodlr-hooks-*` module
-// states the ruleset it automates, and a module written for a specific revision cannot be wrong
-// about which revision that is. Those are offered first. The curated list stays beneath them as the
-// fallback, because a table running Noodlr as a detached chatbot still needs to tell it which game
-// it is answering rules questions about — that is the v0.4.20 fix and it must not regress.
+// 2014 and 2024 rules, and a system's title says nothing about which revision a table plays. So the
+// curated list below is the answer, and a table running Noodlr as a chatbot still has to tell it
+// which game it is answering rules questions about — that is the v0.4.20 fix and it must not regress.
 
 import { MODULE_ID, SETTINGS } from "../constants";
 import { sanitizeUserText } from "../util/sanitize";
-import { detectHooksModules, hooksModuleById } from "../integration/hooks-modules";
 
 /** Free-text alternative to the curated list. */
 export const RULESET_CUSTOM = "custom";
 /** Use whatever Foundry reports for the active system. */
 export const RULESET_AUTO = "auto";
-/** Stored choices naming a hooks module carry this prefix, so they cannot collide with a name. */
-export const RULESET_HOOKS_PREFIX = "hooks:";
+/**
+ * Versions 0.5–0.7 offered a since-removed "detected rules module" choice stored under this prefix.
+ * A world that saved one still holds it; it is read as the shipped default rather than injected as
+ * a system name.
+ */
+const LEGACY_HOOKS_PREFIX = "hooks:";
 
 export const RULESET_NAME_MAX_LENGTH = 64;
 
@@ -112,16 +111,10 @@ export function detectedSystemLabel(): string {
   return version ? `${name} ${version}` : name;
 }
 
-/** The id of the hooks module the GM selected, or "" when the choice is not one of them. */
-export function selectedHooksModuleId(): string {
+/** The stored picker value: `auto`, `custom`, or a name from RULESET_CHOICES. */
+export function rulesetChoice(): string {
   const choice = String(game.settings.get(MODULE_ID, SETTINGS.rulesetChoice) ?? RULESET_DEFAULT);
-  return choice.startsWith(RULESET_HOOKS_PREFIX) ? choice.slice(RULESET_HOOKS_PREFIX.length) : "";
-}
-
-/** The active hooks module, when the GM picked one and it is still installed. */
-export function activeHooksModule() {
-  const id = selectedHooksModuleId();
-  return id ? hooksModuleById(id) : undefined;
+  return choice.startsWith(LEGACY_HOOKS_PREFIX) ? RULESET_DEFAULT : choice;
 }
 
 /**
@@ -129,13 +122,7 @@ export function activeHooksModule() {
  * question to ask, not as licence to pick one.
  */
 export function getRulesetName(): string {
-  const choice = String(game.settings.get(MODULE_ID, SETTINGS.rulesetChoice) ?? RULESET_DEFAULT);
-  if (choice.startsWith(RULESET_HOOKS_PREFIX)) {
-    // A selected module that has since been disabled must not silently take the ruleset with it:
-    // fall back to detection rather than leaving the prompt with nothing to state.
-    const mod = hooksModuleById(choice.slice(RULESET_HOOKS_PREFIX.length));
-    return mod?.rulesetName || mod?.title || detectedSystemName();
-  }
+  const choice = rulesetChoice();
   if (choice === RULESET_CUSTOM) {
     const custom = sanitizeUserText(game.settings.get(MODULE_ID, SETTINGS.rulesetCustom), {
       maxLength: RULESET_NAME_MAX_LENGTH,
@@ -179,33 +166,6 @@ export function buildRulesetBlock(): string {
     "it was deliberately changed from. Say so out of character rather than switching systems, and " +
     'never "correct" a sheet toward the rulebook.'
   );
-}
-
-/** Picker rows for the detected hooks modules, above the curated fallback list. */
-export function hooksRulesetOptions(selected: string): Array<{
-  value: string;
-  label: string;
-  selected: boolean;
-  warning: string;
-}> {
-  return detectHooksModules().map((mod) => {
-    const value = `${RULESET_HOOKS_PREFIX}${mod.id}`;
-    const name = mod.rulesetName || mod.title;
-    return {
-      value,
-      label: mod.version ? `${name} — ${mod.title} ${mod.version}` : `${name} — ${mod.title}`,
-      selected: value === selected,
-      // Stated rather than filtered out. A GM running a converted world may genuinely want a hooks
-      // module whose declared system is not the one Foundry loaded, and refusing the choice would
-      // leave no way to say so.
-      warning: mod.matchesSystem
-        ? ""
-        : game.i18n.format("NOODLR.Settings.Ruleset.SystemMismatch", {
-            module: mod.title,
-            system: String(mod.systemId ?? "?"),
-          }),
-    };
-  });
 }
 
 /** Six-token restatement for the always-last slot, where compliance is decided. */
