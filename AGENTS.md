@@ -1,2355 +1,585 @@
-# AGENTS.md — noodlr-main (from-scratch rebuild)
+# AGENTS.md — noodlr (repo folder `noodlr-main`)
 
-This file is the durable memory and master roadmap for **noodlr-main**. It survives
-session/workspace resets and is auto-loaded as context. Keep it updated with durable
-facts, decisions, and open items (never secrets).
+Durable memory for **noodlr**, the AI game master module for Foundry VTT. Auto-loaded as context.
+Keep it current with durable facts and decisions; never secrets. **Read the first section before
+doing anything else** — it records a direction change and it overrides anything older you may
+find in commit history, the changelog, or a backup of another module.
+
+## READ FIRST — where the project stands (decided 2026-09-19)
+
+1. **Platform: Foundry v14 + dnd5e 6.0.3, tracking each one's latest.** `module.json`
+   compatibility is min 13 / verified 14 / max 14. We are **not** downgrading to Foundry 13 or
+   dnd5e 5.3 to regain compatibility with community modules that have not caught up.
+
+2. **Rules enforcement is not this project's job, and never will be again.** The companion
+   module `noodlr-hooks-55e` (D&D 5e rules automation, split out of this repo on 2026-08-08) is
+   **abandoned and its repository is being scrapped**; the user holds a backup. Nothing in this
+   workspace decides whether an attack hit, applies damage, rolls or judges a save, applies a
+   condition, offers a reaction, budgets movement, or counts actions. Those belong to the
+   community automation modules once they support dnd5e 6.x. Until then the GM presses the
+   damage tray by hand and noodlr says nothing about it.
+
+3. **Community stack status as of 2026-09-19**, verified from each module's own `module.json`
+   (`relationships.systems[].compatibility`). The foundryvtt.com package pages reported wrong
+   versions during this check and must not be trusted for it.
+   - DAE v14 and Automated Conditions 5e v14: declare dnd5e 6.x. Usable.
+   - Midi QoL v14.0.12: declares dnd5e **5.2.4–5.3.99 only**. Not usable on 6.x.
+   - Chris's Premades and Gambit's Premades: require Midi QoL (Gambit's is Foundry-13-only).
+   - Consequence: the mechanics stack is not yet usable on our platform. We wait.
+
+4. **Rejected, measured, and not to be proposed again:**
+   - **A runtime rules compiler** (a frontier model reads each creature's sheet prose at scene
+     load and emits machine-readable descriptors that deterministic code executes). Built and
+     shipped in hooks during Aug 2026, run over 1,022 distinct wordings on a real world. The
+     model was conservative (86% of rules came back "ask the GM"), and every misreading it did
+     make was **silent arithmetic** at the table — doubled damage, a dropped guard, a rule firing
+     on the wrong turn — costing hours per bug to diagnose. No prompt change fixed the class.
+   - **Generating Foundry macros from prose with a model.** Same misreading, plus generated code
+     running inside the client with no review gate.
+   - **Hand-coding 5e rules inside noodlr.** That bloat is what forced the 2026-08-08 split.
+   - **Depending on Midi QoL for execution.** Only viable once midi declares dnd5e 6.x, and then
+     as a new small module (item 5), never inside noodlr.
+
+5. **What in hooks is worth reviving later, and the trigger.** Its *tactics* layer is novel and no
+   community module does it: a deterministic NPC turn planner (utility scoring, cognition tiers
+   from INT/WIS, seeded weighted choice), a per-creature perception sweep that starts encounters,
+   per-watcher hiding, awareness (a planner that only sees what its creature can see),
+   flee / surrender / mercy encounter resolution, and banter. It is only useful when a mechanics
+   module resolves what the planner decides. **Trigger:** Midi QoL's `module.json` declares dnd5e
+   6.x. **Then:** a NEW small module built on `MidiQOL.completeActivityUse` for execution, midi's
+   `gmAutoAttack` / `gmAutoDamage` / `autoCheckSaves` / `reactionTimeout` for unattended NPC
+   play, and an announce-only fallback when midi is absent. Salvage from the hooks backup:
+   `src/tactics/`, `src/core/`, `src/rules/{perception,sight,stealth,hide}.ts`,
+   `src/system/profiles.ts` and the `system/dnd5e-*` readers the planner imports. Not before the
+   trigger, and not inside this repo.
+
+6. **noodlr + noodlr-memory are the product and continue.** An AI game master: the GM co-pilot
+   chat, the players' "Ask the Table" bot, siloed memory (RAG), the SillyTavern-informed prompt
+   architecture, media generation, push-to-log transcription, the Tipster live scene briefing and
+   the ground-truth combat state block. The goal is polish and a 1.0.0.
+
+7. **The hooks integration inside noodlr is dead code and comes out next** (task list below).
+   Until it is removed it is harmless: every listener is gated on a `noodlr-hooks-*` module being
+   active, and none is.
+
+### Standing "do not" list
+
+- Do not add game-system knowledge to this module: no spell or feat names, no condition rules,
+  no dnd5e data paths beyond the guarded, omit-when-absent display reads already in
+  `src/combat/tracker.ts` and `src/tipster/scene.ts`.
+- Do not propose rules automation, a rules compiler, macro generation, or a hooks revival before
+  the trigger in item 5. If asked, point at this section.
+- Do not depend on any third-party module (principle 0). Detect and enhance; never require.
+- Do not consult `C:\Project\_research` — it is the dnd5e / Foundry source corpus that served
+  hooks. Remove it from the workspace roots along with `C:\Project\noodlr-hooks-55e`.
+- Do not re-add: Chronicle (removed 2026-07-27); RAG-backed Tipster collections (rejected
+  2026-07-31); the `noodlr-vtt` external control bridge (never built, not planned);
+  `stored || DEFAULT` prompt accessors (see invariants).
+- Do not re-tune the embedding rate-limit constants in noodlr-memory. Four releases were spent
+  on it and the fix was the embedding model slug (memory section).
+- Do not read the hooks `AGENTS.md` backup for guidance on this repo. It describes a module that
+  no longer exists and is full of dnd5e internals this module must not learn.
+
+### First task for the next session — remove the rules-module integration, ship v0.8.0
+
+Current version is 0.7.9. Everything below was written against `noodlrHooks.*` hooks that only
+`noodlr-hooks-55e` ever fired. **Delete outright; do not stub or feature-flag.** Minor bump
+(0.8.0) because features and settings are removed.
+
+The call sites below were measured on 2026-09-19 with
+`rg -n -i -w 'capability|behavior|watch|noodlrHooks|hooks' src templates lang`. Work from this
+list; do not widen the search into `rag/`, `providers/`, `apps/config-base.ts` or
+`apps/provider-ui.ts` — those only contain the ordinary English word "behavior" and need no change.
+
+Delete whole:
+- `src/behavior/` (awareness, banter, banter-library, config, listen, narrate),
+  `src/capability/` (client, compile, config, vocabulary), `src/watch/watch.ts`,
+  `src/integration/hooks-modules.ts` (drop each folder once empty).
+- `banter/` at the module root (the taunt library only `src/behavior/banter.ts` read), and its
+  two mentions in `scripts/package.ps1` (the payload list near line 62 and the zip assertion near
+  line 79 — remove `"banter"` and `"banter/banter.txt"`, keep everything else).
+- Tests `test/client.test.ts`, `test/vocabulary.test.ts`, `test/watch.test.ts`,
+  `test/capability-model.test.ts` — they import only from the deleted folders. Keep
+  `test/prose.test.ts` (RAG prose stripping) and `test/run.mjs`.
+
+Then unwind the callers:
+- `src/module.ts` — the six imports near lines 43–48 (`loadBanter`, `registerBehaviorHooks`,
+  `registerCapabilityCompiler`, `getCapabilityModel`, `registerWatchListener`,
+  `detectHooksModules`), the `hooksModules` / `capabilityModel` entries on the exposed `api`
+  object (near line 80), and their `init` / `ready` calls. A comment near line 352 mentions the
+  rules module; reword or drop it.
+- `src/settings.ts` — the three imports and calls `registerBehaviorSettings`,
+  `registerCapabilitySettings`, `registerWatchSettings`.
+- `src/constants.ts` — the `BEHAVIOR_SETTINGS`, `CAPABILITY_SETTINGS`, `WATCH_SETTINGS` blocks
+  (roughly lines 86–140) and their doc comments. Nothing else in that file is involved.
+- `src/apps/text-gen-app.ts` — the imports near lines 12–14 and 30–47, `detectHooksModules()`
+  near line 91, the `hooks:` / `behavior` / `capability` / `watch` / `*Prompt` context entries
+  near lines 116–153, and the `hooks:` prefix acceptance in the save handler near line 184.
+- `templates/text-gen.hbs` — the `ruleset.hooks` optgroup and `{{#each ruleset.hooks}}` hint
+  (lines ~52–70) and the whole `noodlr-integration` fieldset (lines ~83–140: detected-modules
+  list, Behavioral automation, NPC banter, capability compiler, concurrency, watch, and the three
+  `noodlrPromptField` partials). **Keep the fieldset near line 165 whose legend is
+  `NOODLR.Settings.BehaviorLegend`** — despite the name it holds the Tipster and memory-write
+  toggles, which stay.
+- `src/system/ruleset.ts` — `RULESET_HOOKS_PREFIX`, `hooksRulesetOptions`, `hooksModuleById` and
+  the detected-modules group. **Keep** the curated system list, `auto`, `custom`, and the default
+  "Dungeons & Dragons Fifth Edition (2024)" (that default is the v0.4.20 fix; do not regress it).
+- `src/chat/conversation.ts` — the `buildRulingsBlock` / `clearRulings` import from
+  `behavior/awareness` (line ~22) and the rulings block it feeds into the state slot (comment near
+  line 115). The `hooks` parameter of `send()` is the panel's callback bag, unrelated; leave it.
+- `src/prompts/fields.ts` — the three `PROMPT_FIELDS` entries keyed `behavior.systemPrompt`,
+  `capability.systemPrompt`, `watch.systemPrompt`. `src/prompts/index.ts` — their default texts
+  (the sections introduced near lines 93, 240 and 294, including `WATCH_TRIGGER_PROMPT`).
+- `lang/en.json` — every `NOODLR.Behavior.*`, `NOODLR.Capability.*`, `NOODLR.Watch.*` key, plus
+  `NOODLR.Settings.Ruleset.HooksGroup` and `NOODLR.Settings.Hooks.*`. **Keep
+  `NOODLR.Settings.BehaviorLegend`.** Then grep the file for "rules module", "companion" and
+  "noodlr-hooks" and reword those hints.
+- Comment-only mentions that may stay or be trimmed: `src/rag/prose.ts` (lines ~16 and ~39),
+  `src/dev/pack-export.ts` (line ~255).
+- `README.md` — the "Combat, and the rules modules" section and every link to noodlr-hooks-55e;
+  rewrite the compatibility paragraph to say mechanics are the community modules' job and noodlr
+  requires none of them.
+- `changelog.md` — add the 0.8.0 entry in user-facing language.
+- Settings left behind in existing worlds are harmless (Foundry ignores unregistered keys).
+- Then `npm run check`, `npm run lint`, `npm run build`, `npm run package`, and the release
+  discipline below. Verify the assets.
+
+### What 1.0.0 means now
+
+Smoke-tested at the table on the target platform: chat co-pilot, players' bot with a real
+adjudication, memory ingest + retrieval on both backends, lorebook / author's note / post-history
+injection, push-to-log, image / TTS, Tipster. No rules feature is part of parity.
 
 ## What this project is
 
-**Noodlr** is an AI Dungeon Master module for Foundry VTT (game-system-agnostic by
-design, with D&D 5e as the first-class test case). This folder, `noodlr-main`, is a
-**complete from-scratch rewrite**: every line is hand-written by us. No code is copied
-from any prior codebase. An earlier third-party module (locally available at
-`C:\Project\noodlr` as a *behavioral reference only*) taught us what works and what
-doesn't; we retain the insights, not the code.
+**Noodlr** is an AI Dungeon Master module for Foundry VTT, game-system agnostic by design, with
+D&D 5e as the first-class test case. Every line is hand-written by us (clean-room; see Provenance).
 
-**Core thesis:** modern flagship LLMs are already competent, creative game masters.
-What they lack is (1) reliable memory, (2) authoritative game state, and (3) restraint.
-Noodlr supplies all three: a real vector/RAG memory service (`noodlr-memory`, already
-built), ground-truth state injected from Foundry itself, and a deliberate refusal to
-AI-ify mechanics that traditional automation modules already handle perfectly.
+**Core thesis:** flagship LLMs are already competent, creative game masters. What they lack is
+(1) reliable memory, (2) authoritative game state, and (3) restraint. Noodlr supplies all three:
+a real vector/RAG memory service (`noodlr-memory`), ground-truth state injected from Foundry
+itself, and a refusal to AI-ify mechanics that automation modules handle deterministically.
 
-## THE SPLIT (2026-08-08) — read this before looking for the rules code
+## Workspace layout
 
-Noodlr spent months accumulating D&D 5e rules enforcement, which was a mistake the user named
-outright: module bloat in a module that had started game-system agnostic, hard to maintain and
-impossible to extend to a second system. **All of it moved to `noodlr-hooks-55e` on 2026-08-08.**
+- `C:\Project\noodlr-main\` — **this project.** Git repo `github.com/gobsmacked1/noodlr`.
+- `C:\Project\noodlr-memory\` — the standalone **vector/RAG memory service** (Node >= 20). Complete,
+  MIT, own repo `github.com/gobsmacked1/noodlr-memory`.
+- `C:\Project\noodlr-vtt\` — **test-capture folder**, not a git repo, nothing ships from it: chat
+  exports, HARs, `prompt-backups/`, and `harness/` (the Playwright GM harness, below).
+- Retired: `C:\Project\noodlr-hooks-55e\` (scrapped, backed up) and `C:\Project\_research\` (its
+  source corpus). Remove both from the workspace roots.
 
-Gone from this repo: the tactical planner and cognition tiers, the action economy, conditions, dying,
-concentration, stealth and hiding, perception and encounter initiation, reactions, forced movement,
-Speed enforcement, the ten dnd5e system adapters, the sheet surveys, the Hide toolbar button and the
-Act-as-NPC tool. Sixteen combat settings and 115 i18n keys went with them. **If you are looking for
-any of that, it is in `C:\Project\noodlr-hooks-55e`, and its `AGENTS.md` holds every dnd5e-internals
-invariant that used to be in this file.**
+## Provenance rules (clean-room — do not break)
 
-`src/combat/tracker.ts` stayed, because the ⚔️ state block it builds is prompt material rather than
-rules. What replaced the rest:
-
-- `src/integration/hooks-modules.ts` — detects any active `noodlr-hooks-*` module and reads its
-  `api.noodlrHooks` descriptor (`{protocol, systemId, rulesetName, capabilities}`).
-- `src/behavior/` — listens on `noodlrHooks.turn`, `.behavior` and `.ruling`. Gives words to a creature
-  that flees, yields or is spared; keeps a short ring buffer of rulings so the GM's chatbot knows what
-  happened at the table; heckles on a turn using the `BanterProfile` the rules module read off the
-  sheet. **`preRuling` is deliberately not handled** — it is synchronous, and a model cannot answer
-  synchronously; vetoing on a coin flip is worse than not vetoing.
-- "Combat automation" became **"Behavioral automation"** (boolean, default true, greyed when no rules
-  module is enabled). The dead `combat.systemPrompt` — `getCombatSystemPrompt()` had no callers — was
-  repurposed as its prompt.
-- The ruleset picker lists detected `noodlr-hooks-*` modules above the curated list. **The curated list
-  stays**, because a detached chatbot answering rules questions from RAG still has to be told which
-  game it is answering about: that is the v0.4.20 fix and it must not regress.
-
-**Neither module depends on the other**, the same optional-enhancement pattern already used for
-midi-qol. With no rules module installed, noodlr is a chatbot and media generator with no NPC
-management, and it says so in the settings window rather than failing quietly.
-
-That last clause turned out to be the important one, and `noodlr-hooks-55e` learned it the hard way on
-2026-08-11: it had accumulated four *silent* stand-asides (AC5e owning conditions, midi owning
-concentration and dying, Gambit's owning opportunity attacks), each individually correct, and together
-they meant a GM could read a checkbox that said ON while nothing happened. It now has an ownership
-resolver and three settings windows that show who is enforcing each rule; the full reasoning is in
-[that module's AGENTS.md](../noodlr-hooks-55e/AGENTS.md) under "A silent stand-aside is a bug report
-waiting to happen". **The transferable rule for this repo: greying "Behavioral automation" when no rules
-module is enabled was the right instinct, and any future stand-aside here needs the same treatment.**
-A capability that switches itself off has to say so in the interface, not only in a comment.
-
-Shipped as **noodlr v0.5.0** (minor bump, not a patch: features were removed, and a GM who upgrades
-without installing the companion loses sixteen settings) and **noodlr-hooks-55e v0.1.0**, both with
-`module.json` + `module.zip` attached and both `releases/latest/download/module.json` URLs verified to
-resolve to the right version with a reachable download.
-
-## The capability compiler (2026-08-09) — noodlr's half of the second pivot
-
-`noodlr-hooks-55e` stopped trying to hand-code the rules and became a runtime compiler instead; the
-reasoning, the schema and the deterministic half all live in [that module's AGENTS.md](../noodlr-hooks-55e/AGENTS.md).
-What lives HERE is the half that needs a key: `src/capability/`, listening on `noodlrHooks.compile`.
-
-The division is the same one that has governed the split since day one. The rules module knows the
-game and holds no credentials; noodlr holds the key, so noodlr makes the calls, and holds the rate
-limit, so noodlr decides how many at once. `runPool` and the 429 gate are the corpus miner's proven
-patterns, reused rather than re-derived.
-
-- **Nothing in `src/capability/` knows D&D.** Every trigger event, effect kind, predicate and
-  parameter arrives ON the request, in the `vocabulary` the asking module supplies, and
-  `validateAgainst()` checks the reply against that rather than against anything of ours. This is a
-  hard rule, not tidiness: a `noodlr-hooks-pf2e` must be able to send a different vocabulary and get
-  correct answers with no change here. It is also the same principle as #1 at the top of this file,
-  arriving from the other direction — the game system's knowledge stays in the game system's module.
-- **The model compiles; it never adjudicates.** Prose becomes a descriptor once, at scene load, and
-  deterministic code runs it every turn. The v0.4.22 decision to cut the per-turn model call stands.
-- **Failure is quiet and partial by construction.** A feature that will not validate is dropped and
-  the other nineteen come back; one repair prompt is offered and then it is left alone. The asking
-  module treats a missing descriptor as ordinary, because that is its baseline rather than an error
-  path — with noodlr uninstalled it gets nothing at all and behaves exactly as it always has.
-- **`composeSystemMessage` / `composeUserMessage` / `composeRepairMessage` live in `vocabulary.ts`,
-  not in `compile.ts`, and depend on no Foundry global.** That is deliberate: `noodlr-rules-corpus`
-  imports them directly to run the regression harness over 75,487 mined atoms, and a harness that
-  reimplemented the prompt would be measuring a different compiler than the one that ships.
-  **Do not inline them back into `compile.ts`** — a divergence there is invisible and makes every
-  regression number a lie. `test/seam.test.mjs` in the corpus repo is the guard.
-
-### What a live cache proved about the prompt (v0.7.2, 2026-08-16)
-
-The first audit of a real compiled cache — 686 rules over 187 abilities from the user's own world — read
-back as a report card on `composeSystemMessage`, and three of its findings are about this file rather than
-about the model. All three fixes are here; the reading half is in
-[`noodlr-hooks-55e`](../noodlr-hooks-55e/AGENTS.md).
-
-- **A KEY NAMED IN DOTTED FORM WAS RIGHT 100% OF THE TIME; THE ONE KEY NAMED ONLY AS AN ENGLISH NOUN WAS
-  RIGHT 26% OF THE TIME.** `trigger.event` and `effect.kind` never came back wrong. The guard array was
-  described as "conditions" in prose and filed under `conditions` in 576 of 693 cases against a schema
-  that reads `condition` — so the model was following the prompt and the prompt was the thing that was
-  wrong. `describeVocabulary` now closes with a **literal example rule object**, which is the cheapest
-  possible statement of a shape and the one form that cannot be misread. Generalisable: **name every key
-  in the shape it is read at, and show the object.** Prose about a schema is a paraphrase.
-- **The compiler's own premise was nowhere in the prompt it received.** Nothing told the model that the
-  system already rolls the attack, the damage on `damage.parts`, the save and the activity's own effects —
-  so 45 of 71 `on_hit` rules were the spell's own printed damage line, faithfully extracted. `## WHAT THE
-  PLATFORM ALREADY DOES` states the boundary once. Note what this does **not** buy: a prompt cannot be
-  relied on never to re-emit a doubling, so the rules module refuses it at execution as well. **A doctrine
-  clause and a guard are not alternatives**; the clause reduces the spend, the guard prevents the bug.
-- **A closed vocabulary is only closed on the axes it enumerates.** Effect kinds and predicate parameters
-  were listed and were near-perfect; **subjects and statuses were not listed, and both drifted into free
-  text** — `hit target`, `saving creature`, `familiar`, a player character's proper name, and
-  `apply_status: "sheathed in booming energy"`. `vocab.subjects` and `vocab.statuses` are declared,
-  rendered and validated now (`checkSubjects`, `checkStatus`).
-  - **A parameter the ASKING module did not declare is passed through unchecked, not rejected.** Same
-    rule as everywhere else on this seam: a `noodlr-hooks-pf2e` sending an older vocabulary must keep
-    working, and validating against a list nobody supplied would reject correct answers. Pinned by
-    `test/vocabulary.test.ts`.
-  - The statuses list arrives on the request from `CONFIG.statusEffects`, so this validates against **the
-    world the descriptor will run in** rather than against anything of ours — which is the same principle
-    as the trigger events and effect kinds, applied to a list only Foundry can supply.
-
-### And then it was measured, and the three fixes cost more than they bought (2026-08-16)
-
-A full-world recompile at v0.7.2 — 1,022 abilities, 87 minutes — re-read 145 of the 223 wordings the
-previous cache held, same model slug both halves, so the two censuses are comparable on that population
-(`npm run census:subset` then `census:yield` in `noodlr-hooks-55e`). **All three of the fixes above landed
-exactly as designed, and the model became so much more conservative overall that the automation yield fell
-by a factor of five.** Both halves of that sentence are the finding; reporting either alone would be a lie.
-
-- **What landed.** Guards filed under the plural `conditions`: **168 → 0**. Predicates naming an
-  unresolvable subject: **82 in 61 rules → 0**. `damage` effects, the restated printed damage line the
-  refusal guard was built for: **66 → 29**. Nothing had to be repaired at the cache boundary and nothing
-  was rejected.
-- **What it cost.** `adjudication: "engine"` **137 → 29**, straight into `gm` (62.6% → 86.0% of rules).
-  Rules that RUN 25 → 10, standing facts 33 → 2, and the Phase 3 yield the whole dispatch plan is scored
-  against went `on_hit` 23 → 2 and `on_save_failed` 18 → 5. **An 86%-`gm` compiler is honest and is
-  barely an automation layer.**
-- **THE MOST LIKELY CAUSE IS THE SUBJECT WHITELIST, NOT THE BOUNDARY CLAUSE, and the mechanism is that
-  VALIDATION TAUGHT THE MODEL TO GIVE UP RATHER THAN TO REPHRASE.** `caster` ×20 and `secondary target`
-  ×8 were the commonest illegal subjects; with only `self | target | attacker | trigger` legal and no
-  aliasing, a rule about "the caster" cannot be *stated*, so it is downgraded to `gm` instead of being
-  written correctly. The counts line up: 61 rules lost their bad subjects and 108 lost `engine`.
-  - **The cheap fix is doctrine wording, not a schema change.** Shipped in v0.7.8 as generated-half
-    prompt text (Fusion pass): caster / wielder / owner / user / you → `self`, and saving / moving /
-    acting / damaged creature → `trigger`. Those words are never added to the subject list — the
-    validator still accepts only what the asking module sent. `secondary target` is a genuine
-    vocabulary gap and a separate decision.
-- **`grant_capability` 45 → 12 is a smaller loss than it looks.** That kind is free text nobody wires;
-  it feeds the prompt, not the executor. Distinguish it from the `engine` collapse when scoring this.
-- **The specimens that had to survive did.** Regeneration is byte-identical and still `engine` with both
-  guards; Loathsome Limbs still summons on `on_turn_end` behind `hp_fraction_at_most` + `damage_taken`.
-  It did lose its `spend_resource` allowance rule (8 → 2 across the corpus), which is the 4/day limit.
-  Word of Misfortune, Charge and Booming Blade all regressed to `gm`, and Booming Blade now emits its
-  damage line three times.
-- **NEVER SPEND A WORLD RECOMPILE TO TEST A PROMPT AGAIN.** 87 minutes and real credit bought one data
-  point, and 62 of the 1,022 failed on provider 403s at the end so the population had to be subsetted
-  before it could be read at all. `composeSystemMessage` is exported from `vocabulary.ts` precisely so
-  `noodlr-rules-corpus` can run a prompt change over mined atoms with no Foundry, no world and no cache —
-  **that is the loop for doctrine work**, and a recompile is only for shipping a doctrine already measured.
-- **Caveat that cannot be closed retrospectively: `~openai/gpt-latest` is a floating alias.** Both halves
-  record the same slug and the two halves are weeks apart, so "same model" is not provable and some of the
-  drift may not be ours. **Pin an explicit slug before the next measured comparison**, or the next one has
-  the same hole.
-
-### The 62 failures were two defects of ours, and the second one is a doctrine about errors (v0.7.3)
-
-The provider refused the run's last 62 requests inside one second, each in about **52ms**. Nothing that
-fast can have read a prompt, so it was the gateway turning requests away at the door rather than a verdict
-on any wording — and both of the things that made it unrecoverable were in this repo.
-
-- **`compile.ts` handed the `Error` OBJECT to `warn`, so every log line read "could not compile X: Error"
-  and the provider's own explanation was discarded before it was printed.** `client.ts` had put the status
-  and the whole response body on `.message` all along. A console renders an argument that is an Error as
-  its class name, so **the one channel that could have named the cause was formatting it away**, and
-  62 identical useless lines is what a real diagnosis looked like. `reasonOf()` reads `.message` and
-  stringifies anything that is not an Error, because a thrown string is still the only account we have.
-  **Generalisable: interpolate an error's message into the line; never pass the object as an argument.**
-- **403 was non-retryable BY OMISSION**, which is the expensive half. `retryable` enumerated 429 and 5xx,
-  so a status nobody had thought about defaulted to permanent, and 62 wordings were abandoned in 52ms with
-  no wait, no pause and no second attempt. **A retry policy written as a whitelist of known-transient
-  statuses fails closed on every status it has not met yet** — the opposite of the failure this repo
-  usually guards against, and it costs work rather than causing a wrong answer.
-- **The fix is not "add 403 to the list", because OpenRouter uses one status for two opposite things.**
-  Moderation flagged the prompt, which is permanent for that wording — asking again buys the same answer
-  and the repair prompt is the only route left. Or the gateway refused the account, which is a threshold
-  and passes with time exactly like a 429. **`refusalKind()` READS THE BODY** rather than inferring
-  from the status, and an unreadable or unfamiliar body is treated as transient: one needless retry costs
-  a request, while calling a threshold permanent loses the batch. `test/client.test.ts` pins every
-  direction, because each is silent — a permanent-verdict mistake loses abilities with nothing
-  explaining itself, and a transient mistake re-sends a flagged wording five times per scene load for ever.
-- **A retryable 403 arms the process-wide `pausedUntil` gate**, same as a 429. Without that, sixteen
-  concurrent requests each back off privately and all sixteen return together into the same refusal —
-  the stall-burst cycle `noodlr-memory` documents at length, rebuilt from parts on a different status.
-  This is the third place that gate has earned itself.
-
-### And then the retry ran, and 403 turned out to be THREE things (v0.7.4, 2026-08-16)
-
-The fix above shipped, the 62 were re-asked, and every one came back in milliseconds with
-`Budget limit exceeded (monthly limit)` — a spending guardrail on the key. **v0.7.3 classified that as a
-threshold and retried it four times per wording into a cap that cannot pass without a human**, which is
-the mirror of the bug it had just fixed: same one status, and the two-way test put it on the wrong side.
-
-- **The axis is not permanent-versus-transient, it is WHO CAN CLEAR IT.** Moderation is permanent for
-  that wording (nobody can clear it; write the rule by hand). A budget or credit cap is permanent
-  *until a human acts*, so retrying is pure waste and the only useful response is to say so. A gateway
-  threshold clears by itself. Three answers, three behaviours: `RefusalKind` names them and
-  `CompileError.kind` carries it, so a caller acts on the reason without re-reading the body.
-- **`refusalAdvice()` exists because A CONSOLE LINE IS NOBODY'S NOTIFICATION on this path.** A compile
-  batch runs unattended during a scene load, so the operator's first evidence of a spend cap would
-  otherwise be descriptors quietly not appearing. `compile.ts` collects the distinct kinds a batch met
-  and raises **one permanent `ui.notifications.error` per kind** — per batch, not per wording, or a
-  1,022-ability run stacks a thousand toasts. Same doctrine as `rag/failure.ts`: severity and channel
-  track what the operator should DO.
-- **`threshold` deliberately carries NO advice and raises nothing.** There is nothing for a human to
-  do about it and we retry it away; a toast for it would teach them to dismiss the channel, and then
-  the budget one is dismissed too.
-- **`"exceeded"` must not be read as a budget on its own**, because that is also how a rate limit
-  reads, and a 429 has its own handling this must not shadow. Pinned in `test/client.test.ts`
-  alongside the case that proves ordinary rules prose echoed back in an error body cannot make a
-  refusal permanent — a 403's body can quote the request, so every pattern here has to be a word that
-  cannot turn up in a statblock.
-- **The operator-facing lesson worth keeping: an OpenRouter key can carry its own spend guardrail,
-  separate from the account's credit balance.** Nothing in the module can see it and topping up
-  credits does not lift it.
-
-### THREE RULES THE VALIDATOR ENFORCED AND NO GENERATED PROMPT EVER STATED (v0.7.6, 2026-08-18)
-
-A recompile on the second test world was watched in the console for the first time, and it was a scroll
-of `capability compile needs repair`. Censused off the harness log: **96 of 1,069 wordings (9.0%) needed
-a second request, carrying 114 errors between them.** Three distinct problems, in a distribution that is
-the finding rather than the errors themselves — **99 of the 114 were one missing field.** Every one of
-the three was a rule `validateAgainst` has always rejected and that nothing the model reads ever said.
-
-- **99 × a `gm` rule with no `note`, and this one was worse than unstated: the skeleton called the field
-  optional IN AS MANY WORDS.** The requirement was written down once, in the doctrine — which is
-  **frozen per world** and therefore reaches nobody who upgrades — while `describeShape`, the last and
-  most literal thing the model reads, said `"note"` was optional. So a twelfth of the run bought a
-  repair prompt to recover a field the prompt had told it to omit. **A validator rule that is not in the
-  GENERATED half of the prompt is enforced at chance**, and this is the second time that half has been
-  the one that mattered (v0.7.2's example object arrived everywhere; its boundary clause arrived
-  nowhere).
-- **13 × `unknown parameter "target"`, and THE MODEL WAS RIGHT.** `modify_speed` — a spell that slows
-  what it hits — had no way to say whose Speed changed, while `describe.ts` had been rendering
-  `who(effect.target)` for that kind all along. **The omission contradicted our own renderer**, so this
-  was a vocabulary gap measured onto us rather than a hallucination. Widened.
-  - **In the log the two are INDISTINGUISHABLE**, which is why `checkParams` now names the kind:
-    `"modify_speed" does not take it` invites the right question, while a bare `unknown parameter
-    "target" — remove it` reads as the model inventing a field and closes it.
-- **2 × no `rules` array at all.** `describeShape` was titled "the shape of one rule" and showed only a
-  rule, so the object the rules go in was described nowhere. It states the whole envelope now.
-- **Three more of the same shape were found by auditing the two against each other rather than by
-  waiting for a wording to trip them**: the three `adjudication` values were never enumerated (only
-  `"engine"` appeared, as an example — and an example is not an enumeration, on the most consequential
-  choice the model makes), `uses.max` never had to be positive, and `voice_entity` never had to be
-  `narration`. None was a large share of the errors, and that is not the reason to fix them: an
-  unstated rule costs nothing visible until it costs a request.
-
-**THE COST WAS INVISIBLE BECAUSE A REPAIR IS A SUCCESS.** The batch line said `compiled 120/120` and
-meant it; the surcharge existed only as one `debug()` line per wording, in a channel nobody totals, on a
-client nobody was watching. Nine percent of a run went unremarked through three doctrine releases
-because **nothing counted it** — so `RepairTally` now puts it on the batch line with a code histogram
-(`compiled 120/120 … — 12 needed a second request to fix the shape of the answer: gm-note x11,
-param-unknown x2`). Generalisable well past this file: **a retry that succeeds is a cost, and a log that
-reports only outcomes cannot show it.**
-
-- **`validateAgainst` returns `codes` beside `errors` for that histogram, and the reason is that the
-  message is PROSE FOR A HUMAN and prose is not countable.** Every number above was reached by regex
-  over a harness log, wrongly twice — once for a context window too tight to match, once for JSON
-  quote-escaping. A stable code per problem family is the difference between a measurement and an
-  estimate.
-- **`ADJUDICATION_GLOSS` is a map with a bare fallback rather than a sentence**, because the values
-  arrive ON the request: a rules module that adds a fourth gets its name rendered unglossed instead of
-  mislabelled.
-- **The run was stopped at 1,069 of 1,105 deliberately** rather than paying the remainder at the old
-  doctrine. That is this file's own rule (never spend a world recompile to test a prompt) applied
-  mid-flight, and the remaining wordings cost one `recompileWorld({ since })` once the fix ships.
-- **No RAG implication whatever, asked and answered:** the compile path shares nothing with ingest —
-  `capability/` never touches `rag/`, a descriptor is never a document, and a repair round is one extra
-  chat request against the capability model.
-
-## Reading a held action's trigger (v0.7.0, 2026-08-14) — `src/watch/`
-
-The second thing a rules module asks noodlr to read, and the second time the division has held without
-being renegotiated. `noodlr-hooks-55e` shipped the **Ready action** — hold your turn for something
-specific to happen — and it is the one rule in the book whose trigger is **authored at the table in free
-text**. Every module that has attempted it offered a dropdown of six conditions, and nobody used it,
-because the interesting readied actions are exactly the ones the dropdown does not contain. So the player
-writes a sentence and `src/watch/watch.ts` reads it.
-
-Two verbs on `noodlrHooks.watch`, protocol 1: **`compile`** turns the sentence into a descriptor once, at
-declaration, and **`judge`** answers one narrow question about one event when the rules module's own
-predicates cannot. Everything the capability compiler's section above says applies unchanged, so this is
-only what is different:
-
-- **`judge` is a per-event call and `compile` is not, which is the whole cost model.** A descriptor states
- `judge: true|false`, and a `false` one is answered by deterministic code in the rules module forever
- after — no model call, no latency, no spend. So the compiler's job includes **deciding whether it needs
- to be asked again**, and understating that is the expensive mistake. `PATIENCE` splits accordingly:
- `compile` gets 60s and one retry because it happens once and a player is waiting on a dialog; `judge`
- gets 20s and **no retry**, because it may be asked a dozen times in one round and a retried judge is a
- second call for an answer the rules module can safely default.
-- **A judge that does not answer is not a "no".** The rules module reads null as "fall through to asking
- the human", so timing out costs a prompt rather than a player's Action. That is a property of the
- contract worth not breaking from this side: returning a fabricated `fires: false` to look decisive would
- silently eat readied actions.
-- **This reads intention, never consequence.** It never decides what the readied action does, whether it
- hits, or what it costs — the same boundary as the capability compiler, stated the other way round. The
- vocabulary (events, sides, senses) arrives ON the request and `shapeDescriptor` validates against that
- rather than against anything of ours, so a `noodlr-hooks-pf2e` needs no change here.
-- **Gated on `game.user?.isGM`, and the rules module relays to make that true.** A player pressing Ready
- would otherwise spend the world's credit from their own browser; `noodlr-hooks-55e` routes the compile
- through `askGm` and this listener declines anywhere else. Same reasoning as `compile.ts`.
-- **The model is shared with the capability compiler, deliberately.** Both jobs are "read a sentence and
- answer to a strict schema", which is a different selection from the model that tells the story.
- That slug is `capability.model` (default `google/gemini-3.7-flash` as of v0.7.7), never Chat's.
- A blank used to mean "whatever Chat uses", which is how a world-recompile slug ended up
- Gamemastering the campaign. Empty now resolves to the default. `api.capabilityModel()` is how
- a hooks module reads it without owning a second field.
-- Setting: `watch.enabled` (world, default **on**) plus its own prompt field in Text Generation. Unlike
- `capabilities.compile` it defaults on, because a `judge: false` descriptor spends nothing after the one
- compile and the failure mode of being off is a player writing a careful trigger and getting a shrug.
- Off, the rules module offers its canned list instead and still works.
-
-### Watch Fusion pass (v0.7.9, 2026-08-20)
-
-Reviewed against `C:\Project\noodlr-vtt\FromFusion2.md`. The schema did not move. No compile
-repair, no judge repair: a second compile with a player on a dialog degrades into a guessed
-`judge:false` descriptor, which is the wrong-fire failure. The canned picker is the fallback.
-
-- **Generated half wins if it disagrees with frozen doctrine** — first line of `# VOCABULARY`.
-- **Compile and judge get different generated halves.** Judge never writes a side, a sense, a
-  placement key or an event-verb alias; emitting those into a 20-second no-retry call invites
-  judging the descriptor. Event kinds stay so `kind` is recognisable.
-- **Event / side / sense aliases are prompt text, never extra vocabulary values.** A row prints
-  only if its write token arrived on the request. `DECLARED` in `test/watch.test.ts` has
-  `token_steps | token_speaks | gate_shifts` and pins that `creature_moves` / `flees` / `hostile`
-  do not appear. A second compose against a 5e-shaped vocab pins that they do.
-- **The compile example skips `events[0]`.** A filled-in first event teaches that name onto
-  every sentence (Fusion F6). Prefer `slice(1, 3)`. `inReach: true` is included only when that
-  key arrived.
-- **`composeJudgeMessage` names the stored descriptor as a filter**, not as the reason the
-  event is here. Satisfying the descriptor is not satisfying the sentence.
-- **Still never spend a live Ready or `recompileWorld` to A/B a prompt.** Measure against
-  specimens in a harness, or against `test/watch.test.ts` for the generated half. Reset of
-  `watch.systemPrompt` is optional: it applies the new doctrine. The aliases, the judge test,
-  the placement-key spellings and the unwatchable example reach every compile either way.
-
-### Fusion prompt pass (v0.7.8, 2026-08-20)
-
-Reviewed against `C:\Project\noodlr-vtt\FromFusion.md`. The schema did not move. What moved is the
-half of the prompt that is composed at request time, so a world that already stored
-`capability.systemPrompt` still gets the load-bearing fixes without pressing Reset.
-
-- **Generated half wins if it disagrees with frozen doctrine** — first line of `## VOCABULARY`.
-- **Structured data is already executed** on the ability's own use. `composeUserMessage` says so on
-  the request; `describeVocabulary` says so before the kind tables. Regeneration (heal, no
-  activation, "start of turn") is the specimen that must still compile.
-- **Subject aliases are prompt text, never extra subject values.** Only alias rows whose `write`
-  value is in `vocab.subjects` are printed. `DECLARED` in `test/vocabulary.test.ts` has only
-  `self | target` and pins that `trigger` / `attacker` do not appear as legal writes.
-- **`damage_taken.window` and reserved statuses** fall back when the asking module omitted the lists,
-  so an older `noodlr-hooks-*` still gets a closed window list and only hears about `dead` if this
-  world's live status list already contains one.
-- **Repair names `condition` singular** and says dropping a guard while keeping `engine` is worse
-  than dropping the rule.
-- **Still never spend `recompileWorld` to A/B a prompt.** Measure in `noodlr-rules-corpus`. A
-  recompile after this release is a ship of a doctrine already written, not a test of it.
-- Reset of `capability.systemPrompt` is optional for this compile: it applies the new doctrine
-  (limiting clauses, prefer inert kinds). The aliases, the already-dispatched test, the windows and
-  the reserved statuses reach every compile either way.
-
-## Workspace layout (multi-root)
-
-- `C:\Project\noodlr-main\` — **this project**: the AI game master. Own git repo on GitHub.
-- `C:\Project\noodlr-hooks-55e\` — the **D&D 5e (2024) rules automation** split out of this one. Own git repo, own `AGENTS.md`. Every dnd5e and midi-qol internals note lives there now.
-- `C:\Project\noodlr-memory\` — the standalone **vector/RAG memory service** (Node >= 20). COMPLETE and fully ours. Own git repo on GitHub.
-- `C:\Project\noodlr-vtt\` — was reserved for an **optional external control bridge** (drive Foundry from external AI clients over MCP/WebSocket), still deferred and may never be built. In practice it is now the **test-capture folder**: sheet-survey JSON, chat exports, HARs, and `harness/` (below). Not a git repo, deliberately — nothing here ships.
-- `C:\Project\_research\` — the reference corpus (dnd5e source, Foundry client source, v14 types, the community modules we compare against, and `_audit\`). Outside every workspace root, so tools must be pointed at it explicitly. Primarily serves `noodlr-hooks-55e`; see that module's AGENTS.md for the research method.
-
-## Provenance rules (clean-room discipline — do NOT break)
-
-1. **Never copy code** from `C:\Project\noodlr` into `noodlr-main`. Not a line, not a regex.
-2. Work from **behavioral specs**: describe what a feature does (inputs, outputs, UX), close the reference, then implement against Foundry's public API and provider docs.
-3. Code we authored from scratch during the reference-module phase (all of `noodlr-memory`; the push-to-log design; the RAG client/settings design; the agent-mode fusion) is **ours** — the designs are reusable, but rewrite the module-side code fresh in the new stack anyway for consistency.
-4. Record provenance-relevant decisions in this file with dates.
-5. The reference module is never redistributed, published, or committed to any remote.
+1. Never copy code from the legacy third-party module that was once at `C:\Project\noodlr` (the
+   folder is empty now). Not a line, not a regex. Work from behavioral descriptions only.
+2. Everything in `noodlr-memory` and everything in this repo is ours.
+3. Record provenance-relevant decisions here with dates.
 
 ## Design principles
 
-0. **No third-party module is ever a dependency (user, 2026-08-04; overrides any convenience argument).**
-   Midi QoL is the specific case that prompted this: superb, widely installed, and repeatedly quiet for
-   months at a stretch, so anything built on it strands the table when it lapses. The rule is *learn
-   from them, depend on none of them*. Read their source to find out how a thing is done, then implement
-   it against core Foundry and the game system's own API, which are the only two things guaranteed to be
-   there. Every feature must work with nothing installed but Foundry and a system. **Amended
-   2026-09-03:** operators are advised that Midi QoL, Chris's Premades, Gambit's Premades and
-   Automated Conditions 5e are **not compatible** with `noodlr-hooks-55e`. Research them in
-   `_research`; do not add a route or stand-aside that presumes a user is hosting them. DDB
-   content was re-ingested with Midi / DAE automation flags off. This principle still explains
-   why noodlr never *requires* a rules module either.
-   Corollary for detection triggers: prefer signals core cannot take away. Token position hooks and a
-   hit-point decrease are available in every system and every version; "the attack roll is about to
-   resolve" is not.
-
-0. **Rules versus tactics (amended 2026-08-02, relocated 2026-08-08).** The distinction that unblocked
-   the NPC combatant work — a module may know where a system keeps its numbers and which options are
-   worth considering, but may never compute an attack roll, damage, a save, a DC or a condition — now
-   governs `noodlr-hooks-55e`, not this module. **Noodlr itself is back to holding no system knowledge
-   at all**, which is the state principle 1 always described and that the split finally restored.
-1. **No hardcoded game-system rules.** Thousands of lines of hardcoded 5e logic are unmaintainable and unfixable when a table interprets a rule differently. Rules live in the **RAG** (`rules` silo — ingest any system's books/compendia) and in the model's own competence. The module ships zero rules logic.
-2. **Mechanics belong to mechanics modules.** Midi QoL, DAE, Chris's Premades, Gambit's, etc. already resolve tedious mechanics instantly and for free. Noodlr narrates, decides, and adjudicates; it does not re-implement automation. (This was the loudest user complaint about the prior generation of this idea.)
-3. **Two provider shapes, period:** OpenRouter (API key) or any hand-entered OpenAI-compatible base URL + optional key. Applied uniformly to Chat, Embeddings, TTS, Image, Transcription. We will not maintain dozens of proprietary provider clients, and we will not ask users to divulge half a dozen consumer API keys for basic gameplay.
-4. **Foundry is the source of truth.** HP, initiative, conditions, rolls, scene state come from Foundry's APIs, injected into the prompt as authoritative state. Dice are **never** model-rolled — a `{{roll:XdY}}` macro executes a real Foundry `Roll` and injects the result.
-5. **SillyTavern-informed prompt architecture** (studied: docs.sillytavern.app Data Bank + World Info; KritBlade/VectFox): siloed data banks, keyword/vector-activated lorebook entries with injection positions and token budgets, author's-note depth injection, post-history instructions, promoted "chronicle" facts.
-6. **Real build step this time:** TypeScript + esbuild. The no-build constraint of the reference phase was an artifact of forking a bundle, not a choice.
-
-## Feature inventory
-
-### Native features found in the reference module (behavioral baseline)
-
-- In-Foundry AI chat panel (GM co-pilot): streaming responses, markdown, tool/function calling against game state.
-- AI-run combat turns for NPCs/monsters.
-- A large hardcoded 5e-2024 mechanics engine (damage application, conditions, concentration, reactions, summons, spell automation).
-- Campaign memory: browser-side fact store + in-browser BM25 keyword knowledge base.
-- Context assembly: world/scene/actor state gathered into the prompt.
-- Scene tools (AI-assisted scene description/manipulation) and journal/transcript logging.
-- Image generation (scene art, portraits) via proprietary provider clients.
-- Voice TTS playback via proprietary provider clients.
-- Real-time streaming voice transcription over WebSocket (Gladia/Deepgram/AssemblyAI-style providers).
-- Per-vendor proprietary AI provider clients (many).
-- An external control bridge letting outside AI clients drive Foundry over WebSocket.
-- Remote license validation.
-- Tabbed settings application; socket messaging between clients; Foundry chat-card output.
-
-### Discarded (deliberate, with reasons)
-
-- **The hardcoded 5e mechanics engine** — replaced by principle #1 (RAG rules) + #2 (defer to Midi QoL/DAE/CPR/Gambit's).
-- **Proprietary per-vendor provider clients** — replaced by OpenRouter + OpenAI-compatible custom endpoints only.
-- **The external control bridge and its npm dependency** — cut; `noodlr-vtt` folder reserved if we ever rebuild our own.
-- **Streaming per-utterance transcription** — replaced by push-to-log (below); always-on streaming wastes tokens and RAG space on table chatter.
-- **Browser-side campaign memory / BM25 KB** — replaced entirely by `noodlr-memory`.
-- **License validation** — no license server; both projects are MIT.
-
-### Added (built by us during the reference phase; designs carry forward)
-
-- **`noodlr-memory`** — the complete RAG service (see next section). Feature request #1: COMPLETE.
-- **RAG Data Bank UI** — service URL/secret, per-silo status + individual reset, a compendium ingest matrix (locked or unlocked compendia → silo of choice), TXT/PDF upload.
-- **Agent Mode retrieval** (VectFox-inspired) — an LLM decomposes the query into multi-angle sub-queries + entity filters; service fuses result lists via multi-list RRF with entity soft-boosting.
-- **Push-to-log** — click-to-start/click-to-stop voice capture for *all* participants (GM, assistant GM, players): MediaRecorder segments → Whisper-style `/audio/transcriptions` file API → Foundry chat (optional) + GM-side session journal + periodic RAG ingest (configurable 60–3600 s, default 300 s). Player button floats bottom-center; segments relay to the GM over a module socket.
-- **Editable system prompts** per feature (Chat, Combat, TTS, Image, Transcription) — spellcheck-enabled textarea, up to 65,000 characters, reset-to-default.
-- **Endpoint override architecture** — per-feature provider/base-URL/model settings; local OpenAI-compatible TTS preset with dynamic voice-list retrieval; Stable-Diffusion-era image parameters.
-
-### Revised
-
-- Transcription: streaming → **push-to-log** (intentional, token-frugal capture).
-- Memory: browser store → **siloed server-side RAG** with deliberate (not incidental) ingestion.
-- Mechanics: AI-executed → **narration + delegation** to automation modules.
-- Combat state tracking: model memory → **module-injected ground-truth state block** built from Foundry's combat tracker each turn (see DM core below).
-
-## noodlr-memory — what exists and how noodlr-main will use it
-
-Status: **complete, tested (14 passing node:test), MIT, v1.1.0, own GitHub repo.**
-Standalone Node >= 20 HTTP service; the module talks to it over HTTP only.
-
-What it provides:
-
-- **Per-purpose collections (silos), each independently resettable:** `chat`, `lore`, `rules`, `sheets`, `npc_state`, `factions`, `scenes`, `quests`, `docs`. Rationale: a table recovering from story breakage resets one aspect (e.g. `npc_state`) instead of wiping and re-ingesting the whole world.
-- **Pluggable vector backends:** `lancedb` (embedded Node SDK, **default** as of 2026-07-23), `vectra` (file-based), `qdrant`, `chroma` (env `VECTOR_BACKEND`).
-- **Embedding providers:** `openrouter` (default model `perplexity/pplx-embed-v1-4b`), `custom` (any OpenAI-compatible `/v1/embeddings` — Ollama/vLLM/llama.cpp/LM Studio), `transformers` (fully in-process, no server/key), `mock` (offline tests). Local and remote embeddings are both first-class.
-- **Prose/table-aware chunker:** roll tables and stat blocks stay atomic (RPG sources are not novels; naive chunking is immersion-breaking). `kind:"event"` docs are atomic.
-- **Hybrid retrieval:** dense + BM25 sparse fused by Reciprocal Rank Fusion; re-ranked by `importance` + `recency`; multi-query (Agent Mode) fusion with entity soft-boosting.
-- **HTTP API** under `/v1`: `health`, `collections`, `ingest`, `ingest-file`, `insert`, `query` (hybrid + weights + multi-query), `list`, `delete`, `purge`, `purge-all`.
-- **Security:** shared-secret header `x-noodlr-secret`, localhost bind by default (HOST 127.0.0.1, PORT 3010, env prefix `NOODLR_MEMORY_*`), filename sanitization, body-size caps. CORS reflects the request Origin and pre-answers OPTIONS (the secret header always triggers a preflight cross-origin). `DEPLOYMENT.md` has the Linux/systemd guide.
-- **Rate limits (v1.1.1, 2026-08-11):** `embedTexts` had no 429 handling of any kind, and its
-  recovery path was an amplifier. A failed batch was retried **one item at a time, immediately** —
-  which is right for a poison document and exactly wrong for a rate limit, since it fires
-  `batchSize` more requests at an endpoint that just said stop and then throws from the first of
-  them anyway. Hedging made it worse from the other side: a duplicate request fires when the first
-  stalls past `EMBED_HEDGE_MS`, and a rate-limited provider is *slow*, so the hedge doubled the
-  request rate precisely when the account could least afford it. Now: retry with `Retry-After` or
-  exponential backoff and jitter, a **process-wide** pause on 429 (a limit belongs to the key, so
-  everything in flight must honour one — the corpus miner's gate, ported), hedging stands down for a
-  minute after any 429, and a rate-limited batch is reported rather than fanned out. 401/402/400 are
-  never retried. New knobs: `EMBED_MAX_RETRIES` (5), `EMBED_MIN_INTERVAL_MS` (0, a pacing floor).
-  **Nothing in noodlr's ingest path ever changed** — `ingestCompendium` has always awaited one batch
-  of 25 documents at a time. What changed was the provider's tolerance and the fact that resetting
-  every silo means re-embedding the whole corpus in one unbroken run, which is the first workload
-  that ever reached the limit. `test/embeddings.test.js` covers all of it; the old behaviour was
-  untested, same as the `k must be positive` bug below.
-  **The first lever against a requests-per-minute limit is `EMBED_BATCH_SIZE`**, not backoff: the
-  limit counts requests and not texts, so 16 → 64 is a straight 4× cut in calls for identical work.
-- **Patience is measured in time, not attempts (v1.2.0, 2026-08-13).** 1.1.1 handled a 429 correctly
-  and still could not finish a compendium, because `maxRetries` (5) with exponential backoff spends
-  every attempt *inside the same per-minute window* and then throws while the provider is still
-  refusing. A per-minute limit needs a wait sized to the window: `EMBED_RATE_LIMIT_WAIT_MS` starts at
-  20 s and scales, and the whole batch gets `EMBED_RATE_LIMIT_BUDGET_MS` (10 min) of patience rather
-  than a count. 401/402/400 still fail on the first try — patience is for the one error that passes
-  with time.
-  - **A 429 teaches the process to pace itself.** `adaptivePaceMs` doubles by `EMBED_PACE_STEP_MS`
-    up to `EMBED_PACE_MAX_MS` on every rate limit and decays after a quiet minute, so the run
-    settles at a sustainable rate instead of sprinting into the next window. It is a floor on top of
-    `EMBED_MIN_INTERVAL_MS`, not a replacement.
-  - **429 is now reported as 429.** It used to be flattened into the 400 that `embedTexts` throws for
-    any provider error, so a caller could only find it by grepping the message. Both are still read
-    on the module side (`isRateLimit` in `ingest.ts`) because a GM does not upgrade the service in
-    step with the module.
-  - **Raising `batchSize` needs a character cap to stay safe**, hence `EMBED_MAX_CHARS_PER_REQUEST`
-    (48k) and `planBatches`: the documented advice is to raise the batch size, and 64 statblocks is
-    a payload some providers reject outright. Splitting by length means the advice cannot backfire.
- - The default `batchSize` moved 16 → 32, and the module can override both it and the pacing floor
- per request (see the ingest-queue section below).
-- **Patience belongs to whoever has the progress bar (v1.2.1, 2026-08-13).** 1.2.0's ten-minute
- `rateLimitBudgetMs` was spent *inside one HTTP request*, and that is the wrong side of the wire.
- Two failures followed, and only the second was obvious. A reverse proxy cuts the connection first
- (nginx `proxy_read_timeout` defaults to 60 s). Worse, **the module's own countdown could never
- fire**: `withPatience` waits for a 429 *response*, so while the service absorbed the wait the queue
- reported `phase: "sending"` with an empty note and a working ingest was indistinguishable from a
- hung one — which is exactly how it was reported. The hold is now 45 s and then the 429 is handed
- back; the module's 20-minute budget does the waiting where a GM can see and cancel it.
- - **The pacing must survive the hand-back.** A short hold puts the whole weight of not re-bursting
- on the process-wide gate outliving the throw, so `pauseAll` is called before it. Reset the pace on
- the way out and the caller's retry arrives at full speed into the same wall — the stall-burst cycle
- the adaptation exists to stop, looking exactly like the adaptation not working. Locked by a test.
- - **`PACE_DECAY_MS` must comfortably exceed the longest single wait.** It is 300 s, and the older
- note here saying "a quiet minute" was wrong in a dangerous direction: at 60 s a one-minute
- rate-limit wait would count as quiet and zero the pace immediately before the retry that provoked
- it.
- - **`paceMaxMs` 6000 got the ceiling's purpose backwards.** It is a runaway guard, not a cap on
- compliance, and 6 s is 10 requests a minute — so an upstream provider wanting fewer than that
- could never be satisfied, and every retry was refused the instant it left. Now 30 s (2/min).
-- **Read WHICH limiter refused, because the two remedies are opposite (v1.2.1).** OpenRouter returns
- its own cap as `{error:{code:429, metadata:{error_type:"rate_limit_exceeded"}}}` with
- `X-RateLimit-Limit`/`-Remaining`/`-Reset` headers; that one is fixable with credits or by leaving a
- `:free` variant. An **upstream** provider's refusal is relayed verbatim behind an `HTTP 429:` prefix
- with a nested body and **no `X-RateLimit-*` at all** — it is that model's capacity rather than the
- key's balance, so credits change nothing and the levers are a slower rate, fewer requests, or a
- different model. `limiterOf()` classifies it (headers first, body shape second, `unknown` carries no
- advice) and the log names it. The 2026-08-13 report was upstream Perplexity, and without this the
- operator's first move is to buy credits that cannot help. **`rate_limit` on `GET /api/v1/key` is
- deprecated and always returns −1**, so there is no asking the account what its limit is.
- `X-RateLimit-Reset` is now used as the wait when no `Retry-After` arrives, its unit inferred by
- magnitude and discarded unless it yields a plausible wait.
-- **The arithmetic that makes deliberate pacing the right answer:** a whole corpus is one to two
- thousand requests at `batchSize` 64, so even 10/min finishes overnight — and a refusal costs the
- wait *and* the request, so going slowly on purpose is faster in wall-clock terms than being refused.
-  `EMBED_HEDGE_MS=0` for a bulk run; hedging is an interactive-latency trick and every duplicate is
-  another request against the same limit.
-- **The cheapest request is the one not sent (v1.3.0, 2026-08-13).** Everything above makes a refusal
-  survivable; this is the half that stops provoking one. The user rejected further self-throttling
-  outright and named the reason the corpus miner never hit this wall at 4 concurrency across nine
-  books: it deduplicated. Three sources of pure waste, in the order they were found:
-  - **Hedging fired on bulk batches.** A duplicate request is sent when the first stalls past
-    `EMBED_HEDGE_MS`, which doubles the request rate exactly when an account can least afford it —
-    and there is nobody waiting on a batch of 64 statblocks, so the latency it buys is worth nothing.
-    It now fires only for a **single** text. That is the whole of what hedging was for; the previous
-    advice to zero it for bulk runs is now mostly redundant rather than load-bearing.
-  - **Identical chunks were embedded once each.** `groupIdentical` folds a batch by exact text before
-    the call and fans the one vector back out. Keyed on the text and **not** on `contentHash`, which
-    is a 32-bit FNV-1a and therefore collides — a hash collision here would silently give two
-    different chunks the same vector, which is unfindable at the table.
-  - **A re-ingest re-embedded the entire pack.** `freshItems()` in `routes/vectors.js` drops chunks
-    the collection already holds, read through `listHashes` behind a small per-collection LRU
-    (`knownHashes`) so it is not a full scan per request. `forgetHashes` is called from `/delete`,
-    `/purge` and `/purge-all`, because a stale cache after a silo reset would skip everything and
-    leave the GM with an empty silo reporting success — the one failure mode that is worse than the
-    bug being fixed. Locked by `test/ingest-route.test.js`, which is also the first coverage that
-    route has ever had (see the `k must be positive` note: the query route had none either).
-  - **`/insert` deliberately does NOT skip stored hashes.** It is the path a memory is retracted or
-    edited through (`rag/retraction.ts` is delete + re-insert), so identical text arriving with new
-    metadata has to land. Skipping there would make retraction a silent no-op.
-  - **A skip has to be reported or it reads as a failure.** `/ingest` returns
-    `{inserted, chunks, skipped, alreadyStored, repeats}` and the module surfaces it — a pack that
-    reports zero inserted is finished, not broken, and that is the first thing a GM will misread.
-  - Default `batchSize` moved 32 → 64 in the same release.
-  - **RAG Lite needs the deduplication and none of the rate limiting, and it already has it**
-    (checked 2026-08-13, because the reasonable assumption is that the whole arc has a Lite
-    counterpart). Nothing in the 1.1.1 → 1.3.2 rate-limit family reaches Lite at all: the only
-    embedding path in the module is `rag/local/embedder.ts`, which sets `allowRemoteModels = false`
-    against weights shipped in the package, so there is no provider, no key, no request and no 429 to
-    handle. **The dedup half matters MORE there than on the service** — it is the GM's own machine on
-    one WASM thread rather than someone else's CPU — and `local-memory.ts` skips both stored hashes
-    and within-request repeats before embedding. It skips a repeat outright rather than embedding once
-    and fanning the vector out, because a Lite row is identified by its hash and there is nothing to
-    fan out to. It is also structurally immune to the stale-cache bug `forgetHashes` exists to
-    prevent: in Lite the in-memory index IS the store, one client owns both it and the file, and
-    every mutation path updates it before saving. `skipped` is the one field both backends set, so
-    the queue's "reused" line is already backend-agnostic. Lite's fixed batch of 16 is a WASM
-    working-set size, not a request-count lever, and must not be "harmonised" with `EMBED_BATCH_SIZE`.
-  - **What DID need doing was the reporting, and it was the inverse of the expected bug (v0.6.6).**
-    Lite cannot be rate-limited, so the question is not "does Lite need this remedy" but **"can Lite be
-    given this remedy by mistake"** — and it could. `providerRefusalAdvice` was ungated, and
-    `isRateLimit` matches the message as well as the status, so any 429 arriving from somewhere else
-    entirely (a reverse proxy in front of Foundry refusing the `FilePicker.upload` that Lite saves a
-    silo with) would have told a Lite operator to raise `EMBED_BATCH_SIZE` on a service they do not
-    run. It returns "" on Lite now, and `ingestFailureAdvice()` is the single dispatcher every report
-    path calls, so **adding a backend cannot leave one path handing out another backend's remedies.**
-    That is the same doctrine as `ragFailureAdvice`, which was already correctly gated, and the same
-    one as naming the model only when `getEmbedOverride()` carries it.
-  - **`liteFailureAdvice()` names the two failures Lite actually has, and both have shipped as real
-    bugs.** An incomplete install is a 404 *by construction* — `allowRemoteModels = false` means there
-    is no fallback — and it is invisible in dev because `npm run fetch-model` already put the weights
-    on disk: the v0.4.25 asset genuinely shipped without `models/` and the rc6–rc8 series was three
-    releases of the ORT paths resolving to the wrong directory. So the advice says "reinstall from the
-    manifest, a complete package is ~29 MB with `models/` and `dist/ort/`", which is the actionable
-    form of that. The other is `FilePicker.upload` without `FILES_UPLOAD`, where an index builds fine
-    in memory and then cannot be written. **The "Test in-browser embedder" probe is the one that
-    catches the install case**, so it leads with the diagnosis and keeps the raw ORT text after it —
-    an unrecognised error still shows verbatim, which is the honest fallback.
-  - Deliberately absent from Lite's advice: anything about batch size, rate or model. On that backend
-    the work is one WASM thread in the GM's own browser and there is no request to slow down.
-- **Every wait in the above was sized for a model of the limit, and the model was wrong (v1.3.1,
- 2026-08-13).** Reported from a live server: the **Diagnostics self-test** — one sentence, one
- request, no batching, nothing to deduplicate — failed on a 429, and the service then reported
- "embed pacing now 1s / 2s between requests". Two separate faults, and neither is fixable by any of
- the efficiency work above, because there was no waste left to remove.
- - **Read the operator's generation log, not our own inference.** It showed `status: 200` for a
- single-text embed at 21:12:00.502 and a refusal about a second later. A per-minute window cannot
- produce that, so the 20 s first wait (`rateLimitWaitMs`, and `ingest.ts`'s matching constant) was
- spending the entire 45 s hold arriving at a failure the provider had already stopped issuing.
- **1 s, doubling** — and `Retry-After` still beats any schedule we can invent.
- - **Adaptive pacing is OFF by default now (`paceMaxMs` 30000 → 0), and the default is the whole
- decision.** The mechanism assumes a 429 proves "the account cannot take requests at this rate",
- which is true of `[account limit]` and false of `[upstream limit]`: that one is a model's capacity,
- consumed by everybody's traffic, so pacing throttles a run that was never the cause and leaves the
- service slow for minutes after the event passed. Do not restore it as a default; `minIntervalMs` is
- the honest lever because it is a number an operator chose rather than one a failure taught us.
- - **A single-provider model cannot be routed around, and that is most of the mystery.** `routingNote`
- reads `/api/v1/models/<slug>/endpoints` once and logs the provider count on the first 429;
- `perplexity/pplx-embed-v1-4b` is served by Perplexity alone, so OpenRouter has no failover and
- saturation reaches us however slowly we ask. The user kept that slug deliberately (2026-08-13), so
- the remedy is to SAY this rather than to throttle around it. **Superseded the same day — see the
- default change below; the slug WAS the bug and saying so was not enough.**
- - **`scripts/probe-rate.mjs` exists so this is never re-argued from inference.** It talks to the
- provider directly and deliberately bypasses `embeddings.js` — the gate, the retries, the hedge and
- the pacing are exactly what would corrupt the measurement, since they exist to hide the behaviour
- being measured. `recover` is the one that sizes `EMBED_RATE_LIMIT_WAIT_MS`; `routing` needs no key
- (demanding one would send the operator hunting a credential to answer a free question).
-- **It was run, and it settled the question — but not with a number (v1.3.2, amended v1.3.3
- 2026-08-13).** `recover` on the reference host, twice, and **the two runs disagreed**: the first
- refused the very first request of a cold process and cleared 250ms later; the second succeeded once,
- was refused on request two, was still refused at 250ms and cleared at 500ms. **What they agree on is
- the load-bearing half.** A refusal arrives within the first one or two requests of a cold process,
- and no limit our own request rate could trip behaves that way — so every remedy shaped like "ask
- more slowly" was answering a question the provider never asked, which retires the whole
- self-throttling family for good rather than merely as a default.
- - **The disagreement is itself the finding, and it is why the tuning stops here.** A transient
- refusal lasts as long as that provider's saturation lasts, so there is no constant to match and
- `EMBED_RATE_LIMIT_WAIT_MS` only has to be in the right order of magnitude — the ladder doubles
- (0.5s, 1s, 2s, 4s, 8s, 16s) inside the 45s hold and absorbs the variance. It went 20s → 1s → 250ms
- → **500ms** across four releases, each of the first three cut on better evidence than the last and
- the fourth *raised* back to the top of the measured range. **Do not cut it again on a single probe
- run**; that is fitting to noise, and `config.js` says so at the setting.
- - **Sized to the top of the range rather than the middle, for an asymmetric reason.** Undershooting
- spends a request on a provider that is still refusing, which is waste against the one resource
- that is scarce; overshooting costs idle milliseconds on a rare event. The 250ms default was
- measurably the wrong side of that on the second run.
- - The regression test asserts the ORDER OF MAGNITUDE (`took < 3000`), not the value, so re-sizing
- within the measured range is not a test change while restoring a window-shaped default still fails.
- - `probe-rate.mjs recover` no longer prints "set the wait to N". Printing the newest sample as an
- instruction is what produced this re-tune, and the operator cannot tell from one run that the
- number moves; it now reports whether the measurement is within the scale the shipped ladder
- already covers.
- - **Two other constants had been sized for the same imagined per-minute window and were quietly
- wrong by two orders of magnitude.** The hedge stand-down was a flat minute (`REFUSAL_SETTLE_MS`,
- now 5s): one blip during a bulk ingest disabled hedging for the interactive query arriving ten
- seconds later, which is the only thing hedging still serves now that it fires for a single text
- only. And the `?? 20_000` / `?? 6000` fallbacks in `resolveEmbedConfig` still stated the old
- defaults — a second copy of a default is a value nobody chose, reached on exactly the path (a
- hand-built cfg) where it is least likely to be noticed.
- - **A refusal the service recovers from is `info`, not `warn` (`REFUSAL_NOISE_MS`, 5s of cumulative
- wait within one batch).** A single-provider model refuses the occasional request as a matter of
- course and we retry it away in a quarter of a second; logging that at `warn` with a paragraph of
- remedies is how a working ingest came to be reported as a broken service — the operator's words
- were that it "isn't even able to perform the self-test without being throttled and erroring", and
- the self-test had in fact succeeded. **Severity has to track what the operator should DO**, which
- is the same doctrine as `rag/failure.ts` on the module side, arriving from the other direction.
- The advice and the routing note now fire once per batch at escalation rather than on the first
- rung, so they appear when they are actionable.
- - **`dur()` because the logs rounded the interesting number away.** Every line printed
- `Math.round(ms / 1000)}s`, which was fine while the waits were tens of seconds and became a lie
- the moment they were measured properly: a 250ms retry read as "waiting 0s" and a learned 120ms gap
- as "pacing now 0s between requests". A log that rounds off the quantity it exists to report looks
- like a broken mechanism rather than a broken message.
- - **The module's first wait stays at 1s, and the asymmetry is deliberate.** By the time a 429 reaches
- `ingest.ts`, the service has already retried the blip away for up to its whole 45s hold, so a
- refusal the module can see is one that persisted. Harmonising the two numbers would either make
- the service patient enough to look hung or make the module retry a wall it was just handed.
- - Locked by `test/embeddings.test.js` — "at the shipped defaults, a recovered 429 leaves nothing
- behind" asserts no learned pacing and a sub-second first wait, so restoring a non-zero
- `paceMaxMs` default fails a test instead of quietly slowing the next self-test.
-- **The answer was the model slug, and the default changed (v1.3.4 / noodlr v0.6.7, 2026-08-13).**
- Everything above is correct and none of it fixed anything, because none of it addressed the cause.
- The user switched `perplexity/pplx-embed-v1-4b` → `qwen/qwen3-embedding-8b` and reported ingestion
- "without any errors at all", nothing else changed. `probe-rate.mjs routing` says why in one line:
- **three provider endpoints (Nebius, DeepInfra, SiliconFlow) against one (Perplexity).** With one,
- OpenRouter has nothing to fail over to and that provider's saturation is our 429; with three, the
- same event is absorbed before we ever see it. Both defaults moved (`config.js` `EMBED_MODEL`,
- `providers/config.ts` `embeddings`).
- - **The transferable rule: provider redundancy is a selection criterion for an embedding model, not
- a footnote.** It outranks price and benchmark position for this use, because a bulk ingest is
- thousands of requests and one endpoint means every one of them is exposed to strangers' traffic.
- `probe-rate.mjs routing <slug>` answers it in seconds and **needs no API key** — so it is now
- asked before a slug is adopted, and both READMEs plus the in-app refusal advice lead with it. That
- command took a `slug` argument only as of this release; without one it reported the *configured*
- model, which is useless for the question an operator actually has (about a model they have not
- switched to yet) and cost a wrong answer in this very investigation.
- - **Changing the model changes the VECTOR WIDTH**, and a LanceDB table's width is fixed when it is
- first written, so a switch means purge-all and a full re-ingest. Stated at both defaults and in
- the refusal advice, because a GM who changes the slug to escape 429s and then finds every query
- returning nothing has traded a loud failure for a silent one.
- - **Safe to change as a default precisely because it is only a default.** The provider form has
- always saved every field, so worlds that have ingested anything hold an explicit value and are
- untouched; the new slug reaches new worlds and worlds that never opened the setting, i.e. exactly
- those with nothing to re-ingest.
-- **The self-throttling audit, asked for and answered (2026-08-13).** With blame settled, the user
- asked what had been added to ingest "less aggressively" that should now be backed out. The honest
- inventory divides in three, and only one item was ever a self-throttle:
- - **Back out: adaptive pacing, and it already is** (`paceMaxMs` default 0 since v1.3.1). Its premise
- — that a 429 proves our rate is too high — is now not merely unproven but measurably false for the
- case that produced it. The code stays because it cannot fire without an operator setting both
- `EMBED_PACE_STEP_MS` and `EMBED_PACE_MAX_MS`, and there is one honest use left (a limit measured
- and known to be the key's). **Do not restore it as a default**, and prefer `EMBED_MIN_INTERVAL_MS`
- even for that case, because it is a number somebody chose.
- - **Keep, because it is PATIENCE rather than throttling**, and patience is right against any
- provider whoever's fault the refusal is: retries with backoff, `Retry-After`/`X-RateLimit-Reset`,
- the 45s service hold, the module's 20-minute budget and visible countdown, the process-wide pause
- (brief now that the first wait is 500ms), the hedge stand-down. None of these slow a healthy run
- by a millisecond — they only ever spend time that a refusal had already taken.
- - **Keep, because it is EFFICIENCY and would be right against a perfect provider**: `batchSize` 64,
- `EMBED_MAX_CHARS_PER_REQUEST`, `groupIdentical`, `freshItems`/`knownHashes`, Lite's hash skip,
- hedging only for a single text. These make an ingest cheaper and faster, not gentler. This is the
- half worth having kept: it is why a full re-ingest on the working model is quick.
- - **The one real cost still standing is the ingest queue's strict serialization**, and its stated
- rationale was the bad premise — "two concurrent ingests halve each other's share of a limit that
- counts requests". The queue itself earns its place on grounds that have nothing to do with rate
- limits (one writer, resume across a reload, visible progress, no duplicate job per pack, nothing
- moving under a running job), so it stays; but sixty packs now run strictly one at a time against a
- provider that could serve several. Parked in `IDEAS.md` rather than built: a small worker count
- would have to keep one shared 429 gate and a per-job `resumeAt`, and `EMBED_BATCH_SIZE` already
- bought a 4× cut in requests for free.
-- **Listeners (v1.1.0, 2026-08-01):** TCP **and** the optional Unix socket run at the same time. Before 1.1 a socket path switched TCP off entirely, which presumed Foundry and the service shared one Linux host; Windows hosts have no socket and some admins run the service on a separate box. `NOODLR_MEMORY_PORT=0` opts out of TCP; a socket path on Windows warns and is ignored; each listener reports its own bind failure and the process exits only if neither starts.
-
-How noodlr-main interacts with it (the integration contract):
-
-1. A **RagClient** (thin HTTP wrapper, ~one file) configured from a "Memory (RAG)" settings tab: service URL (default `http://127.0.0.1:3010`), secret, embedding provider/model, hybrid toggle + weights, Agent-Mode toggle.
-2. **Deliberate ingestion, not random chance:** the settings tab lists every Foundry compendium (locked or unlocked) with a target-silo picker for forced ingestion; TXT/PDF upload for materials outside the world; push-to-log and chat/journal feeds ingest into `chat` on a timer during sessions.
-3. **Retrieval at prompt-assembly time:** before each generation, query relevant silos (scene-aware: `rules` when adjudicating, `npc_state`/`factions` when NPCs are present, etc.) and inject results into the context under a labeled block, budgeted like lorebook entries.
-4. **Graceful degradation:** if the service is down, the module still works — it just plays without long-term memory and says so once.
-5. Structured events (`kind:"event"` with `importance`/`entities`/`keywords`/`event_type`/`ts`) feed the re-ranker; the Chronicle pipeline (below) is the main producer.
-6. **RAG is pre-injected context, NOT a model-chosen tool.** `retrieveContext()` runs unconditionally (when enabled) *before* the LLM call and the result is baked into the prompt (`assembler.ts`). Consequence: OpenRouter's account-level Web Search "default plugin" cannot "preempt" RAG — the two are independent. OpenRouter's dashboard can't fully turn that default off (min results is 1, not 0), so **`chat-client.ts` sends `plugins:[{id:"web",enabled:false}]` on every OpenRouter chat request** to neutralize it (per-request overrides account defaults unless the user set "Prevent overrides"). The only time web search runs is the opt-in **confidence-gated web fallback** (`rag/web-fallback.ts`, v0.4.1, off by default, OpenRouter chat only), which swaps in a firing `web` plugin spec for a *single* request when memory returns nothing (or a score `<= webFallbackMinScore`). Settings live in the Memory & Knowledge window; `stats.webFallbacks` counts fires.
-
-## The Dungeon Master core
-
-The default Chat system prompt is **"The Noodlr Dungeon Master System Prompt"** —
-preserved verbatim in [`prompts/dm-system-prompt.md`](prompts/dm-system-prompt.md)
-(~1,050 tokens; role/priorities, play philosophy, continuity, rules & adjudication with
-a bounded once-per-session Rule of Cool, stateful combat procedure, intrigue, reward-
-preference elicitation, voice/format). Read that file before touching prompt assembly.
-Key engineering doctrines from it that shape the *module's* architecture:
-
-- **Echoed combat tracker:** every combat message ends with a full ⚔️ state block with shown arithmetic ("24−11=13"), zones instead of grids, tiered enemy HP. Foundry advantage: the module can **rebuild this block from the real combat tracker** each turn and inject it as ground truth, instead of trusting the model to copy its own last block. Recovery from corruption = the module re-injects; no manual message editing needed.
-- **External dice only:** `{{roll:...}}` macros run real Foundry rolls. The model never generates dice results (it biases toward narrative convenience).
-- **📜 Chronicle lines:** the prompt has the model append one line of new canon after significant scenes. The module parses these into a review queue → GM promotes them to lorebook entries and/or `kind:"event"` RAG ingestion. This is the anti-amnesia pipeline.
-- **Post-history instructions:** a short always-last injection slot; a 2-line combat reminder is swapped in automatically when Foundry combat starts and cleared when it ends.
-- **Author's note:** a session-anchor injection at configurable depth (location, time, party status, active threats, tone).
-- **Lorebook / World Info:** keyword-activated (plus optional vector-activated via noodlr-memory) entries with insertion order, position, and token budget — for NPCs, locations, faction clocks, house rules, promoted Chronicle facts.
-- Foundry-specific adaptation: Noodlr is inherently **multi-user**; spotlight balancing and turn-taking exist at the table layer, and per-player reward-preference profiles key off actual Foundry users.
-
-## Feature specs (the four pillars, restated)
-
-1. **RAG Data Bank (COMPLETE via noodlr-memory)** — SillyTavern-Data-Bank-class capability: siloed vector DBs by function, local or remote embeddings (OpenRouter default `perplexity/pplx-embed-v1-4b`, or custom URL + optional key), forced compendium ingestion matrix, TXT/PDF import, prose/table-competent chunking. Module side (tab + client) is rebuilt in noodlr-main.
-2. **Uniform provider endpoints for TTS / Image / Transcription** — each feature gets: OpenRouter (+ key + model slug) or custom OpenAI-compatible URL (+ optional key). Defaults: image `google/gemini-3.1-flash-lite-image`; speech `microsoft/mai-voice-2`; transcription `openai/whisper-large-v3-turbo`. TTS includes a **local OpenAI-compatible preset with dynamic voice-list retrieval**. Image generation exposes SD-era params: sampling steps (20), CFG scale (7.0), sampling method (Euler A), seed (random), positive prompt, negative prompt.
-3. **No AI-ification of mundane mechanics** — Noodlr coexists with Midi QoL, DAE, Chris's Premades, Gambit's, etc., and delegates to them. No AI latency or token cost for things a mundane module resolves instantly.
-4. **System prompt overrides** — per-feature (Chat, Combat, TTS, Image, Transcription) spellcheck-enabled editable textarea, up to 65,000 ASCII characters, with reset-to-default. The DM prompt is Chat's default.
-
-## Roadmap
-
-### Phase 0 — Foundations & spec
-
-- Scaffold: TypeScript + esbuild, `module.json` (id `noodlr`, start v0.1.0), npm scripts (`build`, `watch`, `check`), prettier + eslint, MIT LICENSE, fresh git repo.
-- Verify current Foundry stable API level before coding (ApplicationV2, settings, sockets, dice, combat tracker APIs churn — check, don't assume).
-- Hello-world: module loads, one settings tab renders, a stub sidebar/chat panel opens.
-- Write short behavioral specs (own words) per feature area before implementing it; log decisions here.
-- Deliverable: installable skeleton in a Foundry world.
-
-### Phase 1 — Provider layer + Chat MVP
-
-- Provider config model: per-feature { provider: openrouter | custom, baseUrl, apiKey (optional for custom), model }.
-- Streaming chat client (SSE) against OpenRouter / OpenAI-compatible `/chat/completions`; clean error surfacing.
-- Chat panel: history, streaming markdown render, per-user identity.
-- `{{roll:...}}` macro → Foundry `Roll` → result injected back into the model turn.
-- System-prompt override setting (65k, spellcheck) wired; DM prompt as default.
-- Deliverable: "talk to the DM in Foundry; it answers in character and rolls real dice."
-
-### Phase 2 — Memory (RAG) integration
-
-- RagClient + "Memory (RAG)" tab: URL/secret/test-connection, embedding config, hybrid + Agent-Mode toggles, per-silo status/reset.
-- Compendium ingest matrix (locked/unlocked → chosen silo); TXT/PDF upload passthrough to `ingest-file`.
-- Retrieval wired into prompt assembly with token budgeting and a labeled context block; graceful offline degradation.
-- Deliverable: ingest a rules compendium into `rules`, ask a rules question, watch the DM cite retrieved text.
-
-### Phase 3 — Prompt architecture (the SillyTavern-informed layer)
-
-- **Lorebook/World Info:** entries with keys (plaintext/regex), optional vector activation via noodlr-memory, insertion order/position, scan depth, token budget, per-world storage.
-- **Author's note** (configurable depth) and **post-history instructions**; automatic combat-reminder swap keyed to Foundry combat start/end hooks.
-- **Chronicle pipeline:** parse 📜 lines from DM output → GM review queue → promote to lorebook entry and/or `kind:"event"` ingestion into the right silo.
-- Context assembler: system prompt + lorebook + author's note + RAG block + Foundry state + history + post-history, all under one token budget with defined precedence.
-- Deliverable: canon survives a 30+ message session without contradiction.
-
-### Phase 4 — Media features
-
-- **TTS:** OpenRouter (`microsoft/mai-voice-2`) or custom OpenAI-compatible incl. local preset; dynamic voice list; per-NPC voice assignment later.
-- **Image:** OpenRouter (`google/gemini-3.1-flash-lite-image`) or custom; SD params (steps/CFG/sampler/seed/negative); Image system-prompt override feeds scene-art prompt building.
-- **Push-to-log transcription:** rebuild the proven design — click-to-toggle capture, ~20 s MediaRecorder segments, POST to Whisper-style endpoint (`openai/whisper-large-v3-turbo` default), optional chat post, socket relay to GM, GM session journal, periodic RAG ingest (60–3600 s, default 300 s), player button bottom-center.
-- Deliverable: a spoken session leaves a searchable transcript in the `chat` silo.
-
-### Phase 5 — Combat co-pilot (no rules engine)
-
-- Ground-truth ⚔️ block builder from Foundry's combat tracker (initiative, HP tiers for enemies, conditions, positions as zones) injected each combat turn. **Kept** — `src/combat/tracker.ts`.
-- Rules questions during combat hit the `rules` silo automatically. **Kept.**
-- AI-run NPC/monster turns: **moved to `noodlr-hooks-55e` in the 2026-08-08 split.** Turns are now decided by a deterministic planner there, with no model call; this module hears about the decision through `noodlrHooks.turn` and may add a taunt or rewrite the announcement.
-- Deliverable, restated: run a full combat where the rules module resolves and Noodlr narrates.
-
-### Phase 6 — Packaging & cutover
-
-- README, manifest + release URLs (release scheme: `https://github.com/gobsmacked1/noodlr/releases/download/v<version>/module.zip`; manifest at `.../releases/latest/download/module.json`), version to 1.0.0 at parity.
-- New GitHub repo for noodlr-main; wipe the legacy repo; delete `C:\Project\noodlr` locally when no longer consulted.
-- Deferred/optional: `noodlr-vtt` external bridge with our own protocol and package — only if a real need emerges.
-
-## Tech stack & conventions
-
-- TypeScript, esbuild bundle to `dist/`; `module.json` id **`noodlr`** (do not install alongside the legacy reference module in the same world).
-- Format: prettier (printWidth 100). Validate: `npm run check` (tsc) + build before commit. Small commits at working checkpoints.
-- **Release cadence (2026-07-25):** the `-rcN` prerelease series is retired. Every shipped change is a normal incremented release (`v0.4.0`, `v0.4.1`, ...) cut with `gh release create` **without `--prerelease`** — Foundry's auto-update reads `releases/latest/download/module.json`, and GitHub excludes prereleases from "latest", so rc URLs were never picked up. Per release: bump `version` in `package.json` + `module.json`, point `module.json.download` at the new tag, then **`npm run package`** (`scripts/package.ps1` — asserts the two versions agree and that the download URL matches the tag, runs check/lint/clean-build, verifies no dangling chunk references, zips the payload and then re-opens the archive to confirm `module.json`, `dist/noodlr.js`, the ORT asyncify wasm, `lang`, `styles`, `banter`, `templates/partials/` and the ONNX weights are all inside). Then commit, tag, `gh release create <tag> module.zip module.json`. Add the release's notes to `changelog.md` (lowercase; Big Bad Module Manager reads it). Bump to 1.0.0 at feature parity.
-- **Verify the release's ASSETS, not just the tag (2026-08-03).** v0.4.26 was cut with `gh release create`
-  and no files attached, which Foundry reports as `No module manifest found at <url>` — the manifest URL is
-  `releases/latest/download/module.json`, so an assetless release makes the *newest* release the broken one
-  and blocks updating. Pushing the commit and tag is not shipping. After every release:
-  `gh release view <tag> --json assets` must list **both** `module.json` and `module.zip`, then fetch
-  `releases/latest/download/module.json` and confirm `version` matches and its `download` URL returns 200.
-- **`models/` must be in the zip.** `rag/local/embedder.ts` sets `allowRemoteModels = false` and points
-  `localModelPath` at `modules/noodlr/models/`, so Memory Lite's in-browser embedder has no fallback: an
-  asset without the weights 404s for anyone installing by manifest. The **v0.4.25 asset shipped without it**
-  (13.24 MB, no `models/` entries) — a real regression that local dev installs cannot notice, because the
-  weights are already on disk from `npm run fetch-model`. A correct asset is ~29 MB: `dist/ort` (~35 MB of
-  wasm, compresses hard) plus `models/.../model_quantized.onnx` (~22 MB, barely compresses at all). Sanity
-  check by size before uploading; anything near 13 MB is missing the model.
-- **The build wipes `dist/` first (2026-08-03).** Code splitting emits content-hashed chunk names and
-  esbuild never removes the previous build's, so `dist/` had reached ~460 JS/map files (17 MB, nearly all
-  unreachable) and every one shipped. A clean build emits 28. Deleting `dist/` wholesale is safe —
-  everything in it is generated, `dist/ort/` included, which `copyOrtAssets()` re-copies from
-  `node_modules` on each build. The upshot for debugging: a chunk that fails to emit is now an honest 404
-  rather than being masked by a stale file of the same name, which is what the packaging script's
-  dangling-reference check guards.
-- Sourcemaps stay in the shipped package and the bundle stays unminified, deliberately: console stack
-  traces from play are the primary diagnostic channel, and they are worth far more than the ~3.5 MB.
-- Windows host gotcha: the file-Write tool intermittently emits new files as UTF-16LE — after creating any file, verify the first bytes are UTF-8 and convert if needed. Watch CRLF/LF (.gitattributes) since Foundry servers are often Linux.
-- Never store secrets in this file or in module settings defaults.
-
-## Phase 0 status (completed 2026-07-22)
-
-Installable skeleton exists and builds clean. Decisions locked this phase:
-
-- **Foundry target:** v14 is current stable (14.365, verified 2026-07-22). `module.json` `compatibility` = min 13 / verified 14 / max 14. ApplicationV2 (`foundry.applications.api.ApplicationV2` + `HandlebarsApplicationMixin`) is the standard; original `Application` deprecates in v16 — build only on AppV2.
-- **Foundry types:** self-authored minimal ambient globals in `src/types/foundry.d.ts` (loose `any`). Deliberately no community types package — it lags the live API and this is a clean-room project.
-- **Build/tooling:** TypeScript (strict) + esbuild bundle `src/module.ts` → `dist/noodlr.js` (ESM, sourcemap, unminified for now). Scripts: `build`, `watch`, `check` (tsc --noEmit), `lint` (eslint 9 flat + typescript-eslint), `format` (prettier printWidth 100, LF). `dist/` gitignored; `.gitattributes` forces LF.
-- **Wired so far:** `init`/`ready` hooks, `enabled` + `chatSystemPrompt` world settings, a restricted settings-menu → `NoodlrSettingsApp`, a `getSceneControlButtons` launcher (defensive array/record handling) + `Ctrl+Shift+N` keybinding, both opening the stub `NoodlrChatPanel`. Module API exposed at `game.modules.get("noodlr").api`.
-- All files verified UTF-8/LF. Fresh git repo initialized (branch `main`), first commit landed. GitHub remote not yet created.
-
-## Phase 1 status (completed 2026-07-22)
-
-Chat MVP built (not yet smoke-tested in a live Foundry world — no world available in the build env; validated via tsc/eslint/esbuild + a verbatim-prompt diff).
-
-- **Provider model** (`src/providers/`): `FeatureProviderConfig` = { provider: openrouter|custom, baseUrl, apiKey, model } per feature (chat/embeddings/tts/image/transcription). `registerFeatureProviderSettings(feature)` exposes the 4 fields in native settings; `getFeatureConfig(feature)` reads them. Spec default models pre-seeded for embeddings/tts/image/transcription; chat model intentionally blank.
-- **Streaming chat client** (`chat-client.ts`): async-generator SSE parser over fetch/ReadableStream; `streamChatCompletion` + `chatCompletion`; `ChatClientError` carries HTTP status; OpenRouter attribution headers.
-- **DM prompt** embedded verbatim in `src/prompts/dm-system-prompt.ts` (diff-verified against the .md, 7185 chars). `getEffectiveChatSystemPrompt()` = override or default. Override cap 65,000 chars.
-- **Dice** (`dice/roll-macros.ts`): `{{roll:FORMULA}}` → real Foundry `Roll.evaluate()`, replaced inline as `[formula = total]`; model never rolls. One bounded auto-continuation (setting `chatContinueAfterRoll`, default on) feeds authoritative results back so the DM reacts.
-- **Chat panel** (`apps/chat-panel.ts`): ApplicationV2, imperative DOM (no re-render mid-stream), user/assistant/error bubbles, live streaming, safe minimal markdown (`util/markdown.ts`, escapes first), Foundry-user identity, Stop-to-abort, clear-conversation header control.
-- **Settings app**: working Chat system-prompt editor (textarea, 65k maxlength, spellcheck, save collapses an unmodified default to ""), reset-to-default, and a live Test-connection button.
-
-Known gaps / SHORTCUTs to revisit: no in-Foundry test yet; scene-control button shape is defensive but unverified against v14; assistant markdown renderer is intentionally tiny; rolls are not yet posted to the Foundry chat log (results shown in-panel only).
-
-## Phase 2 status (completed 2026-07-22)
-
-Memory/RAG integration built against the live noodlr-memory HTTP contract (read from that repo's README + src). Not yet smoke-tested against a running service.
-
-- **RagClient** (`src/rag/client.ts`): thin wrapper over `/v1` (`health`, `collections`, `query`, `ingest`, `ingest-file`, `purge`), `x-noodlr-secret` header, `RagClientError`. Hit shape `{id,score,text,hash,metadata}`; 9 silos mirrored in `rag/silos.ts`.
-- **Config** (`rag/config.ts`): native settings — enable, service URL (default `http://127.0.0.1:3010`), secret, hybrid, agent-mode, sendEmbedConfig, tokenBudget (1500), topK (5); plus embeddings provider (default `perplexity/pplx-embed-v1-4b`). `getEmbedOverride()` only sent when the user opts in (keys stay server-side by default).
-- **Retrieval** (`rag/retrieval.ts`): queries default silos (lore/rules/npc_state/factions/quests/chat) across one multi-collection call, budgets hits by ~4-char/token estimate into a labeled block, injected as a second system message per user turn. Graceful degradation: on unreachable service returns null + one-time warning; the DM keeps playing.
-- **Agent Mode** (`rag/agent-mode.ts`): chat model decomposes the query into sub-queries + entities (`searchTexts[]` + `entities[]`), best-effort with raw-query fallback.
-- **Ingestion** (`rag/ingest.ts`): system-agnostic `documentToText` (name + description HTML stripped + JSON fallback; JournalEntry pages handled), batched (25) compendium ingest with progress.
-- **Memory window** (`apps/memory-app.ts` + `templates/memory.hbs`): status/backend, per-silo item counts + reset (confirm dialog), compendium ingest matrix (any pack → chosen silo), TXT/PDF upload (PDF as base64). Opened via the "Manage Memory" settings menu or `game.modules.get("noodlr").api.openMemory()`.
-
-Known gaps: silo-status counts depend on the service's `stats()` shape (rendered defensively); scene-aware silo selection is still a fixed default set; retrieved block is injected at top rather than lorebook-style positioned (Phase 3); no in-Foundry/live-service test yet.
-
-## Phase 3 status (completed 2026-07-22)
-
-SillyTavern-informed prompt architecture. Lorebook storage decision: **world-scoped module setting holding a JSON array** (`type: Array`), synchronously readable at assembly time; revisit if lorebooks grow large. Not yet smoke-tested in Foundry.
-
-- **Context assembler** (`src/prompt/assembler.ts`): single ordered payload — system prompt · top lorebook · RAG · Foundry state (Phase 5 hook) · [history + author's note at depth] · bottom lorebook · post-history. One token budget (`contextTokenBudget`, default 12000, ~4ch/token via `util/tokens.ts`); history trimmed oldest-first to fit fixed blocks. Replaces the ad-hoc payload in `conversation.ts`.
-- **Lorebook** (`prompt/lorebook.ts` + `apps/lorebook-app.ts`): keyword (plaintext or `/regex/flags`) + constant activation, position top/bottom, order, enabled. CRUD via a DialogV2 single-entry editor. Vector activation is a stored flag, not yet wired.
-- **Author's note / post-history / combat reminder**: edited in the settings window (textareas); depth + context budget are native settings. Combat reminder auto-swaps into the post-history slot when `game.combat?.started` (computed at assembly time — no hooks needed).
-- **Chronicle pipeline: REMOVED 2026-07-27** (see the dated section above). Lorebook stays.
-- **Memory browser** (`apps/rag-browser-app.ts`): GM-only search-driven CRUD over any RAG collection.
-- Session tools live on the DM scene-control toolbar. API: `openLorebook()`, `openRagBrowser()`.
-
-Known gaps: no vector-activated lorebook entries yet; author's note/post-history are plain text (no per-entry token budgets beyond the global one); FormDataExtended path in the lorebook editor is defensive but unverified in v14; no in-Foundry test.
-
-## Phase 4 status (completed 2026-07-22)
-
-Media features. All three provider shapes reuse the shared per-feature provider settings. **Clients are untested against live endpoints; push-to-log is untested (needs mic + Foundry).**
-
-- **TTS** (`media/tts.ts`): `/audio/speech` (OpenRouter/custom incl. local presets), `speak()`/`stopSpeaking()`, dynamic `listVoices()` (tries `/audio/voices`, falls back to OpenAI names). Optional auto-read of DM replies (client-scoped setting) wired into the chat panel.
-- **Image** (`media/image.ts` + `media/display.ts`): `/images/generations`, optional chat-model prompt expansion via the Image system-prompt override, SD-era extras (steps 20 / cfg 7 / sampler "Euler a" / seed -1 / negative), b64 or URL result shown in an ImagePopout + posted to chat. GM scene-control button prompts for a description.
-- **Transcription** (`media/transcription.ts`): multipart `/audio/transcriptions` (Whisper default).
-- **Push-to-log** (`media/push-to-log.ts`): floating bottom-center mic button for all participants; cycles ~N-second MediaRecorder segments → local transcription → GM path posts to chat + appends to a flagged session JournalEntry + buffers for periodic `chat`-silo ingest (60–3600s, default 300s). Player clients relay transcript **text** (not audio) to the GM over the `module.noodlr` socket. Segment length + all toggles are settings.
-- API added: `speak`, `stopSpeaking`, `generateSceneImage`, `togglePushToLog`.
-
-Known gaps: no in-Foundry/live-endpoint test; MediaRecorder segment cycling and the socket relay need verification; generated images aren't saved to disk (data URL only); per-NPC voice assignment deferred.
-
-## Phase 5 status (completed 2026-07-22)
-
-Combat co-pilot — no rules engine; narrate + delegate. Not yet tested in a live combat.
-
-- **Ground-truth ⚔️ block** (`combat/tracker.ts`): `buildCombatStateBlock()` rebuilds the tracker from `game.combat` each turn (round, init order, current→next, per-combatant HP/conditions/defeated). System-agnostic best-effort HP extraction (dnd5e + common shapes); PCs show exact HP, enemies show tiers (fresh/wounded/bloodied/near death); positions left as narrative zones (no Cartesian). Injected via the assembler's `foundryState` slot (conversation passes it every turn) — the module, not the model's last message, is the source of truth.
-- **AI NPC turns** — gone from this repo. Shipped here as `combat/npc-turn.ts`, replaced by a deterministic planner in v0.4.22, and moved to `noodlr-hooks-55e` in the 2026-08-08 split along with the scene-control tool and `api.runNpcTurn()`.
-- **Rules during combat**: `retrieval.ts` force-adds the `rules` silo to queries whenever combat is active. **Still here** — it is a retrieval decision, not a rules one.
-
-Known gaps: HP/condition extraction is best-effort per system (verify on your target system); positions aren't zone-mapped.
-
-## Phase 6 status (partial — 2026-07-22)
-
-Packaging done and shipped to GitHub. Version stays 0.1.0 (pre-parity, pre-smoke-test).
-
-- **README.md** written (thesis, principles, features, install, configure, console API, license).
-- **Host decision (2026-07-22):** canonical git + release host is **github.com/gobsmacked1**, not `math.secretdoor.app`. The secretdoor.app URL was a placeholder; `module.json` `url`/`manifest`/`download`/`readme` now point at GitHub. (User can revert to a self-hosted forge later; if so, re-point these four fields.)
-- **Repos live (public):** `github.com/gobsmacked1/noodlr` (this module) and `github.com/gobsmacked1/noodlr-memory` (the RAG service — was never actually a git repo locally before; `git init` + first commit + push done, with fresh `.gitignore`/`.gitattributes`).
-- **Release v0.1.0 cut:** `module.zip` (dist/ + templates/ + styles/ + lang/ + module.json + LICENSE + README, 90 KB) and `module.json` attached as assets. Install-by-manifest verified reachable: `https://github.com/gobsmacked1/noodlr/releases/latest/download/module.json` returns the correct manifest (id=noodlr, v0.1.0).
-- Legacy `C:\Project\noodlr` is already empty on this host; nothing to delete.
-- Deferred: bump to 1.0.0 once smoke-tested at parity in a live world.
-
-## Deployment facts (target Foundry server — provided by user 2026-07-22)
-
-- Host `DEMIURGE` (Linux). Foundry service `foundryvtt` runs as account **`superuser`** from **`/opt/foundryvtt`**; world/module data under `/opt/foundryvtt/data/Data`.
-- **Module install path:** `/opt/foundryvtt/data/Data/modules/noodlr` (install-by-manifest in Foundry drops it here automatically).
-- **External deps** (e.g. `noodlr-memory`) deploy to **`/opt/<service-name>`** → `/opt/noodlr-memory`.
-- **Cursor agent worker:** runs as user `cursorbot` under systemd unit `cursor-worker.service` (name `noodlr-cursorbot`, workerId `afb4e5c1-...`), survives reboot (verified). Its serving directory is **`/opt`**, so a Cloud Agent driving this worker has `/opt` as workspace root. Drive it from cursor.com/agents, not from this chat.
-- Give the worker scoped power to bounce Foundry via a sudoers drop-in (`cursorbot ALL=(root) NOPASSWD: /usr/bin/systemctl {start,stop,restart,status} foundryvtt`).
-
-### The Data tree is served to the public internet with no authentication (verified 2026-08-15)
-
-Measured from a machine with no session and no credentials: `GET https://<host>/vtt/assets/noodlr-out/survey/noodlr-sheet-survey.json`
-returns **200** and 75 KB, and `GET /vtt/modules/<any>/module.json` returns 200. Directory listing is
-refused (301), so a filename has to be known or guessed, but nothing else stands in the way. This is how
-Foundry works rather than a misconfiguration — the Data tree is served so every client can load images
-and audio — and it is worth writing down because it has consequences in both directions.
-
-- **Anything a diagnostic writes into `assets/` is published.** The sheet survey alone gives an attacker
-  the exact Foundry version, system version and complete module inventory with version numbers, which is
-  the reconnaissance half of exploiting any one of them. A **console log** would be far worse: it would
-  carry GM-only narration, `gm_*` retrieval hits, and any bearer token that appears in a failed fetch's
-  error text. So a log sink writing there needs a narrow nginx deny beside it.
-- **The deny must be narrow, and this is the part that breaks things if rushed.** `assets/noodlr-out/` is
-  where generated portraits, tokens, maps, scene art, music and video are saved, and every one of them is
-  referenced from a chat card **by path** precisely so players' browsers can fetch it (see the v0.2.3
-  media round — base64 in chat is stripped, which is why paths are used at all). Denying that tree wholesale
-  breaks media sharing for the table. Deny the diagnostic subtrees only: `logs/`, `survey/`.
-- **The same property is a genuine convenience and is now load-bearing for the test loop.** A file written
-  by `FilePicker.upload` is readable over HTTPS from anywhere immediately, with no SSH, no cursorbot and no
-  browser automation. That is why the diagnostics-to-file pattern (`api.surveyActions({saveToFile: true})`)
-  is worth extending rather than replacing.
-- **`worlds/` IS reachable by filename, measured 2026-08-17, which closes half of the open question
-  below.** `GET /vtt/worlds/<id>/world.json` returns **200**, and a file this module wrote to
-  `worlds/<id>/assets/…` fetches exactly like one under `assets/`. Every directory path — `worlds/<id>/`,
-  `.../assets/`, `.../data/` — 301s, same as `assets/`. So **moving output into `worlds/<id>/assets/`
-  changes nothing about exposure in either direction**: media stays shareable with the table, and a
-  diagnostic written there is still published. The nginx deny is still the only answer to the second, and
-  it now has to name the world-scoped subtrees too.
-- Still not verified: whether the reverse proxy logs these fetches anywhere useful.
-
-### One host, two worlds, one memory index (v0.7.5, 2026-08-17)
-
-`assets/` is a **sibling** of `worlds/`, not a child of any one of them, so `assets/noodlr-out` was one
-output folder for every world on a Foundry install. Read as a media problem that is a naming collision
-somebody would notice. It is not a media problem: **RAG Lite keeps its silos at
-`<mediaFolder>/memory/<silo>.json`, so two campaigns on one host shared one memory index and each
-retrieved the other's `gm_*` lore.** That is the GM's own secrets crossing between campaigns, silently,
-with retrieval behaving perfectly — and it is the same shape as the capability-cache hazard
-[`noodlr-hooks-55e`](../noodlr-hooks-55e/AGENTS.md) found the same day, which is what prompted looking.
-
-- **`defaultMediaFolder()` is `worlds/<id>/assets/noodlr-out`, and the setting registers EMPTY.** A
-  literal default could not be world-specific: settings are registered once per install, so the same
-  string would be handed to every world. Empty means "resolve it from the world", and `getMediaFolder()`
-  is the only reader.
-- **THE V13 NOTE THIS REPO CARRIED — that Foundry prohibits uploads into `worlds/` — IS ABOUT THE
-  FILEPICKER'S BROWSER UI AND NOT ABOUT A MODULE'S `upload` CALL.** The blacklist is client-side; the
-  server allows it, and `worlds/<id>/assets/` is where **core itself** puts a world's extracted media.
-  Verified against the live server before anything was moved: the write succeeds, `createDirectory`
-  succeeds per segment, and the file is fetchable over the routed URL. Do not re-derive this from the
-  picker's behaviour — the picker will refuse and the API will not.
-- **The migration compares against the LITERAL old default and moves nothing else.** Every world that has
-  ever opened the Image window holds an explicit `assets/noodlr-out`, because the old form saved
-  `folder || "assets/noodlr-out"` on every save — so "deliberately shared" was never expressible and
-  cannot be distinguished now. Any *other* path is a value somebody chose and is left alone, which is the
-  case worth protecting. Same shape as `seedPromptDefaults` and safe for the same reason: a
-  `mediaFolderScoped` flag, not a version check, because re-running on upgrade would overwrite a GM's path.
-- **It CLEARS the setting rather than writing the new path.** A stored literal goes stale the moment a
-  world is duplicated under a new id; an empty value keeps resolving.
-- **FILES ARE NOT MOVED, and that is the whole reason this is safe to ship.** Foundry offers no rename,
-  and copying a campaign's art through the browser is a long unattended upload. Every path already written
-  into a chat card or an actor's `img` stays valid — those are absolute data paths, and the old tree is
-  still served.
-- **RAG LITE READS THIS WORLD'S SILOS AND NOTHING ELSE, AND A READ-THROUGH WAS BUILT AND THEN REMOVED
-  BEFORE RELEASE (user, 2026-08-17).** The argument for one is real and is worth stating, because it will
-  be made again: an ingested index that suddenly reads as empty means retrieval returns nothing, the GM
-  sees a working service with no memory, and the obvious fix is re-embedding a corpus they already paid
-  for. It was gated as tightly as it could be — on the file being ABSENT rather than empty, so a
-  deliberate reset was respected, and on a `mediaFolderMoved` flag set only for the one world the
-  migration actually moved, so a new world could not inherit. **Removed anyway**, for the same reason
-  `noodlr-hooks-55e` removed its capability-cache adoption the same day: a world reading another
-  campaign's data is a fault that surfaces weeks later as retrieval saying something impossible, with
-  nothing traceable back to an adoption, and here the payload is the GM's own lore and `gm_*` secrets
-  rather than mechanics that can be re-bought. **Every path in and out of these modules is
-  world-scoped, with no legacy fallback anywhere.** A corpus in the old tree gets re-ingested.
-  - The corollary is the same one the cache has: **a world with unreadable `game.world.id` writes and
-    reads nothing** rather than falling back. That is not a case worth code — this project runs on one
-    host — and a fallback is precisely what would resurrect the sharing.
-- Ordered in `module.ts`: `scopeMediaFolder()` before `ensureMediaFolder()`, or the first thing a load
-  does is create the shared folder it is moving away from. Primary GM only — it writes two world
-  settings (the folder and `mediaFolderScoped`).
-
-### The GM harness — `C:\Project\noodlr-vtt\harness\` (2026-08-15)
-
-Built because the test loop's slowest step was a human: reproduce it, export the console, attach the
-file, describe what happened. `watch-gm.mjs` runs the GM session inside a Playwright Firefox, writes
-every console record to a file, and opens a localhost port an agent can run diagnostics through.
+0. **No third-party module is ever a dependency.** Every feature works with nothing installed
+   but Foundry and a game system. Detect another module to *enhance* (e.g. read a calendar
+   module's richer time components by duck typing); never require one. Prefer signals core cannot
+   take away.
+1. **No hardcoded game-system rules.** Rules live in the `system_rules` RAG silo (ingest any
+   system's books / compendia) and in the model's own competence. The module ships zero rules
+   logic. (Item 2 of READ FIRST is this principle restated after the experiment that violated it.)
+2. **Mechanics belong to mechanics modules.** Noodlr narrates, remembers and adjudicates
+   socially; it does not resolve dice mechanics.
+3. **Two provider shapes, period:** OpenRouter (one shared API key) or any hand-entered
+   OpenAI-compatible base URL + optional key. Applied uniformly to Chat, Embeddings, TTS, Image,
+   Transcription, Music, Video, Rerank.
+4. **Foundry is the source of truth.** HP, initiative, conditions, scene state come from
+   Foundry's APIs and are injected as authoritative state. Dice are **never** model-rolled — a
+   `{{roll:XdY}}` macro executes a real Foundry `Roll` and the result is fed back.
+5. **SillyTavern-informed prompt architecture:** siloed data banks, keyword-activated lorebook
+   entries with position and budget, author's note at depth, post-history instructions.
+6. **TypeScript + esbuild**, strict, with a real build step.
+7. **A capability that switches itself off must say so in the interface** (a greyed control or an
+   advisory), never only in a comment. Every stand-aside or degradation in this repo follows that.
+
+## What ships today (v0.7.9) — by folder
+
+- `src/providers/` — per-feature `{provider, baseUrl, apiKey, model}` config; one shared
+  OpenRouter key (`SETTINGS.openrouterApiKey`, world scope, write-only in the DOM); streaming SSE
+  chat client (`chat-client.ts`) with CRLF-safe frame parsing and a JSON fallback for servers that
+  ignore `stream:true`; OpenRouter model catalog filtered by output modality (`models.ts`);
+  per-model voice lists (`supported_voices`); rerank (`rerank.ts`).
+- `src/chat/` — the GM co-pilot conversation (`conversation.ts`): retrieval → assembler → stream →
+  roll macros → one bounded auto-continuation → memory directives. Assistant name setting
+  (`assistant.ts`, default "Polly Histor").
+- `src/apps/` — ApplicationV2 windows: chat panel, player panel, five config windows (Memory,
+  Text Generation, Audio Generation, Image Generation, Security) on `NoodlrConfigApp`, memory
+  manager, memory browser, lorebook, diagnostics, creature voices. Header-only Save button
+  (`header-save.ts`).
+- `src/prompt/` — context assembler (one token budget, fixed blocks never truncated, history
+  trimmed oldest-first), lorebook (world-setting JSON array, keyword/regex/constant activation,
+  top/bottom position), author's note at depth, post-history slot with an automatic combat
+  reminder when `game.combat?.started`.
+- `src/prompts/` — the verbatim DM system prompt (`dm-system-prompt.ts`, mirrored in
+  `prompts/dm-system-prompt.md`), the players' bot prompt, the GM adjudication prompt, and
+  `fields.ts` — the single registry of every editable prompt field.
+- `src/system/ruleset.ts` — the "which game are we playing" setting (`rulesetChoice`: curated
+  list + `auto` + `custom`; default "Dungeons & Dragons Fifth Edition (2024)"); injected into every
+  generation path as `buildRulesetBlock()` after the system prompt and `rulesetEcho()` in the
+  post-history slot.
+- `src/rag/` — `MemoryBackend` interface with two implementations: `RagClient` (HTTP to
+  noodlr-memory) and `LocalMemory` (RAG Lite, in-browser MiniLM embeddings via transformers.js /
+  ORT-WASM, JSON silo files under the world's media folder). Retrieval with silo scoping,
+  precedence ranking, retraction filtering, optional rerank and optional web-search fallback.
+  Ingest queue with resume and reload survival. Structured import (JSON / YAML / CSV). Prose
+  cleaning (`prose.ts`). Memory-write directives with a rights matrix.
+- `src/players/` — the players-only bot: socket relay to the primary GM, player-scoped retrieval,
+  `@@NOODLR VERB {json}` directives, bot-to-bot adjudication with a real captured Foundry roll.
+- `src/combat/tracker.ts` — the ⚔️ ground-truth state block rebuilt from `game.combat` each turn
+  (PC exact HP, enemy HP tiers, conditions, defeated). Prompt material, not rules.
+- `src/tipster/scene.ts` — live scene briefing (T1: ambience, time, light, regions; header
+  `Token/Object Speaking:`).
+- `src/media/` — TTS (`/audio/speech`, shared broadcast + local), image (four generators with
+  continuity ledger), music (`/chat/completions` with audio modality), video (async
+  `/videos` + poll), transcription, push-to-log, persistent media storage, creature-type voices.
+- `src/log/chat-sniffer.ts` — native chat log → `unfiltered_chat` silo, primary GM only.
+- `src/dice/roll-macros.ts`, `src/util/` (`gm.ts` `isPrimaryGM`, `speaker.ts`, `audit.ts`,
+  `stats.ts`, `markdown.ts`, `tokens.ts`).
+
+## noodlr-memory — contract and operating facts
+
+Standalone Node >= 20 HTTP service; the module talks to it over HTTP only. Status: complete,
+tested (node:test), MIT.
+
+- **Collections (silos), 35, independently resettable:** `system_rules`, `docs`, `unfiltered_chat`,
+  and sixteen topics each split `player_*` / `gm_*` (`locations, npc_state, calendar, chat, history,
+  lore, quests, macguffin, puzzle, goals, story_arc, factions, reputations, effects, sheets,
+  inventory`). Mirrored in `noodlr-memory/src/collections.js` and `noodlr-main/src/rag/silos.ts`.
+  Access matrix (per-bot SELECT/INSERT/UPDATE/DELETE): `noodlr-memory/scripts/RAG_Collections_Access-Order-Intent.csv`,
+  encoded as `SILO_RIGHTS` / `canWrite()` in `silos.ts`. `PLAYER_QUERY_SILOS` is the hard
+  whitelist for the players' bot; `gm_*` is unreachable at the retrieval layer.
+- **Backends:** `lancedb` (default, embedded Node SDK, one table per collection, only one process
+  may write the directory), `vectra`, `qdrant`, `chroma` (`VECTOR_BACKEND`).
+- **Embeddings:** `openrouter` (default model **`qwen/qwen3-embedding-8b`** — three provider
+  endpoints; the old `perplexity/pplx-embed-v1-4b` had one and its saturation was our 429s),
+  `custom` (any OpenAI-compatible `/v1/embeddings`), `transformers` (in-process), `mock`.
+  **Changing the model changes the vector width; a LanceDB table's width is fixed at first write,
+  so a switch means purge-all + full re-ingest.** `scripts/probe-rate.mjs routing <slug>` reports
+  a model's provider count with no key — ask it before adopting a slug.
+- **Chunker:** prose/table-aware; roll tables and stat blocks stay atomic; `kind:"event"` docs
+  atomic.
+- **Retrieval:** dense + BM25 fused by RRF, re-ranked by `importance` (0–10) + `recency`;
+  multi-query fusion (Agent Mode) with entity soft-boosting. Every hit carries `collection`.
+- **HTTP API** under `/v1`: `health`, `collections`, `ingest`, `ingest-file` (TXT/PDF; optional
+  `importance`), `insert`, `query`, `list`, `delete`, `purge`, `purge-all`. Shared-secret header
+  `x-noodlr-secret`. Binds 127.0.0.1:3010 by default; TCP and an optional Unix socket
+  (`NOODLR_MEMORY_SOCKET`) run together; `NOODLR_MEMORY_PORT=0` opts out of TCP. CORS reflects
+  Origin and answers OPTIONS. `DEPLOYMENT.md` has the Linux/systemd guide.
+- **Ingest efficiency (keep):** `batchSize` 64, `EMBED_MAX_CHARS_PER_REQUEST` 48k, identical
+  chunks embedded once per batch (`groupIdentical`, keyed on text not hash), already-stored hashes
+  skipped on `/ingest` (`freshItems` + `knownHashes` LRU, invalidated by `/delete`, `/purge`,
+  `/purge-all`). `/insert` deliberately does NOT skip stored hashes — it is the retraction/edit
+  path. `/ingest` returns `{inserted, chunks, skipped, alreadyStored, repeats}`; zero inserted
+  means finished, not broken.
+- **Rate limits (settled, do not re-tune):** retries with `Retry-After` / `X-RateLimit-Reset` /
+  exponential backoff from 500 ms; process-wide pause on 429; service holds a request at most 45 s
+  then hands the 429 back so the module's visible 20-minute countdown does the waiting; hedging
+  only for single-text requests. Adaptive pacing exists but is **off by default** (`EMBED_PACE_MAX_MS=0`)
+  and must stay off. 401/402/400 never retry. `limiterOf()` distinguishes OpenRouter's own limit
+  (headers present; credits help) from an upstream provider's (no headers; credits do not).
+- **Diagnostic CLI:** `scripts/seed.mjs` (health / collections / seed / query / selftest / purge).
+- **Query route bug to remember:** hybrid retrieval once returned zero hits for months because
+  `clampInt` was called with a missing `max` → `NaN` → LanceDB `k must be positive`, swallowed to
+  `[]`. Lesson: routes need their own tests, not only store tests.
+
+### Module-side integration contract
+
+1. `RagClient` / `LocalMemory` behind `MemoryBackend`; `getRagBackend()` / `getRagClient()` in
+   `rag/config.ts`. Setting `rag.backend` defaults **`lite`**. `isRagEnabled()` is backend-aware.
+2. **Memory access is GM-gated.** Only the GM client contacts noodlr-memory; `retrieveContext`
+   returns null for non-GM. The shared secret is **client-scoped** (stays on the GM's machine);
+   URL and tuning are world-scoped.
+3. Two target modes (`rag.targetMode`): `direct` (full URL, default `http://127.0.0.1:3010`) or
+   `proxy` (a path such as `/memory` resolved against `location.origin`). Loopback-URL-with-remote-
+   Foundry and HTTP-on-HTTPS are detected before any request (`inspectRagTarget()`). Both
+   normalizers strip a trailing `/v1`.
+4. **RAG is pre-injected context, not a model-chosen tool.** `retrieveContext()` runs before the
+   LLM call and the block is baked into the prompt. `chat-client.ts` sends
+   `plugins:[{id:"web",enabled:false}]` on every OpenRouter chat request; the only web search is
+   the opt-in confidence-gated fallback (`rag/web-fallback.ts`, off by default).
+5. Graceful degradation: service down → play without long-term memory, warn once.
+6. **Importance is written on every path** (`rag/importance.ts`): curated 8, ingested 7,
+   assistantWrite 6, artifact 5, conversation 3, transcript 3, incidental 2, diagnostic 1.
+7. **Retraction** (`rag/retraction.ts`): delete + re-insert with `metadata.retracted`; the browser
+   shows it struck through; retrieval filters it. Works on both backends.
+8. **Precedence:** `precedenceRank()` in `silos.ts` hoists character-sheet hits above rulebook
+   hits above campaign memory inside `formatContextBlock`, before the budget loop. Silo array
+   order is documentation only — every silo goes into one fused query.
+9. **Ingest is a queue** (`rag/ingest-queue.ts`): module-level singleton, keyed `pack:<id>:<silo>`
+   so a pack cannot be queued twice, `resumeAt` advanced only once a batch is stored, painted
+   imperatively (never `render()` on progress), persisted so it survives a reload (primary GM
+   writes and resumes; other GMs' jobs are carried), visible per-second countdown during waits.
+10. `rag/failure.ts` tells a provider refusal apart from a broken service and names the remedy for
+    the active backend only (`ingestFailureAdvice()` is the single dispatcher). Lite advice names
+    Lite's two real failures: an incomplete install (no `models/`) and `FilePicker.upload` without
+    `FILES_UPLOAD`.
+11. `documentToText()` in `rag/ingest.ts` reads RollTable `results` and an actor's embedded Items,
+    not only `system.description`; `ingestCompendium` warns with a census of documents that
+    ingested as only their own name. `rag/prose.ts` drops `<section class="secret">` asides that
+    talk about the software (Foundry tooling vocabulary) and keeps every other hidden section — a
+    GM's own secrets are marked the same way. **Consequence for existing stores: purge, then
+    re-ingest**, because scrubbed text is a new hash.
+
+## The Dungeon Master core and prompt architecture
+
+The default Chat system prompt is preserved verbatim in `prompts/dm-system-prompt.md`
+(~1,050 tokens). Read it before touching assembly. Doctrines that shape the module:
+
+- **Echoed combat tracker:** the module rebuilds the ⚔️ block from the real tracker every turn
+  (`combat/tracker.ts`) and injects it as ground truth in the assembler's `foundryState` slot,
+  concatenated with the Tipster block (combat first).
+- **External dice only:** `{{roll:...}}` → real `Roll.evaluate()`, replaced inline as
+  `[formula = total]`; one bounded auto-continuation (`chatContinueAfterRoll`).
+- **Post-history instructions:** always-last slot; combat reminder swapped in automatically;
+  `rulesetEcho()` rides there too.
+- **Author's note** at configurable depth; **lorebook** entries keyword/regex/constant-activated.
+- **Ruleset statement:** `buildRulesetBlock()` immediately after the system prompt in every
+  generation path (assembler, `players/answer.ts`, `players/adjudication.ts`). Any new generation
+  path must include it — the module once adjudicated in PF2e terms because nothing had told the
+  model which system Foundry was running.
+- **Memory tools:** the GM co-pilot emits `@@NOODLR REMEMBER/UPDATE/FORGET` directives
+  (`rag/memory-writes.ts`, gated by `chatMemoryWrites`, every write audited to GMs). The players'
+  bot uses the same syntax with `audience:"player"`.
+- Chronicle (a 📜-line review queue) was removed 2026-07-27 as redundant with directives + the
+  memory browser. Do not re-add.
+
+## Remaining roadmap (noodlr only)
+
+1. **v0.8.0 — remove the rules-module integration** (READ FIRST task list).
+2. **Prompt defaults:** the `TBD_IGNORE_ME_FOR_NOW` placeholders in `src/prompts/fields.ts`
+   (image positive/negative except Map's positive, `authorNote`, `postHistory`) need real text;
+   the user is writing it.
+3. **Verify in-app what has never been verified:** push-to-log MediaRecorder cycling and the
+   transcript relay; image/music/video from a player client (expected to fail — see the relay
+   note under Open decisions); lorebook / author's note / post-history injection at the table.
+4. **Player-initiated media through the GM relay** (same shape as `PlayerAskPayload`).
+5. Tipster T2–T5 (speaker/party incl. `user.targets`, perceived others with the trust boundary
+   and name/HP leak guards, GM omniscient view, terrain escape hatch). Perception is computed on
+   the asking player's client (`token.isVisible` is authoritative there) and validated on the GM.
+6. 1.0.0 at parity (definition above).
+
+Parked ideas live in `IDEAS.md`. Rules-automation ideas were removed from it on 2026-09-19.
+
+## Tech stack, conventions, release discipline
+
+- TypeScript (strict) + esbuild → `dist/noodlr.js` (ESM, sourcemap, unminified — console stack
+  traces from play are the primary diagnostic channel). `module.json` id **`noodlr`**,
+  `"socket": true`. Self-authored ambient Foundry types in `src/types/foundry.d.ts` (no community
+  types package). Only ApplicationV2 (`HandlebarsApplicationMixin`).
+- `npm run check` (tsc) + `npm run lint` + `npm run build` before commit; prettier printWidth 100,
+  LF via `.gitattributes`. Small commits at working checkpoints.
+- **Release:** every shipped change is a normal incremented release (no `-rc`; GitHub excludes
+  prereleases from `releases/latest`). Bump `version` in `package.json` + `module.json`, point
+  `module.json.download` at the new tag, run **`npm run package`** (`scripts/package.ps1` asserts
+  versions agree, runs check/lint/clean-build, checks for dangling chunk references, zips, and
+  re-opens the zip to confirm `module.json`, `dist/noodlr.js`, the ORT asyncify wasm, `lang`,
+  `styles`, `templates/partials/` and the ONNX weights are inside). Commit, tag,
+  `gh release create <tag> module.zip module.json` (notes via `--notes-file`). Add the entry to
+  `changelog.md` (lowercase filename — Big Bad Module Manager reads it; keep it user-facing).
+- **Verify the release's ASSETS, not just the tag.** `gh release view <tag> --json assets` must
+  list both files, and `https://github.com/gobsmacked1/noodlr/releases/latest/download/module.json`
+  must return the new version with a `download` URL that returns 200. An assetless release makes
+  the newest release the broken one and blocks every update.
+- **`models/` must be in the zip.** RAG Lite's embedder sets `allowRemoteModels = false`; an asset
+  without the weights 404s for manifest installs. A correct zip is ~29 MB; ~13 MB means the model
+  is missing. The build wipes `dist/` first (code-splitting chunk names are content-hashed and
+  stale chunks used to ship).
+- Windows host gotcha: the file-write tool occasionally emits UTF-16LE; verify new files are UTF-8.
+- Never store secrets in this file or in setting defaults.
+
+## Deployment facts (the user's server)
+
+- Host `DEMIURGE` (Linux). Foundry runs as `superuser` from `/opt/foundryvtt`; data at
+  `/opt/foundryvtt/data/Data`; module installs to `.../Data/modules/noodlr`. `noodlr-memory`
+  deploys to `/opt/noodlr-memory` (systemd unit; `journalctl -u noodlr-memory` is its log).
+  Intended memory URL is `https://<host>/memory` behind nginx.
+- **The Data tree is served to the internet with no authentication** (measured). Anything a
+  diagnostic writes under `assets/` or `worlds/<id>/assets/` is public by filename (directory
+  listing is refused). Generated media is deliberately referenced by path so players' browsers can
+  fetch it; never write a console log or anything with tokens there. A narrow nginx deny for
+  diagnostic subtrees (`survey/`, `logs/`) is the remedy if one is ever needed.
+- **One host, two worlds, one memory index — fixed in v0.7.5.** The media folder setting
+  registers **empty** and resolves to `worlds/<id>/assets/noodlr-out` (`defaultMediaFolder()`;
+  `getMediaFolder()` is the only reader). RAG Lite silos live under it, so two campaigns no longer
+  share one index. A module MAY `FilePicker.upload` into `worlds/<id>/` — the FilePicker *UI*
+  refuses, the server does not. Files were not moved; old chat-card paths still resolve. **No
+  legacy read-through anywhere**: a world with an unreadable `game.world.id` reads and writes
+  nothing rather than falling back.
+
+### The GM harness — `C:\Project\noodlr-vtt\harness\`
+
+`watch-gm.mjs` runs the GM session in a Playwright Firefox, writes every console record to a
+file, and exposes a localhost port an agent can run diagnostics through.
 
 ```
 cd C:\Project\noodlr-vtt\harness
-npm install && npm run setup      # once — `setup` fetches Playwright's Firefox
-npm run watch                     # log in by hand the first time; the profile remembers you
-npm run watch-player              # second Firefox, port 3112; log in as a player once
+npm install && npm run setup   # once
+npm run watch                  # GM; log in by hand the first time, the profile remembers you
+npm run watch-player           # second Firefox, port 3112, log in as a player once
 ```
 
-- `logs/latest.log` is the **current slice**; `logs/latest.signal.log` is warnings, errors, failed
-  requests, HTTP 4xx/5xx and anything matching `/noodlr/i`. **Both files are written, and the
-  filtering is deliberate rather than lazy:** the line that explains one of our failures is routinely
-  an `info` from another module, so the noisy file stays complete and the signal file is only a first
-  read. The player instance writes the same pair under `logs-player/`.
-- **Slices roll without restarting the harness** (2026-09-09). Launch still archives whatever was
-  left in `latest.log`, but a harness that stays up overnight used to keep last night's DDB munch in
-  the same file as this afternoon's fight. Now it also rolls:
-  - **combat start** — our `perception: …; starting combat` line (before the initiative wait, so the
-    spots line is the first line of the fight). A GM who starts the tracker by hand is caught by a
-    2 s poll of `game.combat.started`.
-  - **combat end** — `combat ended` from `noodlr-hooks-55e` (logged on every `deleteCombat`, including
-    full automation, which never opted anyone in) plus the same poll. The finished slice is copied to
-    `logs/latest.combat.log` / `latest.combat.signal.log`.
-  - **idle hour** or **16 MB**, only when no fight is live, so a munch cannot grow unbounded and
-    cannot split a fight across two files.
-  Review a live fight in `latest.log`; review the one that just finished in `latest.combat.log`.
-  `POST /roll` forces a slice (body = reason). Restart the harness after this change.
-  **Archives older than seven days are deleted** on launch and after each roll — `latest.log`,
-  `latest.signal.log`, and the last-fight copies are never touched. `logs/llm/` captures age
-  the same way. Restart the harness after this change.
-- **`POST /eval` answers with the value AND the console output the call produced**, which is the half
-  that carries the answer — most diagnostics in these two modules PRINT and return a count.
-  `curl -s -X POST --data-raw "noodlrHooks.surveyCapabilities()" http://127.0.0.1:3111/eval`
-- Player client: same endpoints on `http://127.0.0.1:3112`. Do not log a player into the GM profile —
-  that cookie is the GM session, and this class of bug is exactly the GM/player split.
-- Also `GET /health`, `GET /tail?n=200&signal=1`, `POST /roll`, `POST /screenshot`.
-- **Binds 127.0.0.1 only and must stay that way.** `/eval` runs arbitrary JavaScript inside a logged-in
-  session, which is every permission that user has plus whatever that browser can reach.
-- **Playwright cannot attach to a browser that is already open.** It ships its own patched Firefox and
-  speaks the Juggler protocol, so watching a stock Firefox is not possible at any price — do not go
-  looking for the flag. The persistent profile is the mitigation: one manual login, then the cookie
-  survives. Chrome/Edge with `--remote-debugging-port` plus `connectOverCDP` is the only attach-style
-  alternative, and recent Chrome refuses that flag against the default profile anyway, so it also ends
-  up a separate profile.
-- **Install the browser to the standard location explicitly.** The agent shell sets
-  `PLAYWRIGHT_BROWSERS_PATH` into a sandbox temp cache, so an install run from here is invisible to the
-  user's own terminal — set `$env:PLAYWRIGHT_BROWSERS_PATH = "$env:LOCALAPPDATA\ms-playwright"` before
-  `playwright install`. A stale `firefox-<older>` in that directory from a previous Playwright is not a
-  substitute: the version is pinned per Playwright release (1.62.1 wants `firefox-1538`).
-- The default target is `/vtt/join`, not `/vtt/`. Measured: the route root 301s onward and lands on
-  `/vtt/auth`, the **admin** access-key page. `/join` redirects to `/game` once a session exists.
-- The default instance sees the GM client only. Player-side vision, fog, and console errors need
-  `npm run watch-player` (or the in-module sink if that Firefox is not running).
-- **Downloads survive shutdown (2026-09-07).** Playwright's `acceptDownloads` intercepts every file
-  and deletes it when the context closes — even with `downloadsPath` set — which made DDB Import
-  look broken. `watch-gm.mjs` now `saveAs`s each download into `C:\Install` (the profile's existing
-  `browser.download.dir`) or `harness/downloads` if that folder is missing. Override with
-  `--downloads` / `HARNESS_DOWNLOADS`. Restart the harness after this change; a running instance
-  still has the old interceptor. Playwright Firefox stays pinned at `firefox-1538` (Nightly 153)
-  until the `playwright` package is upgraded — desktop Firefox 155 is a different binary.
+- `logs/latest.log` is everything; `logs/latest.signal.log` is warnings/errors/failed requests/
+  `/noodlr/i`. Slices roll on combat start/end (a 2 s poll of `game.combat.started`), on an idle
+  hour or 16 MB; the finished fight is copied to `logs/latest.combat.log`. Archives older than
+  seven days are deleted.
+- `POST http://127.0.0.1:3111/eval` (body = JavaScript) answers with the value **and** the console
+  output the call produced. Also `GET /health`, `GET /tail?n=200&signal=1`, `POST /roll`,
+  `POST /screenshot`. Player client: same endpoints on 3112. Never log a player into the GM profile.
+- **Binds 127.0.0.1 only and must stay that way** — `/eval` is arbitrary JS in a logged-in session.
+- Playwright cannot attach to an already-open stock browser; the persistent profile is the
+  mitigation. Set `$env:PLAYWRIGHT_BROWSERS_PATH = "$env:LOCALAPPDATA\ms-playwright"` before
+  `playwright install` or the browser lands in a sandbox cache. Target is `/vtt/join`, not `/vtt/`.
+  Downloads are saved to `C:\Install` (or `harness/downloads`).
+
+### What each diagnostic channel can see
+
+- Module code is browser-only ESM; **nothing it logs reaches the server.** `journalctl` cannot
+  show a client-side error.
+- The **chat log** is server-side (messages are world documents) and carries any failure card the
+  module posts.
+- `noodlr-memory`'s log is server-side by nature.
+- A file named `fvtt-log-<date>.txt` in `noodlr-vtt` is a chat export, not a server log.
+
+## Durable facts by area
+
+### Providers and OpenRouter (all verified live, 2026-07)
+
+- `GET /api/v1/models?output_modalities=<m>` filters server-side: text=all(343), image, audio,
+  embeddings, speech, transcription, rerank, video. Chat is left unfiltered on purpose (every model
+  outputs text). Catalog is public; no key is sent for it.
+- Rerank: `POST /api/v1/rerank {model, query, documents[], top_n}` → `results[{index,
+  relevance_score}]`. A 404 "no endpoints matching your guardrail restrictions and data policy" is
+  the account's privacy setting, not our bug; warned once per distinct reason.
+- Music: `/chat/completions` with `modalities:["text","audio"]`, streamed; concatenate all base64
+  audio then decode ONCE. Video: `POST /api/v1/videos` → poll `polling_url` (deadline 20 min,
+  cadence 6 s) → `unsigned_urls[0]`, which points back at the API host and **requires the bearer
+  token** — download with the key attached only when the URL is on the API host, reject sub-1 KB
+  payloads, save locally, display the local path.
+- `/audio/speech` has no pitch field; pitch is sent only when `tts.pitchSupported` is ticked.
+- A local HTTP endpoint from an HTTPS Foundry page is mixed-content blocked whatever the API
+  shape; proxy it behind nginx. The TTS test surfaces this as the fetch `TypeError` case.
+- **API keys are player-readable — accepted risk (2026-07-31).** Provider settings are world-
+  scoped, so any player can read the OpenRouter key from the console. It is a spend credential
+  only; the credential that gates concealed knowledge (the memory secret) is client-scoped.
+  Mitigation is operational: a dedicated key with a credit limit, rotated. Do not "fix" by moving
+  keys to client scope without revisiting.
+
+### Chat panel and conversation
+
+- Transcript and model history are **static** on `NoodlrChatPanel` / `Conversation` so they
+  survive close/reopen; DOM is imperative (no re-render mid-stream); `.noodlr-chat__body` is
+  selectable; copy buttons per bubble.
+- **"Hide from players" is one-shot** and travels with the turn: Retry must pass the original
+  turn's `hidden` flag, never re-read the checkbox. Hidden turns use local `speak()`, never
+  `speakShared()`.
+- `stream_options.include_usage` feeds `util/stats.ts` (tokens, RAG hits, injected chars, rerank,
+  ingest, media) shown in Diagnostics.
+
+### Players' bot ("Ask the Table")
+
+- Privilege lives at the access layer, not in the prompt: `game.user.isGM` is the boundary.
+  Player input → `module.noodlr` socket → **primary GM** client does retrieval (player silos only)
+  + the LLM call → public `ChatMessage` flagged `flags.noodlr.playerBot`, adopted by any open panel.
+- `sendPlayerAsk()` checks `game.users.activeGM` and tells the player when no GM is online.
+- Directives are provider-agnostic `@@NOODLR VERB {json}` lines (native tool calling is unreliable
+  on custom endpoints). `ADJUDICATE` registers a pending check keyed by userId; the player's REAL
+  Foundry roll (a `createChatMessage` with `rolls`, matched by author) is consumed; the GM-side
+  adjudicator retrieves `GM_SECRET_SILOS`, rolls a real d20 for NPC opposition, and posts a tiered
+  player-facing result. The secret never leaves the GM client except as the earned reveal.
+- Verified at the table 2026-07-31: hide → Stealth roll → spotted → initiative, unprompted.
+
+### Media
+
+- Images are persisted via `FilePicker.upload` and shared by **path** — Foundry strips base64
+  `data:` URLs from chat HTML, which is why the first image pipeline showed nothing.
+- Four generators (`IMAGE_KINDS`): scene art 1920×1080, portrait 1000×1000 keyed, token 400×400
+  keyed, map default 4500×6000 (clamp 450–7800). `.webp` via canvas transcode; maps transcode at
+  the returned resolution (no in-browser upscale). Continuity ledger `image.ledger` (entityKey →
+  seed/prompt/model/path). Chat triggers `Generate Image:` / `Generate Portrait: Name: desc`,
+  gated by `image.chatTrigger` and `image.allowPlayers` (default off).
+- Broadcast speech filenames are namespaced by user id (two GMs both start at slot zero).
+- Creature-type → {voice, pitch} table in `media/creature-voice.ts` reads dnd5e
+  `system.details.type` when present and omits otherwise.
+- Push-to-log: floating mic for all participants, ~N-second MediaRecorder segments → local
+  transcription → GM posts to chat + session JournalEntry + periodic `player_chat` ingest; players
+  relay transcript **text** over the socket. Gated by `transcription.enabled`.
+
+### Tipster (live scene briefing)
+
+- Built on demand at assembly time into the existing `foundryState` slot; **ephemeral by
+  construction** (never written to history); self-capped (~180 tokens, nearest-N with a `+N more`
+  tail) because the assembler never truncates fixed blocks.
+- `resolvePerspectiveToken(user)`: controlled token → assigned character's token → any owned
+  token. Two world toggles `tipsterGm` / `tipsterPlayers` (default on).
+- API facts not to re-derive: z is `token.elevation` (`sort` is draw order); `token.disposition`
+  has SECRET; doors are `wall.door` 0/1/2(secret) and `wall.ds` 0/1/2(locked); real distances are
+  `grid.size`/`grid.distance`/`grid.units`; `game.time.components`/`.calendar` exist in v13+ and
+  calendar modules subclass `CONFIG.time.worldCalendarClass` (read by duck typing, never
+  `instanceof`). `user.targets` and `token.displayName` / `displayBars` are the T2/T3 leak guards.
+- Trust boundary for T3: the player client narrows (perception), the GM client validates (drops
+  `hidden` and SECRET tokens), so a forged snapshot buys nothing.
+
+### Debug channel
 
-### What each diagnostic channel can actually see (2026-08-15)
-
-Established while wiring the test loop, because the reasonable assumption — that the server sees what
-happens in the game — is wrong, and acting on it wastes a detour.
-
-- **Module code is browser-only ESM, so nothing it logs reaches the server.** The `Combatant5e ...
-  initiative: must be a number` report is the specimen: its stack is entirely client-side `foundry.mjs`,
-  meaning the client rejected the document and the server never heard about it. A whole class of bug is
-  therefore invisible to any server-side channel, `journalctl` included.
-- **The chat log IS a server-side channel, and it carries our own failure notices.** Chat messages are
-  documents in the world database, and cards like *"Troll Limb: Noodlr could not carry that out (the token
-  would not move)"* land in it. So the movement bug was recoverable from the server all along. Reading it
-  needs a LevelDB reader (v11+ dropped NeDB), or — cheaper — `log/chat-sniffer.ts` already distills chat to
-  one line per message and could write a file as easily as it ingests to RAG.
-- **`noodlr-memory`'s log is the one channel that is server-side by nature**, and the whole rate-limit,
-  pacing and refusal-classification family only exists there. `journalctl -u noodlr-memory`.
-- **A file named `fvtt-log-<date>.txt` in `noodlr-vtt` is a CHAT EXPORT, not a server log.** Both were in
-  play at once and the name invites the wrong reading.
-
-## Model-filter round (2026-07-24) — v0.2.4
-
-Per-feature OpenRouter model dropdowns, filtered by output modality (fixes "343 slugs for every
-field"). Verified live against `GET /api/v1/models` — the API supports server-side filtering via
-`output_modalities` (+ `sort`), and although the docs only list text/image/audio/embeddings, these
-all work: text(343), image(40), audio(4), embeddings(27), speech(15), transcription(12), rerank(4),
-video(17); `all`=447. Approach: `fetchOpenRouterModels(modality, sort)` caches per `modality|sort`,
-preserves server sort order. `provider-ui.ts` maps `data-feature` → modality (chat=text/context-high,
-tts=speech, image=image, transcription=transcription, embeddings=embeddings; music=audio, video=video,
-rerank=rerank reserved) and auto-fills a per-feature `<datalist>` when OpenRouter is selected. Catalog
-is public (no key). No key ever sent for the OR catalog.
-
-## Tipster — live scene briefing (2026-07-31, feasibility DONE; not yet implemented)
-
-Feature name is the user's ("Tipster"). Goal: on-demand poll the active scene and hidden-inject a
-situational briefing from the perspective of the token whose player is asking. Full assessment lives
-in the canvas `canvases/tipster-feasibility.canvas.tsx` (workspace `c-Project-noodlr-memory`).
-
-**Decision 1 — NO RAG for live scene state (user agreed 2026-07-31).** The user drafted 8
-`{player,gm}_tipster_*` collections (`noodlr-memory/scripts/Tipster_RAG_Collection_Access.csv`);
-we are deliberately NOT building them. Reasons: live state is already authoritative in Foundry and
-readable synchronously in <1 ms; RAG retrieval is semantic/top-k (returns chunks that *resemble* the
-question — useless when you need the exact current distance); every write costs an embedding call;
-RAG writes are async while prompt assembly is synchronous. Instead: poll on demand at assembly time
-into the **existing `AssembleInput.foundryState` slot**, which is already wired through
-`conversation.ts` and is `null` outside combat. Durable scene facts still go to
-`player_history`/`gm_history` as normal. The CSV stays as a record of the rejected design.
-
-**Decision 2 — per-token perception IS computable (corrected 2026-07-31).** An earlier draft of the
-assessment wrongly claimed it wasn't; the user correctly pushed back ("their browser must have a
-function that decides what to display"). Verified against v13/v14 docs:
-`DetectionMode#testVisibility(visionSource, mode, config)` takes the vision source as an **explicit
-parameter** — it is not hardwired to the current client. `CanvasVisibility#restrictVisibility()` is
-the method that hides failing placeables. Only the `token.isVisible` *convenience getter* is
-client-relative ("visible to the calling user's perspective"; "all Tokens are visible to a GM user
-if no Token is controlled").
-- **Chosen approach:** compute on the **asking player's client**, where `isVisible` is already
-  authoritative, then send the pre-filtered list to the GM in the existing relay request. Inherits
-  every vision module the table runs (darkvision, Levels, Perceptive) for free; touches no canvas
-  internals; never mutates the GM's view.
-- **Trust boundary:** a player-computed snapshot is client-supplied input. Player client *narrows*
-  (perception), GM client *validates* (authority) — GM drops any claimed token that is `hidden` or
-  SECRET-disposition before it reaches the prompt, so forgery buys nothing.
-- GM-side fallback (`token.vision` + `initializeVisionSource()`) is only for GM previews and offline
-  players; `token.vision` is undefined when the token isn't a viable source for the current user,
-  and forcing one mutates shared canvas state.
-
-**API facts worth not re-deriving** (verified against live docs 2026-07-31):
-- z-axis is `token.elevation`. `token.sort` is draw order — NOT height (easy trap).
-- `token.inCombat` / `token.combatant` are direct getters on TokenDocument.
-- `token.disposition` includes a **SECRET** value; `token.isSecret` is permission-aware.
-- Doors: `wall.door` (0 none / 1 door / **2 secret**) and `wall.ds` (0 closed / 1 open / **2 locked**).
-- Scene: `width`/`height` + `grid.size`/`grid.distance`/`grid.units` → real distances;
-  `environment.darknessLevel`, `environment.globalLight`; `scene.regions`, `scene.notes`,
-  `scene.journal`, `scene.playlist`/`playlistSound`.
-- **Three real gaps, in Foundry itself (no module can fix):** terrain has no first-class field;
-  traps and chests/interactibles are module conventions, not core concepts. Planned escape hatch is
-  a GM-authored terrain field or a named region (phase T5).
-- System-specific → guard with optional chaining and omit when absent: HP, class levels, ability
-  scores, creature type. Reuse the 4-path HP probe + condition reader already in `combat/tracker.ts`.
-
-**Budget hazard:** the assembler trims ONLY history; fixed blocks are never truncated, so an
-unbounded Tipster block silently evicts conversation history. It must self-cap (the combat block's
-HP-tiering is the in-repo precedent). Target ~180 tokens.
-
-**Decision 3 — three callers, one builder, per-bot toggles (user 2026-07-31).** The block header line
-is **"Token/Object Speaking:"** (NOT "You are:") because the caller may be a player, the GM, or a
-future internal automation. Two world-scoped booleans let the admin enable Tipster independently for
-the GM bot and the players bot; a future NPC-movement/combat AI inherits the GM toggle but must be
-built from **the NPC's own perception** (an ogre must not path toward an invisible rogue) — that is
-the same T3 machinery with a different vision source, which is the main reason to build T3 properly.
-
-**Decision 4 — ephemeral by construction (user 2026-07-31).** The briefing is built, injected, and
-discarded within a single prompt; never written to `this.messages`, so it cannot leak into history or
-a later turn. Rationale: a cached block is a *wrong* block as soon as anything moves. Consequence to
-accept: the model only knows the situation as of the asking turn, so stamp the block with round/world
-time to make stale references self-evident. Also add a nearest-N cap (default 8, sorted by distance,
-with an explicit "+N more not listed" tail) — a 20-token siege map would otherwise blow the budget.
-
-**Second API pass — 18 additional fields the user hadn't requested** (full table in the canvas). The
-two I'd not ship without:
-- **`user.targets`** (Set<Token>) / `token.isTargeted` — who the speaker has actually targeted.
-  Resolves "can I hit him?" without guessing which "him", and signals intent.
-- **`game.time.worldTime` / `.components` / `.calendar`** — v13+ has a real in-world calendar
-  (year/month/day/hour/season). Drives night vs day, shop hours, travel, rest.
-Other core (system-agnostic) wins: `token.movementAction` (walk/fly/swim/burrow — airborne or
-submerged), `token.light`/`emitsLight` (who carries the torch → stealth + who sees whom),
-`token.sight.range`/`.visionMode`/`detectionModes` (darkvision vs blind), `token.rotation` (facing).
-**Two are leak guards, not features:** `token.displayName` (vs `CONST.TOKEN_DISPLAY_MODES`) — if the
-GM hid names, the player briefing must say "a robed figure", not the actor name; and
-`token.displayBars`/`bar1`/`bar2` — tells you whether exact HP is already public, giving a principled
-basis for numbers vs tiers.
-System-specific (guard + omit when absent): movement speeds, proficiency bonus, skill totals +
-passive Perception (better than raw ability scores for adjudication), spell slots, legendary/lair
-actions (GM-only; commonly forgotten mid-combat), death saves, concentration (usually arrives free
-via the existing status reader).
-Not available in core: **action/reaction economy** (Foundry doesn't track spent actions; only
-automation modules do, via their own flags). `token._movementHistory` exists but is underscore-
-prefixed/internal — treat as unstable.
-
-**Build order:** T1 scene ambience + `game.time` + toggles (no secrets, proves plumbing) → T2
-speaker/party incl. `user.targets`, speed, prof, passive Perception → T3 perceived others (the
-sensitive one; trust boundary + name/HP leak guards + nearest-N cap) → T4 GM omniscient view +
-"what can X see?" preview → T5 terrain escape hatch.
-
-### T1 SHIPPED (v0.4.8, 2026-07-31)
-
-`src/tipster/scene.ts` — the only new file. Exports:
-- `buildTipsterBlock({caller, userName, token})` → `string | null`. Emits
-  `# Current situation (live from Foundry — trust this over any earlier description)` followed by
-  `Token/Object Speaking:` / `Scene:` / `Time:` / `Light:` / `Ambience:` / `Regions:`. Every line is
-  independently optional; returns `null` if only the header would survive (not worth the tokens).
-  Wrapped in try/catch — a briefing is a nice-to-have, so an unexpected API shape must never break
-  the user's chat turn.
-- `resolvePerspectiveToken(user)` → controlled token (strongest intent signal, self only) → assigned
-  `user.character`'s token on this scene → any token whose `actor.ownership[userId] === 3`.
-- `TipsterCaller = "player" | "gm" | "automation"` — the automation arm is unused until the NPC AI.
-
-Wiring:
-- GM bot: `chat/conversation.ts` builds it per turn and **concatenates after** `buildCombatStateBlock()`
-  into the existing `foundryState` slot (combat block stays first — it's the authoritative one).
-  Renamed the local to `combatState`; `foundryState` is now `[combat, tipster].filter(Boolean).join()`.
-- Players bot: `players/answer.ts` pushes it as a system message after the RAG block. Runs on the GM's
-  client, so the perspective token is resolved from the **asking** user — `generatePlayerAnswer()`
-  gained a 4th param `askUserId`, passed through from `relay.ts` (`payload.userId`).
-- Settings: `SETTINGS.tipsterGm` / `tipsterPlayers` (world, config:true, default **true**),
-  `isTipsterEnabled("gm"|"players")` in `prompt/settings.ts`. i18n `NOODLR.Prompt.Tipster*`.
-- `canvas` added to `src/types/foundry.d.ts` ambient globals (first use in the module).
-
-Implementation notes worth keeping:
-- Dimensions are reported in **grid squares + distance/units** ("40x30 squares, 5 ft/square"), not
-  pixels — pixels are meaningless to a model. Gridless scenes (`grid.type === 0`) report px honestly
-  instead of inventing square counts.
-- Darkness → phrase ladder (pitch dark / dark / dim / well lit / bright daylight) with the raw value
-  kept alongside. Reads `environment.darknessLevel` (v13) **and** legacy top-level `scene.darkness`.
-- `game.time.components` + `.calendar` for real month/day/season names, with a `worldTime`-seconds
-  fallback that stays silent unless the GM actually advanced the clock (avoids printing a fake
-  "day 1, 00:00" for worlds that never touch time).
-  - **Calendar modules feed this rather than bypass it, confirmed from source 2026-08-11.** Calendaria
-    sets `CONFIG.time.worldCalendarClass` to a subclass (`calendaria.mjs:179`), so `worldTime` stays the
-    canonical clock and `.components`/`.calendar` return its richer answer — a world running one gets
-    real month and season names here for free. The only rule that follows: read the calendar by duck
-    typing, never by `instanceof` against a core class. Tipster already does.
-- Regions capped at 8 names with a `+N more` tail (nearest-N discipline starts here).
-
-### Debug logging + three fixes (v0.4.9, 2026-07-31)
-
-**Debug channel (new, in `constants.ts`).** `SETTINGS.debugLogging` — **client**-scoped (it's a
-troubleshooting aid for whoever has a console open; no reason to force it on the table), config:true,
-default false. Helpers:
-- `debug(label, ...args)` — gated verbose line. Reads the setting in a try/catch because it's called
-  from paths that can run before settings registration.
-- `debugPayload(label, messages)` — dumps a whole chat payload as a **collapsed console group**, one
-  sub-group per message with role + token estimate + full text. This is the tool for confirming
-  whether the Tipster / RAG / lorebook blocks actually made it into a request.
-- `warn(...)` — always-on channel for things the user must see even with debug off.
-- `isDebugEnabled()` — guard for expensive log-only work.
-Instrumented: `players/relay.ts` (send → socket → GM handle → post), `players/answer.ts` (payload +
-raw reply + Tipster present/absent/disabled), `chat/conversation.ts` (state-block summary + full
-payload per request incl. continuations), `module.ts` (socket receipt).
-
-**Fix 1 — players-bot silent no-response (user report).** Root cause: the whole path was
-`log`-free and failure-silent, and critically a player's question is only answerable by an **online
-GM** (by design — the GM's client holds the keys). With no GM connected the socket emit went nowhere
-and the player got a spinner forever with nothing in console. Now: `sendPlayerAsk()` checks
-`game.users.activeGM` and both warns to console and shows the player a notification
-(`NOODLR.Players.NoGM`); the empty-answer and generation-failure paths use `warn` instead of
-swallowing; non-primary-GM skips are logged. NOTE: this makes the failure *visible* — if the user
-still sees no answer with a GM online, the debug payload dump will show whether the provider was
-called and what it returned.
-
-**Fix 2 — rerank 404 noise.** `providers/rerank.ts` swallowed every failure (`if (!res.ok) return
-null; } catch { return null; }`), so a misconfigured account showed only a bare 404 in the network
-tab. Now it reads the provider's own error body and warns **once per session per distinct reason**
-(`reported` Set), with a 404-specific hint pointing at OpenRouter Settings → Privacy / data policy
-and noting retrieval continues without rerank. AbortError is debug-only (routine cancellation).
-The user's actual 404 was OpenRouter's *"No endpoints available matching your guardrail restrictions
-and data policy"* — an account-side privacy setting, not our bug.
-
-**Fix 3 — `renderChatMessage` deprecation warning was ours.** `output/artifacts.ts` registered BOTH
-`renderChatMessageHTML` and legacy `renderChatMessage` for compat — but merely *registering* the
-legacy name makes v13 emit the deprecation warning. Now branches on
-`game.release.generation >= 13` and binds only the modern name on v13+. (Deprecated in v13, removal
-in v15.)
-
-**T1 deliberately has no perception filtering** — everything it reports is non-secret ambience, which
-is why it was safe to ship first. Hidden tokens, secret doors, and the player/GM split land in T3/T4.
-
-## Native chat-log sniffer -> unfiltered_chat (2026-07-27)
-
-`src/log/chat-sniffer.ts` (`initChatSniffer()`, called from `module.ts` ready on GM clients).
-Listens on `createChatMessage`; only the **primary GM** records (`isPrimaryGM()`). Each message is
-distilled to one line `[YYYY-MM-DD HH:MM:SS] (whisper→…) Speaker: text — [roll: 1d20+5 = 18]`:
-`message.alias`/`speakerActor`/`author` for the name, `message.content` HTML stripped via a detached
-div (imgs → `[image: alt]`), `message.flavor` + evaluated `message.rolls` folded in. Lines buffer and
-flush as ONE combined doc to the `unfiltered_chat` silo every N sec (default 300) or at 200 lines;
-failed flush re-queues (bounded 2000) and re-arms. Skips any `flags.noodlr` message (DM narration,
-player-bot, artifacts) to avoid double-ingest; whispers excluded unless opted in (privacy). Settings:
-`RAG_SETTINGS.chatLog{Enabled,Interval,Whispers}` (`getChatLogConfig()`), UI in the Memory & Knowledge
-window (`memory-config.hbs` / `memory-config-app.ts`), default OFF. No universal "target" field exists
-on ChatMessage (system/module-specific) — v1 is best-effort text; system target extractors are a TODO.
-
-## RAG collection schema migration (2026-07-27, DONE — build green)
-
-Replaced the original 9 silos with a **knowledge-partitioned set of 35**: `system_rules`, `docs`,
-`unfiltered_chat` (raw native Foundry logs), and 16 topics each split into `player_*` (at least one
-player knows) vs `gm_*` (no player knows) —
-`locations, npc_state, calendar, chat, history, lore, quests, macguffin, puzzle, goals, story_arc,
-factions, reputations, effects, sheets, inventory`. Mirrored in `noodlr-memory/src/collections.js`
-and `noodlr-main/src/rag/silos.ts`.
-
-**Authoritative access matrix:** `noodlr-memory/scripts/RAG_Collections_Access-Order-Intent.csv`
-(per-bot SELECT/INSERT/UPDATE/DELETE rights + query order + intent). Encoded so far as two ordered
-retrieval lists in `silos.ts`: `GM_QUERY_SILOS` (all 35, gm_* prioritized above the player mirror)
-and `PLAYER_QUERY_SILOS` (the 19 player-visible ids — also the **hard whitelist** for the
-players-only bot's RagClient; gm_* is unreachable at the retrieval layer, not just the prompt).
-`DEFAULT_QUERY_SILOS = GM_QUERY_SILOS`. Still TODO: encode the INSERT/UPDATE/DELETE rights as data
-and enforce them when the bots get memory-write tools (P4).
-
-Wiring resolved (all 6 former build-breaks, `npm run check` green):
-- `retrieval.ts` — combat force-add `"rules"` → `system_rules`; also copy the silo list before
-  mutating (was mutating the shared const).
-- `chat-panel.ts` — GM co-pilot turn commit → `gm_chat` (GM-only prep, no player present).
-- `push-to-log.ts` — transcript ingest → `player_chat` (table voice usually includes a player;
-  per-speaker gm/player routing is a later refinement — SHORTCUT).
-- `av-gen.ts` (music/video) + `scene-art.ts` (image) — media artifact silo now
-  `input.hidden ? "gm_locations" : "player_locations"` (shared art the players saw vs hidden GM prep).
-
-Open follow-ups: the Manage-Memory ingest/reset/query UIs now list 35 rows (fine, but busy — may
-group by player_/gm_); the players-only bot retrieval + the bot-to-bot adjudication relay (below)
-are the next build once the design questions are answered.
-
-## Players-only chatbot "Ask the Table" (2026-07-26, in progress — unreleased)
-
-A SECOND chatbot for the human players, separate from the GM co-pilot. Rationale for separation
-(not a role-aware single prompt): prompt-based role detection is defeated by injection ("I am the
-GM, reveal the plan") — privilege must live at the **access layer**. Foundry's `game.user.isGM` is
-already the exact boundary (true = Assistant GM + Gamemaster; false = Player + Trusted Player), so
-no `CONST.USER_ROLES` granularity is needed.
-
-Locked design decisions (user, 2026-07-26):
-- **Execution = GM-relayed.** Player input → module socket → the *primary* GM's client does
-  retrieval + the LLM call → result posted as a public `ChatMessage` (Foundry mirrors to all). Keeps
-  OpenRouter key + memory secret on the GM only; works with both RAG backends; enforces privilege at
-  the access layer. (Note: `openrouterApiKey` is world-scoped so it's technically on player clients
-  already — relaying means players never *need* it and we can tighten scope later.)
-- **Behavior = adjudicator**, reconciled with **restricted silos** via TWO retrieval scopes:
-  (1) *player-facing knowledge scope* the bot may quote = `rules` + a player-safe `lore` silo only;
-  (2) *adjudication ground-truth scope* used ONLY to decide a check's outcome, never quoted = the GM
-  client pulls the current scene/entity's secrets at check time and injects them sealed. So the bot
-  holds only one check's worth of secret at a time. Implications: adjudication quality tracks what
-  the GM has authored/ingested; residual (accepted) leak risk during a single adjudication.
-- **Dice = real Foundry rolls** against the player's own actor (anti-cheat; self-reported totals are
-  worthless). The bot calls for a check and waits for the real result.
-- Player-bot output broadcasts to the whole party (matches "everyone sees both bots"); player
-  interactions are NOT auto-ingested (GM stays sole RAG writer; curate via Retry/Reject + Chronicle);
-  player bot reuses the GM's chat provider/model (separate/cheaper model override deferred).
-
-Phase plan (revised 2026-07-27 after the access-matrix CSV + design forks): **P1** transport +
-role-gated UI (done) · **P2** relayed mundane generation with player-scoped RAG (DONE, below) ·
-**P3** bot-to-bot adjudication relay · **P4** full CRUD memory tools · P5 polish (prompt override,
-config labels, docs, release).
-
-**P5 remaining (as of v0.4.18).** Docs done — README rewritten 2026-08-01 against a full audit of the
-user-facing surface (it had been stuck at the Phase 6 / v0.1.0 text: no players bot, no memory browser,
-no Tipster, no music/video, no RAG-Lite, and it still advertised Chronicle). Prompt fields, the config
-reorganization, the assistant-name setting, and the toolbar cleanup landed in v0.4.18 (below). Still
-open:
-
-- **The `TBD_IGNORE_ME_FOR_NOW` fields need real default text** (user is writing it): every image
-  `positive`/`negative` except Map's positive, plus `authorNote` and `postHistory`. Grep that string;
-  the only place to edit is `src/prompts/fields.ts` (or `prompts/index.ts` for shared text).
-- Bump to 1.0.0 once smoke-tested at parity.
-
-**v0.4.18 — configuration reorganization + the prompt-field convention.** The settings had grown into
-one unnavigable scrolling form, and prompts were invisible by design. Both fixed:
-
-- **Five settings windows** (`MENUS` in `constants.ts`, registered in that order): Memory
-  Configuration, Text Generation, Audio Generation, Image Generation, Security. Apps live in
-  `src/apps/{text,audio,image}-gen-app.ts` + `security-app.ts`, all extending `NoodlrConfigApp`
-  (`config-base.ts`) and spreading `CONFIG_WINDOW_DEFAULTS`. `settings-app.ts`/`settings.hbs` are gone.
-- Shared markup is now four real Handlebars partials in `templates/partials/`, registered as
-  `noodlrHelp` / `noodlrProviderBlock` / `noodlrPromptField` / `noodlrImageBlock` by
-  `registerNoodlrPartials()` during `init`. Foundry's `loadTemplates()` takes a `{name: path}` map;
-  the v13+ home is `foundry.applications.handlebars.loadTemplates`, resolved defensively.
-- Music went to Audio (it's sound), video went to Image (it's pictures that move) — per the user's
-  grouping. Per-feature *custom endpoint* keys stayed with their base URL rather than moving to
-  Security: a URL and its key are only meaningful as a pair, and splitting them invites mismatches.
-  Security holds the one shared OpenRouter key (used by every feature at once) and is where further
-  providers go.
-- The four flags that were `config: true` (author's-note depth, context budget, memory writes, both
-  Tipster toggles) are now `config: false` and render in Text Generation, beside the prompts they
-  modify. Foundry's own settings list holds only `debugLogging` (client-scoped troubleshooting).
-- **Assistant name** is a setting (`src/chat/assistant.ts`, default "Polly Histor", 64 ASCII).
-  `NOODLR.ChatPanel.Title`, `Players.Title`, `Players.Tool`, and both input placeholders take `{name}`;
-  panels override `get title()` because a static option can't read a setting. Hints were reworded to
-  say "the assistant" instead of naming it, so a renamed bot doesn't leave stale prose behind.
-- Toolbar: the players' chat tool is now `visible: !isGM` (each role gets one input surface; a GM can
-  still inspect the players' panel via `api.openPlayerChat()`), and the dragon `home` tool is
-  `visible: false` rather than deleted — see the activeTool invariant below.
-- `changelog.md` (lowercase, module root) exists for Big Bad Module Manager, which shows changelogs to
-  the GM after an update. Its default candidate list is `changelog.md`, `changelog.txt`, `CHANGELOG`,
-  `docs/changelog.*`, matched against real filenames from `FilePicker.browse` — so the lowercase name is
-  deliberate (a `CHANGELOG.md` may not match on a case-sensitive filesystem). Keep it user-facing:
-  GMs read it, not developers.
-
-**v0.4.21 — the combat dossier and the AI turn loop.** Superseded twice: by the deterministic planner
-in v0.4.22, and then by the 2026-08-08 split. The reasoning, the reservations and the revert map are in
-`noodlr-hooks-55e/AGENTS.md`; nothing about it applies to this repo any more.
-
-**v0.4.20 — the rules system is stated, and memory has a truth hierarchy.**
-
-Reported from play: with D&D 5e 2024 rules fully ingested, the GM bot adjudicated a search in
-Pathfinder 2e terms because the active scene's name came from an adventure originally published for
-PF2e (and later reissued for 5e). Root cause was not prompt wording — **the module had never told
-any model which system Foundry was running.** There was not one reference to `game.system` in the
-source. HP, initiative, conditions, scene geometry, and world time were all injected as ground
-truth; the single fact every ruling depends on was left to inference, and inference from proper
-nouns is a coin flip that arrives sounding certain.
-
-- **`src/system/ruleset.ts`** — settings `rulesetChoice` (a curated list of Foundry-supported
-  systems, plus `auto` and `custom`) and `rulesetCustom` (64 ASCII). `auto` reads `game.system.title`.
-  Ships defaulting to "Dungeons & Dragons Fifth Edition (2024)" rather than to `auto` (user, 2026-08-02):
-  a GM who never opens the setting gets a real answer instead of an inferred one, and detection could
-  not have supplied the revision anyway.
-  Detection alone can't finish the job: `game.system.id` is `dnd5e` for both the 2014 and 2024 rules,
-  so the list spells editions out and the GM's choice is authoritative over what Foundry reports.
-  The stored value IS the display name — no id mapping to maintain, and a world that later drops the
-  system keeps a readable label.
-- **Not a prompt field, deliberately.** The editable prompts are the GM's voice; a guard that
-  disappears when someone rewrites an unrelated paragraph is not a guard. Same reasoning as the
-  combat state block. What's configurable is the system *name*, in Text Generation directly under the
-  main system prompt, because it qualifies everything that prompt says.
-- **Injected in every generation path** — `prompt/assembler.ts` (GM co-pilot), `players/answer.ts`,
-  `players/adjudication.ts`, and since the split `behavior/narrate.ts` (the fourth was the NPC turn,
-  which left with the rules). The players' bot and the adjudicator matter as much as the co-pilot: both
-  talk in checks and DCs, and the players' bot doesn't use the assembler at all. **Any new generation
-  path needs this too** — that is the whole lesson of v0.4.20.
-- **Two injections, ~50 tokens total.** `buildRulesetBlock()` (~45) goes immediately after the system
-  prompt and before anything retrieved, so lorebook entries, memory hits, and an adventure's own prose
-  are all read in its light; `rulesetEcho()` (~6) rides in the post-history slot beside the combat
-  reminder, where instruction-following is strongest and where a long history can no longer bury it.
-  The wording buys precedence (live data and character sheets outrank setting associations and
-  pretraining) and a failure mode (say something out of character rather than switch systems) — rules
-  *content* stays in the `system_rules` silo.
-- Unset/undetectable resolves to an explicit "not configured — ask the GM out of character", which is
-  the honest failure. Silence is what produced the bug.
-
-The same incident's second half: the wrong ruling had been stored, so retrieval would keep feeding it
-back with the authority of the `# Retrieved campaign memory` header.
-
-- **`src/rag/importance.ts`** — noodlr-memory's re-ranker has always weighted `importance` (0-10) and
-  the module **wrote it nowhere**, which is not neutral: a missing value scores identically to zero, so
-  a rulebook chapter someone deliberately ingested competed on equal terms with whatever the chat
-  sniffer swept up. Now every write path carries a level — curated 8 (hand-typed in the browser),
-  ingested 7 (compendia, uploads), assistantWrite 6, artifact 5, conversation 3, transcript 3,
-  incidental 2, diagnostic 1. The ordering is the point; the absolute numbers are not.
-  `/ingest-file` builds its own metadata server-side, so noodlr-memory gained an optional `importance`
-  body field (clamped 0-10) — otherwise uploaded books would have been the one curated path scoring
-  zero.
-- **`src/rag/retraction.ts` + Retract in the Memory browser** — deleting a bad memory destroys the
-  evidence; leaving it lets it reinforce itself. A retracted row keeps `metadata.retracted` and stays
-  visible in the browser (struck through, tagged) while `retrieveContext()` filters it out for every
-  bot. Plain metadata, so it works identically on noodlr-memory and RAG Lite. There is no
-  update-metadata endpoint and adding one would mean touching four store backends, so retract is
-  delete + re-insert: one embedding call for a rare, deliberate GM action.
-
-**v0.4.19 — memory reachability, window text selection, TTS test phrase.**
-
-- **Two RAG target modes** (`src/rag/target.ts`, settings `rag.targetMode` + `rag.servicePath`,
-  default `direct` so upgrading worlds keep the URL they already had). A browser cannot open a Unix
-  socket, so a socket-reached service is only usable through a reverse proxy. (noodlr-memory ≤1.0
-  also *disabled* TCP whenever `NOODLR_MEMORY_SOCKET` was set; 1.1 binds both — see the
-  noodlr-memory note below.) `proxy` mode stores a path (default `/memory`) and resolves it against
-  `location.origin` at read time; `direct` stores a full URL. Both values persist independently so
-  flipping the picker doesn't erase the other address. `getRagConnection()` returns the resolved
-  URL, so every caller and every error message names something pasteable.
-- **The 127.0.0.1 trap:** the module's default URL is `http://127.0.0.1:3010`, which in a browser is
-  the *GM's own desktop*, not the Foundry host. `inspectRagTarget()` detects loopback-URL-with-remote-
-  Foundry and HTTP-URL-on-an-HTTPS-page before any request, and renders the warning in the window;
-  `ragFailureAdvice()` adds the socket/bind/proxy hints after a failed test. Failures now also land in
-  a persistent status line (`[data-role="rag-test-status"]`), because a toast disappears before a CORS
-  explanation can be read, let alone copied.
-- Both normalizers strip a trailing `/v1` — pasting the full endpoint is the common slip, and
-  `RagClient` appends `/v1` itself.
-- **Window text selection** (`styles/noodlr.css`): the enumerated tag list was replaced by
-  `.noodlr .window-content, .noodlr .window-content *` with `!important`. Core's `user-select: none`
-  rule shifts between Foundry patch releases and had started out-specifying ours; scope stays on
-  `.window-content` so the drag handle in the title bar still drags.
-- TTS "Test voice output" ships with its sample phrase in the box and refills it when emptied
-  (`NOODLR.Media.TtsTest.Sample`) — an empty test submits nothing and reads like a provider fault.
-
-Design forks resolved (user, 2026-07-27):
-- **Adjudication trigger** = LLM tool-call: the players-bot calls `adjudicate(...)` when a request
-  needs privileged/hidden info; the STRUCTURED payload (PC, target, skill, rollTotal, question) — not
-  the player's verbatim text — crosses to the GM bot (a second injection boundary).
-- **NPC opposition** = hybrid: a REAL Foundry roll on the NPC's actor sheet when resolvable, else a
-  rules-based DC from the stat block. Player's own check is always a real Foundry roll (anti-cheat).
-- **Oversight** = auto-resolve + log every adjudication to the GM side for audit/override.
-- **Writes** = full CRUD per the matrix (P4). Needs the noodlr-memory service to expose update/
-  delete-by-id — verify its API before building.
-- Both bots run on the GM client, so bot-to-bot is a LOCAL call chain (one extra LLM call), not a
-  network hop. The GM bot returns a CONSTRAINED verdict (confirmed | unfounded | no_secret + short
-  tier flavor), never raw gm_* text — the return channel is the one leak surface.
-
-**P2 shipped (code, unreleased):**
-- `src/rag/silos.ts` → `GM_QUERY_SILOS` (all 35, gm_* prioritized) + `PLAYER_QUERY_SILOS` (19
-  player-visible ids; also the hard retrieval whitelist for the players-bot). `DEFAULT_QUERY_SILOS`
-  aliases `GM_QUERY_SILOS`. Source of truth = the access-matrix CSV.
-- `src/rag/retrieval.ts` → `retrieveContext(query, signal, { silos })`: optional silo override so the
-  players-bot queries only `PLAYER_QUERY_SILOS`. gm_* is never queried on a player's behalf.
-- `src/players/answer.ts` → `generatePlayerAnswer()`: minimal path (players system prompt +
-  player-scoped RAG block + question) via the GM's `chat` provider (`chatCompletion`, web-plugin
-  auto-disabled). No lorebook/author's-note/Chronicle/combat (GM canon — would leak). GM-side
-  re-sanitize of the question (crafted socket payload can bypass the panel). Not auto-ingested.
-- `src/players/relay.ts` → `handlePlayerAsk` now calls `generatePlayerAnswer` (was the P1
-  placeholder); friendly `NOODLR.Players.GenFailed` on error/empty.
-
-**P3 shipped — bot-to-bot adjudication (code, unreleased):**
-- Roll capture uses the chat-log feed: the players-bot asks the player to roll from their sheet and
-  emits an `ADJUDICATE` directive; the GM client registers a pending check keyed by userId; the
-  player's REAL Foundry roll (a `createChatMessage` with `rolls`) is matched by author id and the
-  total consumed. No bespoke roll button.
-- `src/players/directives.ts` → provider-agnostic "tool call": model emits `@@NOODLR VERB {json}`
-  lines (ADJUDICATE/REMEMBER/UPDATE/FORGET); `parseDirectives()` extracts + strips them. Chosen over
-  native function-calling because our custom/local OpenAI-compatible endpoints don't reliably support
-  tools.
-- `src/players/adjudication.ts` → pending registry (180 s TTL), `initAdjudicationCapture()` (GM
-  `createChatMessage` hook), `adjudicateAndPost()`: retrieves `GM_SECRET_SILOS` (gm_* + system_rules
-  — the players-bot can never query these), rolls a REAL d20 for NPC opposition, calls
-  `GM_ADJUDICATION_PROMPT` (produces the player-facing tiered narration directly — the secret never
-  leaves the GM client except as the earned reveal), posts via `postPlayerResult`, audits to GM.
-- `prompts/index.ts` → `GM_ADJUDICATION_PROMPT` (section 7); PLAYERS prompt updated to the directive
-  handoff (no more injected sealed block).
-- Hybrid NPC opposition: real Foundry `1d20` on the GM client + the NPC's modifier reasoned by the
-  adjudicator from the stat block/rules (system-agnostic — we never hardcode 5e skill tables; dice
-  are always real, per the DM doctrine).
-
-**P4 shipped — CRUD memory tools (code, unreleased):**
-- Service already supports it: `/insert`, `/delete` (ids/hashes), `/query` (returns `id`), `/purge`.
-  Added `RagClient.delete()` + `MemoryBackend.delete()` + RAG-Lite `LocalMemory.delete()` (new
-  `store.removeRecords()`), so CRUD works on BOTH backends.
-- `src/rag/silos.ts` → `SILO_RIGHTS` matrix (SELECT/INSERT/UPDATE/DELETE per audience, transcribed
-  from the CSV) + `canWrite()` + `writableSilos()` + `GM_SECRET_SILOS`.
-- `src/rag/memory-writes.ts` → `applyMemoryDirective(audience, directive)`: enforces the matrix
-  (a bot can never mutate a silo it isn't entitled to; players-bot has ZERO gm_* write access),
-  REMEMBER=ingest, UPDATE=fuzzy-match→delete→ingest, FORGET=fuzzy-match→delete (no-op if no match —
-  never guesses a destructive target), every write audited to the GM (`util/audit.ts`).
-- Players-bot executes its directives (`applyMemoryDirectives("player", …)`); the adjudicator writes
-  per-silo audience (player_* as player, gm_* as gm).
-
-**GM co-pilot CRUD — ENABLED (2026-07-27).** The GM co-pilot now emits autonomous `@@NOODLR
-REMEMBER/UPDATE/FORGET` directives, executed with `audience:"gm"` (writes to gm_* and player_* per
-`canWrite`, every write whispered to GMs as an audit line). Implementation without touching the
-verbatim DM prompt:
-- `rag/memory-writes.ts` → `buildMemoryToolsPrompt(audience)`: compact capability block listing the
-  audience's writable silos + directive syntax + "durable state only, not rules/chatter".
-- `prompt/assembler.ts`: injects `buildMemoryToolsPrompt("gm")` as a separate leading system message,
-  gated on `isRagEnabled() && isChatMemoryWritesEnabled()`.
-- `chat/conversation.ts`: after roll resolution, `parseDirectives()` strips directive lines from the
-  displayed/stored text; `applyMemoryDirectives("gm", …)` runs them when the toggle is on.
-- New world setting `chatMemoryWrites` (default ON, config:true) — flip off to keep all GM memory
-  edits manual (via the Memory browser, below).
-
-## Chronicle removed; Lorebook → toolbar; Memory browser added (2026-07-27)
-
-Decision (user): **Chronicle was gutted entirely.** Rationale: with 35 RAG silos + the GM co-pilot's
-CRUD directives + the new Memory browser, a separate LLM-summary review queue was redundant and noisy
-(it kept capturing non-canon like a rules dump of the Artificer class — `captureChronicle` had no
-relevance filter, and the DM prompt told the model to emit a `Chronicle:` line after every scene).
-
-Removed: `apps/chronicle-app.ts`, `prompt/chronicle.ts`, `templates/chronicle.hbs`, the
-`chronicleQueue`/`chronicleAutoParse` settings, `MENUS.chronicle`, `ChronicleItem`, the
-`captureChronicle` call in `conversation.ts`, the "append one line - Chronicle:" line from the DM
-prompt (both `prompts/index.ts` and `prompts/dm-system-prompt.md`), and all `NOODLR.Chronicle.*` i18n.
-
-Why these are NOT redundant with RAG (the audit that drove this):
-- **Lorebook** stays a world-setting store because its job is *deterministic, always-/keyword-injected*
-  World Info read *synchronously* at prompt assembly — a guarantee RAG's top-K similarity cannot make.
-  RAG is *not* a superior backend for it. Kept as-is.
-- **RAG** stores the original chunk text alongside the vector, so hand CRUD is feasible (only retrieval
-  is fuzzy/one-way, not storage).
-
-Added/moved:
-- **Memory browser** (`apps/rag-browser-app.ts` + `templates/rag-browser.hbs`, `api.openRagBrowser`):
-  GM-only, search-driven CRUD over any collection. SELECT = hybrid query (topK 25, single collection);
-  UPDATE = delete-by-id + re-ingest; DELETE = delete-by-id; INSERT = grouped-picker dialog. Uses the
-  shared `MemoryBackend` (works on service + Lite). Grouped silo picker via `groupedSilos()` in
-  `silos.ts` (Player-visible / GM-secret / Shared·system optgroups).
-- **Lorebook + Memory browser now live on the Dungeon Master scene-control toolbar** (GM-only tools),
-  not in the Memory & Knowledge config window (periodic-use tools, per user). The config window's
-  Lorebook/Chronicle buttons + their actions/imports were removed; `openManage`/`openDiagnostics` stay.
-
-**P1 shipped (code, unreleased):**
-- `src/prompts/index.ts` → `PLAYERS_SYSTEM_PROMPT` (section 6): the gatekeeper/unreliable-narrator
-  default prompt (mundane-vs-privileged classification, check→adjudicate loop, boon/middling/bane
-  tiers, real-dice + no-secret-leak hard limits, injection-resistant). Not yet registered as an
-  overridable setting (P2).
-- `src/players/relay.ts` → `sendPlayerAsk()` (GM handles locally, players emit over `SOCKET`),
-  `handlePlayerAsk()` (GM-only + `isPrimaryGM()` dedupe for multi-GM), posts result as a public
-  ChatMessage flagged `flags.noodlr.playerBot`. P1 answer is a placeholder.
-- `src/apps/player-panel.ts` (`NoodlrPlayerPanel`, id `noodlr-player-panel`) + `templates/player-panel.hbs`:
-  input surface; optimistic pending bubble; `static receive(flag)` adopts the mirrored result into any
-  open panel (all clients) via a `createChatMessage` hook in `module.ts`.
-- `module.ts`: GM `chat` scene tool now `visible: isGM` (was `true` — players could open the GM
-  co-pilot!); new `playerChat` tool `visible: true`; `Ctrl+Shift+N` opens the role-appropriate panel;
-  socket dispatch + createChatMessage adoption wired; `api.openPlayerChat`.
-
-## v0.4.1-v0.4.3 (2026-07-26) — web-search fallback, OR plugin suppression, diag query tool + context stats
-
-- **v0.4.1** — opt-in, confidence-gated **web-search fallback** (`rag/web-fallback.ts`): when memory
-  returns nothing (or a top score `<= webFallbackMinScore`), fold OpenRouter's `web` plugin into that
-  one request. Off by default, OpenRouter chat only. `retrieveContext()` now returns a `RetrievalResult`
-  (`block`/`topScore`/`hitCount`/`queried`). Settings live in Memory & Knowledge; `stats.webFallbacks` counts.
-- **v0.4.2** — since OpenRouter's dashboard can't fully disable an account-level web default (min results
-  is 1, not 0) and Presets only bind to their chatroom, `chat-client.ts` now sends
-  `plugins:[{id:"web",enabled:false}]` on **every** OpenRouter chat request unless the fallback opts in.
-  Per-request overrides account defaults (unless the user set "Prevent overrides"). Noodlr is the sole
-  arbiter of when a web search runs.
-- **v0.4.3** — Diagnostics **Query inspector**: run raw retrieval (pick a silo or all defaults + topK),
-  see hits (score · silo/source · full text) with no LLM in the loop. Added **context-sent stats**:
-  `stats.ctxSent{Count,Sum,Peak}` sampled in `conversation.ts` via `noteContextEst(estimateMessagesTokens(payload))`,
-  shown as Avg/Peak vs the context budget. Also expanded the `ContextBudget` hint: 12000 is thrifty; with
-  200k-1M models, 32000-64000+ is safe (cost/latency scale per token; RAG+Chronicle backstop recall).
-
-## v0.4.0-rc8 (2026-07-25) — RAG Lite embedder: trailing-slash fix on wasmPaths
-
-- Follow-up to rc6. The embedder still failed loading `ort-wasm-simd-threaded.asyncify.mjs` — this
-  time from `…/dist/` instead of `…/dist/ort/` (the `ort/` segment was dropped). Cause:
-  `foundry.utils.getRoute()` strips the trailing slash, and ORT/transformers resolve child files
-  relative to `wasmPaths`/`localModelPath` as directory prefixes — so a missing slash drops the last
-  segment. `moduleUrl()` now re-adds the trailing slash when the source path was a directory. Fixes
-  both `wasmPaths` (→ `…/dist/ort/`) and `localModelPath` (→ `…/models/`).
-
-## v0.4.0-rc7 (2026-07-25) — Diagnostics tests gated to the active backend
-
-- The Diagnostics window now shows only the test relevant to the configured RAG backend, so a
-  nontechnical user never sees a failing probe for a RAG type they aren't using. The **in-browser
-  embedder** fieldset renders only when backend = `lite`; `#onEmbedTest` also hard-guards (bails with
-  `EmbedTest.NotLite` if somehow invoked on the service backend). The **Memory contents** legend is
-  backend-aware — "Memory (RAG Lite) contents" vs "Memory (LanceDB) contents" — and the write→read
-  self-test (which already routes through the active backend) stays available for both, correctly
-  labeled. Context adds `backend`/`backendLite`/`backendService` (from `getRagBackend()`).
-
-## v0.4.0-rc6 (2026-07-25) — RAG Lite embedder loads (ORT asyncify + absolute wasmPaths)
-
-Fixes the rc4/rc5 in-browser embedder failure ("no available backend found" / bare-specifier on
-`ort-wasm-simd-threaded.asyncify.mjs"). Two root causes:
-
-- **Missing ASYNCIFY build.** Foundry isn't cross-origin isolated (no COOP/COEP → no
-  SharedArrayBuffer), so ONNX Runtime Web can't use its pthread-threaded WASM and loads the
-  **asyncify** single-threaded build instead — which esbuild wasn't copying. `ORT_FILES` now ships
-  `ort-wasm-simd-threaded.asyncify.{wasm,mjs}` (23.5 MB wasm) plus the base pair as fallback.
-- **Bare specifier.** `env.backends.onnx.wasm.wasmPaths` was `"modules/noodlr/dist/ort/"`; the
-  browser rejects a bare specifier for the dynamic `import()` of the ORT `.mjs`. New
-  `moduleUrl()` in `rag/local/embedder.ts` resolves via `getRoute()` + `new URL(..., origin)` to an
-  ABSOLUTE href (also route-prefix safe); applied to both `wasmPaths` and `localModelPath`.
-
-Zip grows ~+10 MB (compressed asyncify wasm). No API/behavior change otherwise.
-
-## v0.4.0-rc5 (2026-07-25) — structured imports (JSON / YAML / CSV)
-
-- **JSON, YAML, and CSV file import** for both memory backends. Parsing happens client-side at the
-  upload boundary (`rag/parse-structured.ts`) — the file is flattened to per-record text documents
-  *before* `ingest()`, so noodlr-memory and RAG Lite both get it with **zero backend/interface
-  change** (contrast PDF, which parses inside the service and is unsupported in Lite).
-  - One document per logical record: JSON/YAML array element or named object; CSV row (first row =
-    header). Nested objects flatten to `path: value` lines; a name/title/label/id field becomes the
-    record label + an `entities` tag for retrieval provenance.
-  - JSON = native parse; CSV = small built-in RFC-4180 parser; YAML via the `yaml` dep, **lazy
-    `import()`** so it only ships as a chunk when a YAML file is actually parsed.
-  - Wired in `apps/memory-app.ts` `#onIngestFile` (structured → `client.ingest(docs)`; else the old
-    text/pdf `ingestFile` path). Upload `accept` + hint updated; new `NOODLR.Rag.StructuredEmpty`.
-- New dep: `yaml`. Third-party lore importers (World Anvil/Dungeon Alchemist/etc.) deferred — most
-  export to JSON/CSV (now covered) or produce maps (out of scope for lore RAG). See `IDEAS.md`.
-
-## v0.4.0-rc4 (2026-07-25) — RAG Lite (built-in memory) + backend-labeled config
-
-- **RAG Lite: a zero-config in-browser memory backend.** New `MemoryBackend` interface
-  (`rag/backend.ts`) implemented by both the remote `RagClient` and a new `LocalMemory`
-  (`rag/local/local-memory.ts`). A factory in `rag/config.ts` (`getRagBackend()` /
-  `getRagClient(): MemoryBackend`) returns the active one; retrieval, ingest, diagnostics, and the
-  Manage-Memory UI all call the shared interface — backend-agnostic. New setting
-  `RAG_SETTINGS.backend` (`rag.backend`, world scope) **defaults to `"lite"`**.
-  - Embeddings: in-browser via the bundled `all-MiniLM-L6-v2` (384-dim) from `rag/local/embedder.ts`
-    (transformers.js/ORT-WASM, single-threaded, offline; lazy 1.2 MB chunk).
-  - Store: `rag/local/store.ts` — one JSON file per silo under `<mediaFolder>/memory/<silo>.json`
-    via FilePicker upload; vectors as base64-Float32; in-memory index on the GM's client (GM-gated).
-  - Search: `rag/local/{chunker,search}.ts` — clean-room prose/table-aware chunker + BM25 + cosine +
-    RRF fusion (multi-query for Agent Mode) + importance/recency/entity soft-boosts.
-  - `isRagEnabled()` is backend-aware: Lite needs no URL/secret; service still requires a URL.
-  - **Known gap (SHORTCUT):** Lite `ingestFile` rejects PDFs (throws a friendly "convert to .txt or
-    use noodlr-memory" message) — no in-browser PDF parser yet. TXT works. Also: Lite index is
-    per-GM-client, not shared across multiple GMs (that's what the service backend is for).
-- **Backend-labeled Memory & Knowledge config.** Every RAG option is tagged `(shared RAG setting)`,
-  `(noodlr-memory only)`, or `(RAG Lite only)`, and options that don't apply to the selected backend
-  are **grayed live** (`data-backend` + `wireBackendGraying()`). Inputs stay enabled (never
-  `disabled`) so the inactive backend's stored values round-trip and aren't wiped on save. Service
-  URL/secret/Test-connection and the embeddings provider block are noodlr-memory-only; hybrid/agent/
-  budget/topK, rerank, and transcript ingest are shared.
-- **Map generator default prompt.** `map.positive` now defaults to the top-down orthographic
-  battlemap style/scale prompt (`MAP_DEFAULT_POSITIVE` in `media/config.ts`); `seedMapDefaults()`
-  (guarded by `map.positiveSeeded`, run on GM ready) backfills existing worlds without a prompt.
-- Carries forward rc1–rc3: in-browser embedder + Diagnostics "Test in-browser embedder" probe;
-  image size dropdown (16 curated presets + Null + custom WxH, `.webp` output, per-kind subfolders);
-  disabled "Upscale to 4× (coming soon)" on the Map generator (see `IDEAS.md`).
-
-## v0.3.0 (2026-07-25) — four image generators + single OpenRouter key + header-only Save
-
-- **Three new image generators** joined Scene Art, each with its own dragon-menu tool icon, chat
-  trigger, provider/model, saved Positive/Negative prompts, output subfolder, format, and per-kind
-  continuity ledger. Data-driven via `IMAGE_KINDS` / `IMAGE_KIND_META` in `media/config.ts`; one
-  generalized `generateSceneImage(desc, {kind})` + `createAndShareImage(input, kind)` path:
-  - **Generate Portrait** — waist-up, locked 1000×1000, `.webp`, `…/portraits`, keyed (continuity).
-  - **Generate Token** — top-down/iso token, locked 400×400, `.webp`, `…/tokens`, keyed.
-  - **Generate Map** — walkable map, default 4500×6000 (editable, hidden clamp 450–7800/side),
-    `.webp`, `…/maps`, non-keyed.
-  - **Scene Art (Generate Image)** — kept; default bumped **1024×1024 → 1920×1080** (one-time
-    `migrateImageDefaults()` upgrades existing worlds; guarded by `image.sizeMigratedV3`).
-  - `.webp` output + locked resolutions enforced client-side via `transcodeImage()` (canvas). Maps
-    request their configured size from the API but transcode at the model's returned resolution
-    (no in-browser upscale to 7800² — memory hazard). Each kind keeps its own ledger so a "goblin"
-    portrait and token don't collide on one seed/appearance.
-- **Single OpenRouter API key.** One world-scoped, write-only key on the main config
-  (`SETTINGS.openrouterApiKey`); `getFeatureConfig()` hands it to every openrouter feature. Removed
-  the per-feature OpenRouter key fields; the per-feature key input is now **custom-only** (optional,
-  for local endpoints). `getEmbedOverride()` inherits the shared key automatically.
-- **Header-only Save.** Removed the footer "Save" buttons from the settings, memory-config, and
-  creature-voices pop-outs — only the title-bar dirty Save (from v0.2.8) remains.
-
-## RAG root-cause FIXED (2026-07-25) — noodlr-memory service
-
-The "self-test 0 hits" saga resolved. Root cause was **not** embeddings/dimensions/LanceDB/legacy
-tables (all healthy). It was a plain bug in `noodlr-memory` `src/routes/vectors.js`: the hybrid
-candidate-pool size used `clampInt(topK*8, topK, 100)` — the `max` arg was omitted, so
-`clampInt(value, fallback, min, max)` did `Math.min(undefined, …) = NaN`, which became
-`vectorSearch.limit(NaN)` → LanceDB `"k must be positive"` → caught → `[]`. Since **hybrid is the
-default, every real RAG retrieval had silently returned zero hits** the entire time. Fixed to
-`clampInt(topK*8, topK, topK, 100)`; hardened `lance-store.query()` to clamp k to a positive int;
-added a regression test (store.query survives topK NaN/0/negative). Verified on the server:
-self-test round-trips (score 1.000) and semantic search ranks the right chunk #1.
-
-Debugging assets added along the way (kept): `scripts/seed.mjs` (health/collections/seed/query/
-selftest/purge/purge-all HTTP diagnostic), embedding-vector validation (`assertValidVectors`),
-and front-loaded `vectorSearch` failure logging (query dim vs table dim + full lance error). Module
-v0.2.9 added a Diagnostics **Copy report** button. Lesson: the query *route* had zero test coverage
-— unit tests exercised `store.query` directly and skipped the NaN path.
-
-## Memory diagnosis round (2026-07-24) — v0.2.9 (module) + noodlr-memory update
-
-Self-test still "0 hits" after v0.2.8. Key finding: the LanceDB round-trip **test passes** locally
-(dim-256 mock), so the store logic is sound — the "0 hits" is environmental on the server. The most
-likely cause is an **embedding-dimension mismatch on a stale `docs` silo** (table first written with
-a different embed model), which makes `vectorSearch` throw — and the store was **swallowing that
-error** into `[]`.
-
-- **noodlr-memory (own repo, pull+restart):**
-  - `lance-store.js` now **logs** vectorSearch/listHashes failures (query dim + message) instead of
-    silently returning `[]`. The real reason (dim mismatch, etc.) now shows in `journalctl`.
-  - New **`scripts/seed.mjs`** — standalone HTTP diagnostic/seed CLI (health / collections / seed /
-    query / selftest / purge) using the same `/v1` + secret + embed config as the module. Isolates
-    service vs. module: if `selftest` passes there but fails in Foundry → module bug; if it fails
-    there too → service/store (read the log; `purge` the silo).
-  - DEPLOYMENT.md: troubleshooting for "0 hits" + seed-tool usage; documented that **silos are
-    auto-created lazily** on first ingest (no manual init).
-- **Module v0.2.9:** Diagnostics **Copy report** button (deterministic `navigator.clipboard`, with a
-  `window.prompt` fallback for insecure contexts) — copy no longer depends on text selection.
-
-## Bugfix round 2 (2026-07-24) — v0.2.8
-
-- **Self-test STILL false-negative (v0.2.7 didn't fully fix it)** — passing embed on the query
-  wasn't enough. Real cause: the test ingested a full sentence but queried with the *bare* marker
-  token; those embed very differently, so in a populated `docs` silo the marker never made the
-  dense candidate pool (BM25 only runs over dense candidates in `rerankMulti`). Fix: ingest AND
-  query the SAME distinctive sentence — self-similarity ≈ 1.0 guarantees the marker tops the pool
-  regardless of silo size. NotFound message now reports the hit count (0 hits ⇒ store/vectorSearch
-  problem; >0 without the marker ⇒ ranking) for future diagnosis. (Real retrieval was never
-  affected — it queries with the user's actual text, normal semantic search.)
-- **Video timed out at 5 min while OpenRouter was still rendering** (real jobs take 5–6+ min).
-  Bumped the poll deadline to 20 min, cadence to 6s.
-- **Video now reuses the image Positive/Negative style** — `av-gen` prepends the image `positive`
-  prefix and appends `Avoid: <negative>.` (the video API has no native negative_prompt field;
-  best-effort in-prompt) so clips match the look of stills.
-- **Header Save button** (`apps/header-save.ts`) — injected into the title bar (right, before the
-  window controls) of the long form pop-outs (main settings, Memory config, creature voices) so
-  users needn't scroll to the footer. Turns amber with a leading "•" when the form has unsaved
-  edits; resets after submit. Footer Save still works.
-
-## Bugfix round (2026-07-24) — v0.2.7
-
-Fixes from the v0.2.6 test:
-- **Diagnostics self-test false-negative** — the write→read test ingested with the embed override
-  but queried WITHOUT it, so noodlr-memory embedded the marker query with a *different* (server
-  default) model → different vector space → "wrote it but didn't find it". Fixed: pass
-  `getEmbedOverride()` on the self-test query too. (Real retrieval already passes embed on both
-  ingest and query — actual memory was fine; only my test was wrong.)
-- **Diagnostics text now selectable** (`user-select:text` on diag tables/status/intro).
-- **Voices were the 6 OpenAI fallback names for every model** — OpenRouter model metadata carries
-  per-model `supported_voices` (verified live: mai-voice-2 → `en-US-Harper:MAI-Voice-2`, …). Added
-  `fetchOpenRouterVoices(modelId)` (caches the speech-model list); `tts.listVoices()` and the config
-  voice picker now use it for OpenRouter (custom still uses `/audio/voices`), refreshing when the
-  model changes. Fixes the creature-voice pop-out too (it uses `listVoices`).
-- **Video 401 / empty player** — OpenRouter's `unsigned_urls[0]` points back to
-  `openrouter.ai/api/.../videos/{id}/content`, which REQUIRES the bearer token; our downloader
-  fetched it unauthenticated and saved the 401 JSON as the .mp4. Fixed: `generateVideo` now
-  downloads the bytes itself with the key attached (only when the URL is on the API host — never
-  leak the key to third-party signed storage), rejects sub-1KB payloads, and returns a Blob;
-  `av-gen` saves the Blob and displays the LOCAL path (the remote URL needs auth so players can't
-  load it). `saveMedia` now checks `res.ok` before persisting so an error body can never be saved
-  as media again.
-
-## Fixups + diagnostics round (2026-07-24) — v0.2.6
-
-Post-v0.2.5 feedback fixes:
-- **Chat model list "still 343"** — NOT a bug. OpenRouter's entire catalog is 343 and *all* output text,
-  so `output_modalities=text` can't narrow it (verified live: unfiltered==text==343). The other features
-  shrink because speech/image/embeddings/etc. are rarer. Left chat unfiltered on purpose — hiding flagship
-  chat models by capability would be worse. Explained to user.
-- **Transcription enable toggle** — added `transcription.enabled` (world, default off). The floating mic
-  button is now gated: `push-to-log.ts::refreshPushToLogButton()` adds/removes it; called at ready and on
-  settings save (no reload needed).
-- **Music/Video tool buttons** — added GM-only scene-control tools (`music`/`video`, shown only when the
-  feature is enabled) → `promptMusic`/`promptVideo` DialogV2 textareas → `createAndPlayMusic`/
-  `createAndShareVideo`. Mirrors the existing scene-art button.
-- **Music duration snapping** — the number inputs had `step="5"` with `min="1"`, so valid values were
-  1,6,11,… (browser rejected 15/300). Changed to `step="1"`.
-- **DM chat unselectable + wiped on reopen** — chat transcript now lives in a **static** store on
-  `NoodlrChatPanel` (survives close/reopen from switching scene tools) and is rebuilt from it in
-  `_onRender`; `.noodlr-chat__body` gets `user-select:text`; each bubble has a copy-to-clipboard button.
-  (The `Conversation` model-history is also static now so the DM keeps context across reopen.)
-- **Creature-voice table location** — was a collapsed `<details>` in the TTS section; users expected a
-  pop-out. Moved to its own window `NoodlrCreatureVoiceApp` (`creature-voices.hbs`) opened by a button in
-  the TTS section; the voice field is fed by the live `/audio/voices` list.
-- **Diagnostics/stats (new)** — `util/stats.ts` client-scoped counters (chat turns, prompt/completion
-  tokens via `stream_options.include_usage`, RAG queries + hits, injected chars≈tokens, rerank runs + kept,
-  ingest docs/chunks, media counts). New **Diagnostics** window (button in Memory window) shows: live
-  LanceDB per-silo document counts (proves writes land), a **write→read self-test** (ingest a tagged marker
-  into `docs`, query it back), and the session counters with derived ratios. Answers the "is memory/rerank
-  actually doing anything + reducing tokens" question with numbers instead of hand-waving.
-
-## New-pillars round (2026-07-24) — v0.2.5
-
-Built the four items requested 2026-07-24 (user chose "build all", recommended options). Verified all
-OpenRouter shapes live before coding (no fabrication):
-- **Rerank** — `POST /api/v1/rerank` `{model,query,documents[],top_n}` → `{results:[{index,relevance_score,document}]}`.
-  `src/providers/rerank.ts`; integrated module-side in `rag/retrieval.ts::maybeRerank` (after `/query`,
-  before injection). Config lives in the **Memory window** (feature `rerank`, default cohere/rerank-4-fast)
-  per user's call — kept in the module so the model is visible/swappable to non-tech users, not hidden in
-  noodlr-memory. Settings `rag.rerankEnabled`, `rag.rerankTopN`.
-- **Music** — no dedicated endpoint; runs through `/chat/completions` with `modalities:["text","audio"]`,
-  `stream:true`, base64 in `delta.audio.data` (concat all, decode ONCE — chunk-aligned decode corrupts).
-  `src/media/music.ts` → `av-gen.ts::createAndPlayMusic` saves to `<mediaFolder>/music`, adds to a Foundry
-  **Playlist** (default "Noodlr Music") and plays. Chat: `Generate Music: <mood>`. Duration is a prompt
-  hint only (lyria clip is ~fixed length). Default `google/lyria-3-clip-preview`.
-- **Video** — async: `POST /api/v1/videos` → poll `polling_url` until `status=completed`, read
-  `unsigned_urls[0]`. `src/media/video.ts` → `av-gen.ts::createAndShareVideo` saves to `<mediaFolder>/video`,
-  broadcasts via `ImagePopout` (its src accepts video) + chat `<video>` card. Chat: `Generate Video: <scene>`.
-  Default `google/veo-3.1-fast`; 6–30s requested (provider may cap lower). Experimental.
-- **TTS creature voices** — pivoted from size-based pitch to a **creature-type → {voice, pitch}** table
-  (`src/media/creature-voice.ts`, user's D&D type/subtype list). Pitch is sent ONLY when
-  `tts.pitchSupported` is ticked (OpenAI/OpenRouter `/audio/speech` has no pitch field; strict servers
-  reject unknowns) — no client-side pitch shifting. Actor→type via dnd5e `system.details.type`
-  {value,subtype}. Since the split it reaches combat through `behavior/banter.ts` (a taunt is spoken in
-  the creature's own voice) rather than through the NPC turn, which moved out.
-  DM auto-read stays default-voiced (mixed narration = no single actor).
-
-Model dropdowns for all three new features filter by their modality (music=audio, video=video,
-rerank=rerank) via the v0.2.4 per-feature datalist wiring. `saveMedia()` in `storage.ts` generalizes the
-image saver (Blob or URL, subfolders, MIME→ext). Module API adds `generateMusic`/`generateVideo`.
-
-Follow-ups / caveats: music/video/rerank are UNTESTED against a live key (needs the GM's OpenRouter key);
-music duration not truly controllable via chat-completions; video local-save may hit CORS (falls back to
-provider URL for display). Watch for provider-specific body-field rejections.
-
-## ---
-## Media round (2026-07-23) — v0.2.3
-
-Image pipeline overhaul + media storage + dropdown UX (all requested after the second smoke test).
-- **Image "no output" root cause:** the old `display.ts` opened an ImagePopout **locally only** (no
-  `shareImage()`) and posted a chat card embedding a **base64 `data:` URL**, which Foundry strips
-  from chat HTML — so nothing showed. Replaced by `media/scene-art.ts`: generate → persist to disk →
-  `ImagePopout(...).render(true)` + `shareImage()` (broadcasts to all) → chat card referencing the
-  **file path** (never base64). `display.ts` deleted.
-- **Persistent media storage** (`media/storage.ts`): images saved via `FilePicker.upload("data", …)`
-  to a configurable folder, default **`worlds/<id>/assets/noodlr-out`** since v0.7.5 (`assets/noodlr-out`
-  before it — see the one-host-two-worlds note; the "v13 blocks worlds/" claim that used to be here is
-  about the picker's UI, not a module's `upload`).
-  Auto-created on ready (GM). Config has a FilePicker **folder picker** (folder mode, `data` source).
-  **No audio is ever persisted** (transcription covers memory).
-- **Continuity ledger** (world setting `image.ledger`): entityKey → {seed, prompt(anchor), model,
-  path, ts}. `generateSceneImage(desc, {entityKey})` reuses a recurring entity's concrete seed +
-  appearance anchor so portraits/locations stay recognizable; new keyed entities get a concrete
-  random seed (not -1) so reuse is deterministic. Optional ingest of prompt/tags/path into the
-  `scenes` RAG silo (GM-gated).
-- **Chat triggers** (`chatMessage` hook, returns false to swallow the command): `Generate Image:
-  <scene>` (one-off) and `Generate Portrait: <Name>: <desc>` (keyed continuity). Gated by
-  `image.chatTrigger` (default on) and `image.allowPlayers` (default off — API cost). Player-triggered
-  images display but can't persist (no upload perm / can't write world settings) — continuity is a GM
-  concern by design.
-- **Dropdowns** (`provider-ui.ts`): injects "Fetch models" (all features) and "Fetch voices" (TTS)
-  buttons that read the provider/base-URL/**typed key** live from the form (no save needed) and fill a
-  per-feature `<datalist>`. OpenRouter models need no key; custom hits `{base}/models`; voices hit
-  `{base}/audio/voices` with a standard-name fallback.
-- **TTS local endpoint reminder:** `http://192.168.x` from an HTTPS Foundry page is mixed-content
-  blocked regardless of OpenAI-compat — proxy it behind nginx (like memory). The v0.2.2 Test field
-  surfaces this as the fetch `TypeError` case.
-
-## Second smoke-test round (2026-07-23) — v0.2.1 & v0.2.2
-
-- **v0.2.1:** GM-gated memory + client-scope RAG secret (see Open decisions). noodlr-memory gained
-  an optional Unix-socket listener (`NOODLR_MEMORY_SOCKET`) for nginx reverse-proxy deploys.
-- **v0.2.2:** Added a **Test voice output** control under the TTS section (140-char input; inline
-  status line reports success/HTTP error, and specifically calls out the fetch `TypeError` case as
-  the browser-origin trap — mixed content HTTPS→HTTP, missing CORS, or unreachable). Same
-  browser-origin lesson as memory/TTS: the module's `fetch` runs client-side, so a *local* TTS
-  endpoint that "works on its own" often fails from an HTTPS Foundry page; put it behind the reverse
-  proxy. **Standing suspicion when users report "chat doesn't render / no dragon icon": stale
-  install.** Both were fixed in v0.1.1 and the current scene-controls code matches the v13 API
-  example verbatim; symptom set (mic present, no dragon, no chat) == running v0.1.0. Always confirm
-  the loaded module version first.
-
-## First smoke-test feedback + fixes (2026-07-23) — v0.1.1 & v0.2.0
-
-User installed v0.1.0 in a live Foundry world and filed an issues log. Two releases cut:
-
-**v0.1.1 — critical functional fixes (the core loop now works):**
-- **Chat responses were never rendered.** Root cause in `src/providers/chat-client.ts`: the SSE
-  reader only split frames on `\n\n` (missed `\r\n\r\n` from proxies) so everything fell to the
-  end-of-stream flush, which then hit `data: [DONE]` and `return`ed — discarding all accumulated
-  text. Rewrote the parser (CRLF-normalized; `[DONE]` no longer eats content) + added a
-  non-`event-stream` JSON fallback for custom servers that ignore `stream:true`. This also fixed
-  Test Connection showing nothing.
-- **Scene-control dragon icon missing.** v13/v14 `getSceneControlButtons` gives a
-  `Record<string, SceneControl>`; a custom group MUST set `activeTool`, tools need `order`, and
-  the callback is `onChange` (not the removed `onClick`). Old code used `onClick` + the v12 array
-  shape and buried tools under Token controls. Now Noodlr is its own top-level group (dragon) with
-  Chat / Scene Art (GM) / Run NPC Turn (GM). `openChat` reuses the existing panel instance.
-- **Windows ran off-screen.** Global CSS caps every `.application.noodlr` to the viewport with
-  `overflow:auto` on `.window-content`.
-
-**v0.2.0 — configuration UX overhaul:**
-- **All provider/media/RAG settings moved out of Foundry's native settings list to `config:false`**
-  and rendered in our own windows. This removed the anonymous, repeated "Provider/URL/key/model"
-  rows and the native unmasked-key text field.
-- **API keys + RAG secret are write-only in the DOM.** `getProviderView`/`hasKey` never send the
-  stored key to the browser; fields show a "saved" placeholder and only overwrite when a new value
-  is typed (`saveProviderFromForm`, `saveRagSecret`; `apiKeyClear`/`secretClear` to wipe).
-  Residual limitation: a GM client can still read the raw world setting via console —
-  proper fix (proxy provider calls through noodlr-memory so the browser never holds keys) is a
-  deferred decision, noted below.
-- **Main config grouped by feature** (Chat / TTS / Image / Transcription), each Provider→Model→
-  (custom URL)→Key, with layman "what / needs / if skipped" help on every field (`NOODLR.Feature.*`,
-  `NOODLR.Help.*`). Added the missing **image positive/style prompt** (`image.positive`, prepended
-  before the subject in `media/image.ts`); grouped the TTS base URL with TTS; removed the redundant
-  `enabled` module setting.
-- **Live OpenRouter model list** via public `GET /models` (no key needed) → `<datalist>`
-  (`src/providers/models.ts`, wired by `src/apps/provider-ui.ts`). Custom endpoints keep free-text.
-- **New consolidated "Memory & Knowledge" window** (`memory-config-app.ts` + `memory-config.hbs`,
-  menu `MENUS.memory`): service URL + write-only secret, hybrid/Agent-Mode, embeddings block,
-  transcript ingestion, and buttons opening Manage Memory / Lorebook / Chronicle. The separate
-  lorebook/chronicle sidebar menus were removed (reachable from here + the module API).
-- Form save robustness: both handlers wrap `formData.object` in `foundry.utils.expandObject` so
-  dotted field names (`chat.provider`) nest regardless of FormDataExtended version behavior.
-
-**noodlr-memory: LanceDB is now the default backend.** User chose LanceDB over Chroma/Qdrant and
-stood up a Python FastAPI+LanceDB PoC (`/opt/lancedb_app/main.py` → `/opt/lancedb_data`); they did
-not want a Python client as the interface. So we **embedded LanceDB inside noodlr-memory via the
-official `@lancedb/lancedb` Node SDK** — the service now owns the Lance directory directly and the
-Python PoC is retired. New `src/stores/lance-store.js` (one table per collection, metadata as a
-JSON column for a stable Arrow schema, cosine distance, per-table write serialization);
-`VECTOR_BACKEND=lancedb` default; `LANCEDB_URI` (default `<DATA_DIR>/lancedb`, set to
-`/opt/lancedb_data`). Validated against the real native module (a 12-check smoke run + a new
-`test/lance.test.js`; full suite 14/14 green on this Windows host). **Only one process may write a
-LanceDB dir** — the Python server must be stopped.
-
-## Verified in a live Foundry world (2026-07-31, v0.4.14)
-
-The build env has no Foundry world, so everything here was validated in the user's own world
-(Foundry v14, dnd5e, GM and player in separate Firefox multi-account containers). The earlier
-prediction that "the socket relay is the highest-risk unverified spot" proved exactly right — see
-the `"socket": true` invariant below.
-
-**Milestone — the players-only chatbot held unprompted continuity across a real adjudication.**
-Unscripted, in one session: a player asked Polly Histor whether he could hide from the surrounding
-skeletons → the bot told him to break line of sight and roll Stealth → the player rolled badly in
-native Foundry → the bot read the real roll, told him he had been spotted, and called for
-initiative. That is the whole design thesis working end to end: retrieval-scoped player knowledge,
-escalation to a real Foundry roll instead of a model-invented one, the roll captured from the chat
-log, and consequence carried forward without the GM prompting any of it.
-
-Also confirmed working in-app: module load + settings tabs; streaming chat against a real provider;
-GM co-pilot and players-only bot side by side; Tipster scene briefing including the token roster
-(counts correct for duplicate tokens); TTS on both bots, broadcast to every client; "Hide from
-players" suppressing both text and audio; the GM-relayed player ask with acknowledgement.
-
-Still unverified in-app: push-to-log/MediaRecorder cycling, image/music/video generation from a
-player client (see the upload-permission note below — expected to fail), combat block + NPC turn,
-lorebook/author's-note/post-history injection.
-
-## Ingest is a queue with a progress bar (v0.6.2, 2026-08-13)
-
-Reported as a rate limit and only half of it was: repopulating every silo could not get through a
-single compendium. The service side is the note above; this is the module side, and the interesting
-part is that two of the three faults were interface rather than networking.
-
-- **`#busy` on the window was never a lock.** It guarded re-entry into one handler on one client, so
-  it did nothing about a second window, a reload mid-run, or an upload fired while a pack was going.
-  Two concurrent ingests do not go twice as fast — they halve each other's share of a limit that
-  counts requests — so serializing them is a correctness measure. `src/rag/ingest-queue.ts` is a
-  **module-level** singleton for the same reason it is not a window field: a run has to survive the
-  GM closing the window, and every caller must see the same queue. Memory access is GM-gated, so
-  there is exactly one client doing this.
-- **The duplicate guard is on `key`, not on a busy flag.** Queueing is the *right* answer to a GM
-  clicking six packs; what must not happen is the same pack twice. A resume keeps the same key
-  (`pack:<id>:<silo>`, no `from`), so resuming cannot enqueue a second copy of a job.
-- **`resumeAt` is only advanced once a batch is STORED.** That is what makes resume safe in both
-  directions: it never re-sends embeddings already paid for and never skips documents that never
-  landed. A cancelled job keeps it — the rows written are real. An uploaded file omits `resume`
-  entirely rather than faking one, and the button is absent as a consequence rather than as a
-  separate check: it is one indivisible request with no index to restart at.
-- **The queue is painted imperatively; `render()` is never called on progress.** A re-render rebuilds
-  60-odd pack rows, resets every silo picker to its default and loses the scroll position — several
-  times a second while a countdown ticks. Same rule as the chat panel's streaming. The subscription
-  is taken in `_onRender` and dropped in `_onClose`, and closing the window does **not** cancel the
-  run.
-- **A wait has to be visible or it reads as a hang.** The old path sat silent through a backoff and
- then reported failure, which is the worst available combination. `withPatience` counts the wait down
- through `report` every second, names the retry number, and gives one batch 20 minutes before it
- gives up. It wraps a thunk rather than a batch so the upload path shares it instead of growing a
- second copy of the loop — which is also why `ingestUploadedFile` moved out of `memory-app.ts` into
- `ingest.ts`.
- - **v0.6.2 got that half right and left the other half silent (fixed v0.6.3).** The countdown only
- runs once a 429 has been *received*, and the service was absorbing rate-limit waits internally for
- up to ten minutes, so the visible state through all of it was one `phase: "sending"` with an empty
- note. A pack that was working perfectly was reported as hung. `reportWhilePending` now ticks the
- elapsed seconds of the in-flight request every second, so slow and stuck look different whatever
- the reason — a property worth having independently of the service-side fix, since any request can
- be slow. The generalisable form: **a progress indicator that only updates on completion is not a
- progress indicator**, and the queue's coalesced `report` already made a per-second tick cheap.
-- **Throttle settings are sent independently of `sendEmbedConfig`.** Conflating them is what left the
-  documented first lever unreachable: the provider block (model, URL, key) is opt-in because it means
-  the GM's key leaves their browser, while batch size and pacing are not credentials. A lever that
-  only works when an unrelated checkbox is on is a lever nobody finds. `resolveEmbedConfig` falls
-  back to the server's value for every omitted field, so a throttle-only override leaves the provider
-  config exactly as the service has it. 0 means "let the service decide" and must survive a save.
-- The ingest buttons are deliberately NOT disabled while the queue is busy — they queue. What is
-  disabled is everything that would either spend the same budget (upload, developer export) or move
-  the ground under a running job (silo reset).
-
-### The queue survives a reload (v0.6.4, 2026-08-13)
-
-The user's prediction of operator behaviour is the whole specification: tick sixty packs, pick sixty
-silos, mash ingest, hit Save, close the window and start playing. 0.6.2 got everything except the last
-clause — the queue outlived the *window* and died with the *page*, and a GM who reloaded lost the run
-with no way to tell how much of it had landed.
-
-- **`IngestSpec` is a serializable descriptor, not the task.** An `IngestTask` closes over a
-  `MemoryBackend` and a pack's documents; none of that can be written to a setting. So a job persists
-  as `{type:"pack", pack:<id>}` plus its `resumeAt`, and `rebuildIngestTask()` in `memory-app.ts`
-  reconstructs the closure at load. A pack that has since been uninstalled rebuilds to nothing and
-  the job is dropped rather than retried forever.
-- **`resumeAt` was already the right number and is what makes this safe in both directions** (it only
-  advances once a batch is STORED, see above), so resuming re-sends nothing already paid for and skips
-  nothing that never landed. The reload path needed no new bookkeeping — only somewhere to put it.
-- **Only the primary GM writes, and only the primary GM resumes.** Two GMs both restoring the same
-  stored queue is two concurrent runs halving each other's share of one rate limit, which is precisely
-  what the queue exists to prevent. Same `isPrimaryGM()` rule as transcripts and artifact commits.
-- **A non-primary GM's jobs are carried, not dropped.** Each stored job records its `owner`, and
-  `writeNow()` re-serializes the jobs belonging to *other* active GMs alongside its own. Without that,
-  the primary GM's first write erases an assistant GM's queued work — a data-loss bug that only
-  appears on multi-GM tables and looks like the queue randomly forgetting things.
-- **Writes are debounced but structural changes flush immediately.** Progress ticks every second and a
-  world setting is a socket broadcast to every client, so a per-tick write would be a flood; a cancel
-  or a completion that is not written *now* can be resurrected by a reload, which is worse than a
-  slightly stale count. `restoring` suppresses writes while the queue is being rebuilt, or the restore
-  would race its own persistence.
-- Resuming is announced once with a notification and otherwise silent, which is what "I hit ingest and
- went off to play" asks for.
-
-### A provider's refusal is not a broken memory service (v0.6.5, 2026-08-13)
-
-`src/rag/failure.ts` is the one place that tells the two apart, and it exists because they arrive at
-the same place and mean opposite things. A rate limit says the store is healthy, the write path is
-correct, and an upstream model was busy for a moment; a connection or store failure says nothing
-works. Reported as one raw error string — which is how the Diagnostics self-test reported it — the
-reasonable conclusion is that memory is broken, and the operator goes off to audit a service that was
-never at fault.
-
-- **`isRateLimit` reads the status AND the message**, because noodlr-memory only started reporting 429
- as 429 in 1.2.0 and a GM does not upgrade the service in step with the module. Wrong in the
- permissive direction costs one pointless wait; wrong in the strict direction abandons an ingest that
- would have finished.
-- **`providerRefusalAdvice` names the model only when `getEmbedOverride()` carries one.** Without the
- opt-in provider block the service uses its own `EMBED_MODEL`, and naming a setting that had no part
- in the request is the same class of mistake as advising an account top-up for an upstream limit.
-- **The advice names the SERVICE's environment variables**, because the audience is whoever runs
- noodlr-memory and every lever is on that side. Same reasoning as the socket/reverse-proxy hints in
- `ragFailureAdvice`.
-- Both consumers matter: the self-test (a one-request probe, so nothing here is about bulk load) and
- the queue, where the job note becomes "press Resume in a minute" instead of a quoted 429 body.
+`SETTINGS.debugLogging` (client-scoped, in Foundry's native settings list). `debug()`,
+`debugPayload()` (collapsed console group per message with role and token estimate — the tool for
+"did the RAG / lorebook / Tipster block reach the request"), `warn()`, `isDebugEnabled()`.
 
 ## Hard-won invariants
 
-- **A document ingests as its own name and reports success (v0.6.1, 2026-08-12).** Found while
- cross-checking the rules corpus against a straight PDF conversion of the same books: the offline
- exporter had silently dropped 513 roll tables, and the same two blind spots were live in
- `rag/ingest.ts`, which is the path a GM actually uses. `documentToText()` read `system.description`,
- `system.details.biography` and journal pages, then fell back to `JSON.stringify(doc.system)`
- truncated at 4,000 characters. Consequences, both silent:
- - **A RollTable has no `system` at all.** Its prose is top-level `description` and its content is
- the embedded `results` collection, so a d100 table was embedded as its title and nothing else,
- and the service dutifully reported it inserted. The compendium ingest matrix lists every pack
- including the `*.tables` ones, so this was worse than omitting them — the GM ticks a box, sees a
- success count, and gets a store that can match "Wild Magic Surge" and not one of its hundred
- effects. Rows now render with their range prefix, because "25-28" is what selects the effect.
- - **A creature's traits and actions are embedded Items, not fields of `system`.** This is the
- lesson the offline miner learned first (436 SRD actors expand to 4,861 mining units, 11.1x), and
- the importer never got it: most statblocks carry no biography, so an actor fell through to the
- truncated-JSON fallback and was indexed as a name and a few hundred numbers with every trait,
- attack and legendary action absent. Items are appended now, and **the fallback gate changed from
- `parts.length <= 1` to a `hasProse` flag** so a statblock with traits still gets its AC and hit
- points — gating on the count would have dropped the numbers the moment item text started arriving.
- - **The generalisable fix is the reporting, not either extractor.** `ingestCompendium` tallies
- documents whose text is only their own name, by document type, and warns with the census; the
- exporter does the same for a pack that yields zero records, routed through `failures` so the GM
- gets a red toast instead of a missing file. This is the same doctrine as greying "Behavioral
- automation" and as `noodlr-hooks-55e`'s ownership resolver: **a capability that switches itself
- off has to say so.** An extractor that cannot read a document type is not a bug worth preventing
- in advance — it is a bug worth being told about the first time it happens.
-   - **A game system's notes about Foundry are not rules, and they were being indexed as rules
-     (v0.7.1, 2026-08-15).** dnd5e ships 793 authoring asides addressed to the human GM — "the
-     Exhaustion levels from missing limbs must be applied manually", "you can enable the AE in the
-     effects tab" — and `stripHtml` flattened them into ordinary prose, because `textContent` erases
-     the `<section class="secret">` that marked them. The consequence is specific to retrieval: a hit
-     carries no label saying it came from a note, so under the `# Retrieved campaign memory` header an
-     instruction about our software is read with the authority of the rulebook paragraph beside it, and
-     a rules question gets answered "your GM applies this by hand". `src/rag/prose.ts` drops them
-     inside `stripHtml`, which is where every extraction path funnels through.
-     - **THE STRIP MUST BE CONDITIONAL, AND THE ARGUMENT IS STRONGER HERE THAN IN THE RULES MODULE.**
-       `class="secret"` is also how a GM marks their OWN campaign secrets, which is precisely what the
-       `gm_*` silos exist to hold — so dropping hidden sections wholesale would delete the most
-       valuable thing anybody ingests, and it would present as memory simply never learning the
-       secrets they wrote down. Being hidden is not the test; talking about the software is.
-     - **Deliberately only half of `noodlr-hooks-55e`'s predicate.** That module also scrubs tooling
-       sentences standing in the OPEN, because there a note reaching the compiler can suppress a rule
-       outright. Here the worst case is one noisy chunk, while the risk runs the other way: this path
-       ingests a GM's own journals and homebrew, where a sentence deleter on an eleven-term vocabulary
-       will eventually eat a line of somebody's campaign silently. The volume settles it — across all
-       of dnd5e the open-prose case is **5 descriptions, two distinct sentences**, against 793 hidden
-       notes. `keepOpenProse` records that decision where somebody would go to add the feature.
-     - **A deliberate second copy of that vocabulary, not an import**, same call as the header-save
-       button: neither module depends on the other and twenty lines is cheaper than the coupling. The
-       two are allowed to diverge because they answer slightly different questions.
-     - `compendium` must never join the vocabulary. `@UUID[Compendium.dnd5e.…]` is how a link to a
-       spell is written, so it sits inside thousands of ordinary rules — measured, adding it takes the
-       strip from 5 descriptions to 2,469 and 1,334 distinct sentences. The Troll's own rule text is
-       the specimen and is used verbatim in `test/prose.test.ts`.
-     - **Debug, not a warning.** 793 correctly-marked notes per system means a toast per pack would
-       teach a GM to ignore the channel; one line somewhere is still wanted, because "memory did not
-       learn that" is a question that gets asked. Same severity doctrine as `rag/failure.ts`.
-     - **Consequence for existing stores: purge then re-ingest**, not re-ingest alone — `freshItems()`
-       skips by content hash, so scrubbed text is a NEW hash and the old note-bearing chunks would
-       simply remain beside it.
-   - Untouched deliberately: the PDF path. `/ingest-file` parses server-side through the optional
- `pdf-parse` dependency and 501s with an install hint when it is absent, and RAG Lite refuses PDFs
- with a message naming the workaround. Both fail loudly, which is the property that matters. Its
- real limitation is layout rather than loss — a PDF text layer interleaves table columns — and that
- is not fixable without OCR-grade tooling nobody should add to a browser module.
+- **A prompt field's stored value is the whole truth.** Every prompt setting ships pre-filled
+  with its default (`src/prompts/fields.ts` is the registry) and is read verbatim. An emptied field
+  means "send nothing"; the way back is per-field Reset. Never reintroduce
+  `stored.trim() || DEFAULT`. Textareas carry `data-prompt-field` and **no `name`** (dotted keys
+  collide with the form serializer); saved through `sanitizeUserText(..., {preserveLayout: true})`.
+  `seedPromptDefaults()` runs once per world (`promptDefaultsSeeded`); do not re-seed on version
+  change. **Corollary:** improving a shipped default reaches only new worlds; before spending
+  anything on a prompt change, compare the stored text against
+  `game.settings.settings.get("noodlr.<key>").default`, diff, back up to
+  `C:\Project\noodlr-vtt\prompt-backups\`, and reset only if the diff is purely additive.
+- **`"socket": true` must stay in `module.json`**, and a change to it needs a world restart.
+  Without it every `game.socket.emit("module.noodlr", …)` is silently dropped and only the GM's
+  own paths appear to work (cost several release cycles).
+- **`isGM` is a role several clients can hold.** Anything that must happen once for the table
+  (journal writes, ingestion, deleting a message, shared files) must also pass `isPrimaryGM()`
+  (`src/util/gm.ts`, reads Foundry's own `Users#activeGM` — do not build a second election).
+- **Every chat card goes through `util/speaker.ts`** (`speakerFor(subject)` / `narrator()`). An
+  unsigned card, or one with an empty alias, is signed by core with the author's assigned
+  character, which may be a different actor. `playedTokens(user)` is plural on purpose; test
+  ownership with `testUserPermission`, never `ownership[id] === 3`.
+- **The Noodlr control group's `activeTool` names an inert hidden `home` tool.** Foundry skips the
+  active tool on click, so pointing it at a real button stops that button reopening its panel.
+- Never name a `data-action` after one of core's own verbs (`tab`, `close`, `submit`,
+  `toggleDisabled`).
+- **Window text selection:** `.noodlr .window-content, .noodlr .window-content * { user-select:
+  text !important }` — core's `user-select: none` shifts between patch releases.
+- Register only the modern hook name on v13+ (`renderChatMessageHTML`); registering the legacy
+  `renderChatMessage` emits the deprecation warning by itself.
+- **Diagnostics print a flat block and return a count.** A nested object pasted from a console is
+  a collapsed line that answers nothing.
+- **A progress indicator that only updates on completion is not one**; a wait has to be visible
+  or it reads as a hang.
+- **Interpolate an error's `.message` into a log line; never pass the Error object as an
+  argument** (a console renders it as its class name).
+- **A retry policy written as a whitelist of transient statuses fails closed on every status it
+  has not met.** Classify by reading the body, and default unknown to transient.
 
-- **A creature's own sheet outranks the rulebook, and the silo arrays were never what enforced it
- (user's edict, 2026-08-10).** A GM who gave a goblin 40 hit points has stated a fact about that
- goblin; a retrieved rulebook paragraph about the published goblin is a weaker claim about the same
- creature, not a correction. Three things had to change, and the first is the trap:
- - **`GM_QUERY_SILOS` / `PLAYER_QUERY_SILOS` order is documentation, not mechanism.** Their header
- comment claimed "Order = query/injection precedence (rules first...)" since the 35-silo migration
- and it was never true: every silo goes into ONE fused `client.query()` and comes back ranked by
- score, so the array order never reaches the model. Reordering those arrays to "fix" precedence
- changes nothing. `precedenceRank()` in `silos.ts` is the mechanism.
- - **The block could not express the edict because it never said what a hit was.** Hits carried no
- origin, so a sheet excerpt and a rulebook excerpt were indistinguishable bullets. The service had
- stamped `collection` on every hit all along (`routes/vectors.js` `list.push({collection, ...h})`)
- and `RagHit` simply never declared it; RAG Lite genuinely dropped it and now stamps it from a
- per-silo id map. Every line is now tagged `[character sheet]` / `[rulebook]` / `[campaign memory]`.
- - **Sheets are hoisted before the budget loop, not after.** `formatContextBlock` stable-sorts by
- `precedenceRank` so relevance order survives within each group while a tight `tokenBudget` trims
- published rules instead of the table's own customizations — precedence that held only when
- everything fit would be no precedence at all.
- - The clause also lives in `buildRulesetBlock()` rather than only in the retrieved-memory header,
- because most sheet facts reach the model as LIVE Foundry state (the combat block, the Tipster
- briefing) on turns where retrieval returned nothing. Being in that block means all four generation
- paths get it from one edit, which is the v0.4.20 lesson paying off. **Not a prompt field**, for the
- usual reason: a guard deletable by rewriting an unrelated paragraph is not a guard.
- - Deliberately NOT done: re-weighting `importance` per source book on ingest. The user declined it,
- and it would only take effect on re-ingest anyway, so it cannot fix a corpus already in the store.
+## Open decisions / accepted risks
 
-- **A prompt field's stored value is the whole truth.** Decided with the user 2026-08-01 and
-  implemented in v0.4.18: every prompt setting ships pre-filled with its default (`src/prompts/fields.ts`
-  is the single registry) and is read verbatim. Never reintroduce `stored.trim() || SOME_DEFAULT` in an
-  accessor — that pattern is why a GM could stare at an empty box while the module sent a 1,000-token
-  prompt they had no way to see or edit. An emptied field means "send nothing", and the way back is the
-  per-field Reset. Adding a prompt means: add it to `PROMPT_FIELDS`, register it with
-  `promptDefault(key)` as its default, and render it with the `noodlrPromptField` partial — the Reset
-  action and the upgrade seeding then work for free.
-  - Prompt textareas carry **no `name` attribute**; they are collected by `data-prompt-field` in
-    `savePromptFields()`. Their settings keys contain dots (`image.positive`), which a form serializer
-    expands into nested objects that collide with the provider fields.
-  - Reset rewrites the textarea only, and lets Save persist it. Writing the setting immediately would
-    force a re-render that discards every other unsaved edit in the window.
-  - They save through `sanitizeUserText(..., { preserveLayout: true })`. The default sanitizer collapses
-    runs of spaces and caps blank lines, which silently reflows a hand-formatted 65k prompt.
-  - `seedPromptDefaults()` fills empty prompt settings once per world (flag: `promptDefaultsSeeded`).
-    It exists because the old form saved every field on every Save, so upgrading worlds hold explicit
-    empty strings for prompts nobody ever edited; reading those verbatim would strip the DM prompt.
-    "Deliberately empty" was not expressible before v0.4.18, which is what makes this safe exactly once.
-  - **IMPROVING A SHIPPED PROMPT DOES NOT REACH A WORLD THAT HAS ALREADY STORED ONE, AND THAT IS THIS
-    INVARIANT'S COST RATHER THAN A BUG IN IT (2026-08-16).** Verbatim reads plus once-per-world seeding
-    mean the default is a value for NEW worlds only; every existing world keeps the text it stored, so a
-    doctrine edit ships to nobody until somebody presses Reset. Caught on the live world moments before
-    the v0.7.2 full-world recompile: `capability.systemPrompt` held **3,286** characters against a shipped
-    **5,035**, missing the whole `## WHAT THE PLATFORM ALREADY DOES` section — so 1,022 compiles were
-    about to be bought against the previous doctrine, which is the entire point of that release not
-    happening while reporting success.
-    - **It is silent in the worst direction.** A stale prompt is a working prompt: output validates,
-      descriptors store, the cache reports hits, and the only symptom is that a measured improvement
-      does not appear. There is nothing to grep and no error to read.
-    - **VERIFY THE STORED TEXT AGAINST `game.settings.settings.get("<ns>.<key>").default` BEFORE
-      SPENDING ANYTHING ON A PROMPT CHANGE.** One `.includes()` on the clause you just added is the
-      whole check. Do it as a release step for any change to `prompts/index.ts`, not as a debugging
-      step afterwards.
-    - **Diff before resetting, and keep the backup.** A purely additive diff proves the stored copy is
-      an unmodified older default and the reset costs nothing; a diff with removals is a GM's own
-      wording and must not be overwritten to suit us. Both texts went to
-      `C:\Project\noodlr-vtt\prompt-backups\` first.
-    - **Which half a change lands in decides whether any of this applies.** The generated half
-      (`describeVocabulary` — the vocabulary tables and the literal example rule object) reaches every
-      world on upgrade, because it is composed at request time. Only the stored doctrine is frozen. So
-      **prefer the generated half for anything load-bearing**: v0.7.2's example arrived everywhere and
-      its boundary clause arrived nowhere, from one release.
-    - Do NOT "fix" this with `stored || DEFAULT`, and do not re-seed on version change. The first is
-      the exact pattern this invariant exists to forbid, and the second silently discards a GM's edits
-      on upgrade — which is worse than a stale prompt, because it is unrecoverable.
-- **The Noodlr control group's `activeTool` must name a tool that is not one of the real buttons.**
-  Foundry requires `activeTool` to name an existing tool, and the active tool is skipped when clicked —
-  so pointing it at the chat button stops that button from reopening a panel you closed. The inert
-  `home` tool exists solely to absorb that role; v0.4.18 set `visible: false` to get the dead dragon
-  icon out of the flyout, which is the only safe way to "remove" it.
-- **`"socket": true` must stay in `module.json`.** A package only gets a socket namespace by requesting
-  it in the manifest; without it the server silently discards every `game.socket.emit("module.noodlr", …)`
-  with no error on either side, and only the GM's own local code paths appear to work. This cost several
-  release cycles chasing the players-only chatbot (fixed 2026-07-31, v0.4.14). The manifest is read at
-  **server start**, so changing this flag needs a world restart, not a page reload. Anything relying on
-  it — player asks, the GM ack, push-to-log transcript relay, artifact retire — fails invisibly if it goes.
-- **`isGM` is a role, and several clients can hold it.** Foundry defines `User#isGM` as "GAMEMASTER
-  **or** ASSISTANT role", so every `game.user?.isGM` gate admits assistant GMs, and anything driven by a
-  socket message or a document hook (`createChatMessage`, `deleteChatMessage`) runs once per connected
-  GM. Work that must happen once for the table — journal writes, RAG ingestion, deleting a message,
-  writing a shared file — must additionally pass `isPrimaryGM()` from `src/util/gm.ts`. Foundry elects
-  the designated GM itself (`Users#activeGM` = highest-role active GM, preferring a full GM over an
-  assistant) and every client agrees on it, so **do not build a second election** (an alphabetical-by-name
-  roster would be worse: names are mutable and we would own cross-client consistency). Caught in
-  v0.4.17 after transcripts, artifact commits and retires had been silently duplicating per GM.
-  Per-client counters have the same hazard: broadcast speech filenames are namespaced by user id
-  because two GMs both start their slot ring at zero and overwrite each other's audio.
-- **Secrecy travels with the turn, never with the UI.** "Hide from players" is one-shot: the checkbox clears
-  once a prompt is accepted (a sticky box silently muted the mirrored text *and* the broadcast audio for the
-  rest of the session). Consequently, anything that re-runs a turn must pass the original turn's `hidden`
-  flag rather than re-reading the checkbox — Retry did the latter and would have regenerated a GM-only reply
-  in full view of the table (v0.4.16). Hidden turns are badged **GM ONLY** and use local `speak()`, never
-  `speakShared()`, because broadcast audio lands at a predictable unauthenticated URL.
-
-- **A chat card that names no speaker is signed with the author's assigned character (v0.4.46, 2026-08-07).**
-  Reported as an attribution bug of ours and it was core filling in a blank: a player owning four characters
-  saw Noodlr's cards signed with a different one, which was not even on the scene. Two getters in
-  `client/documents/chat-message.mjs` do it —
-  `get speakerActor() { return getSpeakerActor(this.speaker) ?? this.author?.character ?? null }` and
-  `get alias() { return speakerAlias ?? this.speakerActor?.name ?? authorName }`. So the fallback is
-  `user.character` from User Configuration, regardless of what is selected or even present on the scene.
-  `ChatMessage.getSpeaker()` with no arguments has the same hole one step earlier, in its CASE 5.
-  - **An empty alias string is no better than no speaker**, because `this.speaker.alias || null` discards it
-    and falls through identically. Several of our cards were building `{ alias: String(x?.name ?? "") }`.
-  - The same fallback feeds `getRollData()` and the portrait, so an unsigned card containing an inline roll
-    would be evaluated against the wrong sheet.
-  - Rule: **every card goes through `util/speaker.ts`.** `speakerFor(subject)` for a card about one
-    creature, `narrator()` for the module's own voice (announcements about the fight, GM diagnostics).
-    Never `ChatMessage.create({content})` with no speaker, and never a bare alias that could be empty.
-  - `playedTokens(user)` is the single answer to "which characters is this person playing", **plural on
-    purpose** — a player may legitimately drive two at once, and the old single-answer resolution is what
-    made a four-character player look like whichever one sorted first. Order: selection (only readable for
-    `isSelf`; another client's control state is not replicated), then the assigned character's token, then
-    anything else owned here. Ownership is tested with `testUserPermission`, not `ownership[id] === 3`, for
-    the same reason `rollerForActor` does: Foundry resolves through the default row and its ownership dialog
-    *deletes* the per-user entry for anyone left on Default, so "All Players: Owner" matches nothing raw.
-    Diagnostics: `api.surveyPlayed()`.
-
-## Open decisions / risks
-
-- **Rules-side risks moved with the code.** The open melee-movement bug, the unverified `wm5e` conflict and
-  the missing Thirsting Blade identifier now live in `noodlr-hooks-55e/AGENTS.md`. Nothing in this repo can
-  fix them.
-- **The behavior contract has one live producer and no second implementation.** Everything in `src/behavior/`
-  is written against `noodlrHooks.*` as `noodlr-hooks-55e` fires it, which is the only module that fires it
-  today. The names are deliberately generic so a `noodlr-hooks-pf2e` needs no change here, but that claim is
-  untested until a second module exists — the first one written against this contract will find whatever we
-  accidentally assumed.
-- **Two of the ten behavior verbs still have no trigger.** `FLEE`, `SURRENDER` and `MERCY` fire from the
-  rules module's encounter layer, and as of 2026-08-09 `PERSUADE`, `DECEIVE`, `INTIMIDATE`, `BRIBE` and
-  `PARLEY` fire from its new Influence action — so a listener that voices a guard captain's refusal
-  finally has something to hear. `AMBUSH` and `DISTRACT` are declared and wired with nothing requesting
-  them, so their prompt gloss in `behavior/narrate.ts` is still unexercised against a model.
-- **`influence` is a seventh ruling kind**, alongside `condition`, `dying`, `concentration`, `forced`,
-  `surprise` and `encounter`. `behavior/rulings.ts` keeps it in the ring buffer like any other.
-- **A behavior request carrying `incoming: true` is the verb being done TO `actor`, and the gloss must be
-  reversed** (protocol 2, 2026-08-09). Every verb before Influence was self-directed — a creature that
-  FLEEs is the one fleeing — so `narrate.ts` could read `actor` as the doer. A creature that is PERSUADEd
-  is the one *responding*, and it is still the one whose voice is wanted, because noodlr voices NPCs and
-  the party's negotiator must never be handed the microphone. Swapping `actor` and `target` would do
-  exactly that, which is why the contract reverses the sentence instead: `VERBS_INCOMING` holds the
-  receiving-end gloss for the seven verbs that can arrive that way, and the prompt asks for the creature's
-  answer rather than its action. A listener that ignores the flag narrates the right creature saying the
-  wrong thing — plausible nonsense, not an error, so nothing will surface it but a reader at the table.
-- Lorebook storage shape (world-scoped JournalEntry vs module setting vs flat file in world data) — decide in Phase 3.
-- Multi-GM/assistant-GM permissions model for Chronicle review and silo resets.
-- `noodlr.app` domain not yet acquired/configured; git + releases now hosted on `github.com/gobsmacked1` (see Phase 6 status). Revisit if a self-hosted forge / custom domain is preferred.
-- Safety tooling (lines-and-veils / X-card equivalent) is *not* in the DM prompt; decide whether it becomes a module feature or stays a Session-Zero practice.
-- **Provider API keys are player-readable — accepted risk (decided 2026-07-31):** provider settings are `scope: "world"`, and Foundry ships every world setting to every connected client, so any player can read the OpenRouter key with one console line (`game.settings.get("noodlr","chat.apiKey")`). TLS is irrelevant here — the player is a legitimate recipient, not an eavesdropper. **Deliberately accepted, not a bug:** the key is a *spend* credential only. The credential that actually gates concealed knowledge (the noodlr-memory shared secret) is `scope: "client"` and never leaves the GM's machine, so the players-bot privilege boundary holds regardless. Mitigation is operational: run the world on a dedicated OpenRouter key with a credit limit and rotate it as players come and go. Do not "fix" this by moving keys to client scope without revisiting the decision.
-- **Why the players-bot keeps the GM relay (decided 2026-07-31):** moving the player-side LLM call into the player's browser would *not* remove the round trip, because retrieval cannot move with it — the memory secret is client-scoped, so a player's browser cannot reach noodlr-memory at all. Direct calls would cost two hops (fetch context from GM, then call the provider) instead of one. **Correction (2026-07-31, same day):** the apparent carve-out for player-initiated **media** generation is wrong. Players do not get `FILES_UPLOAD` by default, and every media path ends in `saveMedia` → `FilePicker.upload`; a player's client would generate successfully and then be unable to persist or share the result (see the existing note in `av-gen.ts`: the remote URL needs auth, so a local copy is mandatory). Media is therefore the case where the GM proxy is *most* required, not least. Latent rather than live only because `allowPlayers` defaults to `false` on image/music/video. **The relay should carry everything**; player-initiated media needs a relay of the same shape as `PlayerAskPayload` (which already carries `userId`/`userName`, so speaker context survives).
-- **LanceDB single-writer:** noodlr-memory must be the sole writer of `LANCEDB_URI`. The user's Python FastAPI PoC (`/opt/lancedb_app`) against `/opt/lancedb_data` must be stopped/retired before pointing the service there.
-- **Memory access is GM-gated (decided 2026-07-23):** the GM is the *only* client that contacts noodlr-memory (all chat is shared, so per-player writeback would just duplicate). `retrieveContext` returns null for non-GM; ingest (push-to-log/chronicle/manage) was already GM-only. The RAG **shared secret is now client-scope** (stored on the GM's machine, never synced to player browsers); `serviceUrl`/`enabled`/tuning stay world-scope. Consequence: player-initiated chat generations run without a memory block — acceptable, and a nudge toward routing AI-DM generation through the GM's client (open question). The memory `serviceUrl` default is still `http://127.0.0.1:3010`, but the intended deployment is `https://<host>/memory` behind nginx (Unix socket; `NOODLR_MEMORY_SOCKET`).
+- **Players do not get `FILES_UPLOAD` by default**, and every media path ends in `saveMedia` →
+  `FilePicker.upload`, so a player-initiated image would generate and then fail to persist or
+  share. Latent (media `allowPlayers` defaults off). The fix is the GM relay carrying media too.
+- **Multi-GM permissions** for silo resets and memory review are unmodelled beyond `isPrimaryGM`.
+- **Safety tooling** (lines-and-veils / X-card) is not in the DM prompt; undecided whether it
+  becomes a feature.
+- **LanceDB single-writer:** noodlr-memory must be the only writer of `LANCEDB_URI`.
+- **Chat sniffer target fields** are best-effort text; no universal "target" exists on
+  ChatMessage.
