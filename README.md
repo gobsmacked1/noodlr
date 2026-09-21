@@ -4,13 +4,16 @@ Noodlr is an AI Gamemaster module for [Foundry VTT](https://foundryvtt.com/), ga
 design, with D&D 5e as the first-class test case.
 
 **Core thesis:** modern flagship LLMs are already competent, creative game masters. What they lack is
-(1) reliable memory, (2) authoritative game state, and (3) restraint. Noodlr supplies all three:
+(1) reliable memory, (2) authoritative game state, (3) restraint, and (4) hands. Noodlr supplies all four:
 
 - real vector/RAG memory, queried at prompt-assembly time — either in-browser (zero setup) or via the
   standalone [`noodlr-memory`](https://github.com/gobsmacked1/noodlr-memory) service;
-- ground-truth state injected from Foundry itself (HP, initiative, conditions, scene contents, dice); and
+- ground-truth state injected from Foundry itself (HP, initiative, conditions, scene contents, dice);
 - a deliberate refusal to AI-ify mechanics — those belong to the game system and to the community
-  automation modules, not to this module.
+  automation modules, not to this module; and
+- a fixed, reviewed set of **verbs** the model may select to act on the world — move a token, open a
+  door, hand over an item, show a journal page, award XP — every one of them executed by Foundry's own
+  API, written to a ledger, and reversible in one click. *(Arriving in 0.9; see Roadmap below.)*
 
 > **Status: v0.8.x, pre-1.0.** Running and actively tested in a live Foundry world, but not yet at the
 > parity bar we've set for 1.0.0. Expect rough edges, and expect settings to move.
@@ -24,10 +27,12 @@ design, with D&D 5e as the first-class test case.
 
 1. **No hardcoded game-system rules.** Rules live in retrieval and in the model's own competence. The
    module ships zero rules logic, so it works for any system whose books you feed it.
-2. **Mechanics belong to mechanics modules.** Noodlr narrates, decides, and adjudicates; it never
-   re-implements what a mundane automation module resolves instantly and for free. Run whichever
-   automation modules your game system has (for D&D 5e: Midi QoL, DAE and their relatives, once they
-   support your dnd5e version). Noodlr requires none of them and conflicts with none of them.
+2. **Mechanics belong to mechanics modules; hands belong to Noodlr.** Noodlr narrates, decides,
+   adjudicates socially, and — through its verbs — presses the buttons a GM presses. It never resolves
+   a die, a hit, a save or a condition rule: "move the ogre" is a verb, "did the ogre's claw hit" is
+   not. Run whichever automation modules your game system has for that (for D&D 5e: Midi QoL, DAE and
+   their relatives, once they support your dnd5e version). Noodlr requires none of them and conflicts
+   with none of them.
 3. **Two provider shapes only.** OpenRouter (API key) or any hand-entered OpenAI-compatible base URL
    (+ optional key), applied uniformly to chat, embeddings, rerank, TTS, image, music, video, and
    transcription. No per-vendor client zoo, no asking you for six consumer API keys.
@@ -204,6 +209,29 @@ exactly what gets sent. Clearing a box means "send nothing", not "silently fall 
 each box has its own **Reset** button to put the shipped text back. Fields whose default text is still
 being written show `TBD_IGNORE_ME_FOR_NOW`; that placeholder is stripped before any request, so it is
 safe to leave alone.
+
+## Roadmap
+
+Today both bots talk. The next releases give them hands, in this order (the full reasoning and the
+rules each step must obey are in `AGENTS.md`, under READ FIRST):
+
+1. **Verb kernel + core GM verbs + ledger/undo** — a dozen system-agnostic verbs (move / teleport /
+   place / remove a token, toggle a door or light, give or take an item, apply or remove a status,
+   show a journal or image, pull players to a scene, whisper), each ledgered with its prior state and
+   reversible from a GM window. Whisper Polly "move the ogre to chamber J" and the ogre moves.
+2. **`noodlr-tools-dnd5e`**, the first *verb pack*: a separate, optional module that adds system
+   verbs — award XP and currency, rest, apply damage or healing on your explicit order. Noodlr itself
+   stays system-agnostic; other systems get their own pack.
+3. **Player verbs** — a small, code-checked subset for Ask the Table (open an unlocked door within
+   reach, pick up a reachable item, move your own token), executed on the GM's client.
+4. **Naming the world** — Regions, Notes and Drawings you name become the vocabulary both bots use
+   for places, and the scene briefing grows to what each speaker can actually see.
+5. **An event-driven GM** that wakes on Foundry events (a player joins, a door opens, a token enters
+   a named region) and a **headless GM client** on the host, so a persistent world can run with a
+   human GM optional. Combat stays with a human until the community automation modules support your
+   system version; everything up to initiative does not.
+
+Steps 1–4 are the 1.0.0 bar; step 5 is 2.0.0.
 
 ## Console API
 

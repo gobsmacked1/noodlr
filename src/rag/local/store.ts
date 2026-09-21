@@ -88,11 +88,10 @@ async function readSilo(path: string): Promise<LocalRecord[]> {
 /**
  * THIS WORLD'S SILOS AND NOTHING ELSE. Silos moved to `worlds/<id>/assets/noodlr-out/memory` with
  * the media folder in v0.7.5, and a read-through to the pre-v0.7.5 shared folder was built and then
- * removed before release on the user's instruction (2026-08-17), for the same reason the capability
- * cache's adoption was: a brand-new campaign silently inheriting the previous one's lore, secrets
- * and `gm_*` entries is a fault that surfaces weeks later as retrieval saying something impossible,
- * with nothing traceable back to an adoption. Worse here than for the cache, because a silo holds
- * the GM's own writing. A world whose corpus is in the old tree re-ingests it.
+ * removed before release on the user's instruction (2026-08-17): a brand-new campaign silently
+ * inheriting the previous one's lore, secrets and `gm_*` entries is a fault that surfaces weeks
+ * later as retrieval saying something impossible, with nothing traceable back to an adoption — and
+ * a silo holds the GM's own writing. A world whose corpus is in the old tree re-ingests it.
  */
 async function loadSilo(silo: SiloId): Promise<LocalRecord[]> {
   if (loaded.has(silo)) return cache.get(silo) ?? [];

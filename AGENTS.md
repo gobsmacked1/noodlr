@@ -241,7 +241,9 @@ item 4).
 - `C:\Project\noodlr-memory\` — the standalone **vector/RAG memory service** (Node >= 20). Complete,
   MIT, own repo `github.com/gobsmacked1/noodlr-memory`.
 - `C:\Project\noodlr-vtt\` — **test-capture folder**, not a git repo, nothing ships from it: chat
-  exports, HARs, `prompt-backups/`, and `harness/` (the Playwright GM harness, below).
+  exports, HARs, `prompt-backups/`, and `harness/` (the Playwright GM harness, below). Its
+  `_hooks-era/` subfolder quarantines every artifact of the retired rules module (capability caches,
+  sheet censuses, `noodlrHooks.*` probes); read its README, take no direction from its contents.
 - `C:\Project\_research\` — Foundry / dnd5e **source corpus**, read-only reference: `ftypes14/`
   (v14 API types), `fvtt13/foundryvtt/` (v13 client source), `dnd5e/` (6.0.3 checkout). Verify a
   call's signature here before writing a verb against it. Its `_audit/` folder served hooks and is
