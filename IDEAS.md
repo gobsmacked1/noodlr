@@ -38,8 +38,17 @@ action-economy gaps, spellcasting prerequisites, turn scripts, reinforcements) l
   quickly as it is.
 - **Player-initiated media through the GM relay.** Image / music / video from a player client
   generates fine and then cannot persist or share (players lack `FILES_UPLOAD`; every media path ends
-  in `FilePicker.upload`). Latent only because `allowPlayers` defaults off. The fix is a relay of the
-  same shape as the players' bot ask, carrying `userId` / `userName` so speaker context survives.
+  in `FilePicker.upload`). Latent only because `allowPlayers` defaults off. Promoted 2026-09-20:
+  it is the player verb subset, `AGENTS.md` READ FIRST item 5 step 3 — a media request becomes a
+  verb whose `execute` runs on the GM client. Keep `userId` / `userName` on the payload so speaker
+  context survives.
 - **A tactical NPC layer as a new small module — only once Midi QoL runs on dnd5e 6.x.** What to
-  revive and the trigger are written in `AGENTS.md`, READ FIRST item 5. Not before then, and never
-  inside this repo.
+  revive and the trigger are written in `AGENTS.md`, READ FIRST item 8. It executes through the
+  verb layer (item 5 step 7). Not before then, and never inside this repo.
+- **Host-level world snapshots as the last-resort undo.** A systemd timer + `rsync` of
+  `Data/worlds/<id>/` before each session, kept N deep. Ops, not module code; write it into
+  `DEPLOYMENT.md` in the memory repo (same host) when the headless GM (step 6) lands, because that is
+  when an unattended bot can first make a mistake nobody watched.
+- **Verb-pack conformance test.** Once `noodlr.registerVerbs` exists, a tiny harness script that
+  loads a pack's manifest and asserts every verb has a schema, an audience, a precondition and a
+  ledger-returning `execute`. Cheap, and it is the only thing that keeps a second pack honest.
