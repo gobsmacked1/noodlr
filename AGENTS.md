@@ -7,7 +7,11 @@ find in commit history, the changelog, or a backup of another module.
 
 ## READ FIRST — where the project stands (decided 2026-09-19, direction widened 2026-09-20)
 
-1. **Platform: Foundry v14 + dnd5e 6.0.5 (from 6.0.3 on 2026-09-26), tracking each one's latest.** `module.json`
+1. **Platform: Foundry v14 + dnd5e 6.0.5 (from 6.0.3 on 2026-09-26), tracking each one's latest.**
+   **Only the latest official dnd5e release is supported (decided 2026-09-26)** — a server operator
+   who wants noodlr's dnd5e features runs the current dnd5e. No compatibility shims, no version
+   branches, no older clones kept for reference; when dnd5e ships, diff the new tag against the
+   previous one in `_research/dnd5e`, fix what moved, and move the checkout forward. `module.json`
    compatibility is min 13 / verified 14 / max 14. We are **not** downgrading to Foundry 13 or
    dnd5e 5.3 to regain compatibility with community modules that have not caught up.
 
@@ -461,9 +465,11 @@ ride alongside it.
 3. **Step 2 — `noodlr-tools-dnd5e` verb pack** (new repo). `dnd5e.applications.Award.awardXP` /
    `.awardCurrency` are statics `(amount, destinations, {each, origin})`; `actor.initiateRest({type,
    dialog:false, chat})`; `actor.applyDamage(damages, options)`. All verified in the 6.0.3 corpus
-   and unchanged in 6.0.5. The pack declares **dnd5e minimum 6.0.4**: before it, a short or long
-   rest expired effects that had no expiry event (fixed in `Actor5e#_rest`, dnd5e #7492), so a
-   `rest` verb on 6.0.3 would delete effects nobody asked it to. Exhaustion level is
+   and unchanged in 6.0.5. The pack's `relationships.systems` minimum is **the latest dnd5e release
+   at the time the pack ships** (6.0.5 today), raised with every dnd5e release it is verified
+   against. One concrete reason not to go lower: before 6.0.4 a short or long rest expired effects
+   that had no expiry event (fixed in `Actor5e#_rest`, dnd5e #7492), so a `rest` verb on 6.0.3
+   would delete effects nobody asked it to. Exhaustion level is
    `system.attributes.exhaustion`, derived from the exhaustion effect's `system.level` since 6.0.4.
    An ActiveEffect created without an `_id` is no longer reclassified as a condition (6.0.4), so
    create status effects with `toggleStatusEffect` and restore them with `keepId: true` and no
