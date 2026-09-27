@@ -7,7 +7,7 @@ find in commit history, the changelog, or a backup of another module.
 
 ## READ FIRST — where the project stands (decided 2026-09-19, direction widened 2026-09-20)
 
-1. **Platform: Foundry v14 + dnd5e 6.0.3, tracking each one's latest.** `module.json`
+1. **Platform: Foundry v14 + dnd5e 6.0.5 (from 6.0.3 on 2026-09-26), tracking each one's latest.** `module.json`
    compatibility is min 13 / verified 14 / max 14. We are **not** downgrading to Foundry 13 or
    dnd5e 5.3 to regain compatibility with community modules that have not caught up.
 
@@ -84,7 +84,7 @@ find in commit history, the changelog, or a backup of another module.
       `remove_status`, `show_journal`, `show_image`, `pull_to_scene`, `whisper`. Undo window on the
       GM chat panel. Smoke-test at the table before step 2.
    2. **dnd5e verb pack (`noodlr-tools-dnd5e`)**: `award_xp`, `award_currency` (both
-      `dnd5e.applications.Award` statics, verified in 6.0.3 source), `rest` (`initiateRest` with
+      `dnd5e.applications.Award` statics, verified in 6.0.3 and unchanged in 6.0.5), `rest` (`initiateRest` with
       `dialog:false`), `apply_damage` / `heal` on an explicit order, `advance_time`. Proves the
       registration API from outside the repo.
    3. **Player verb subset** through the existing socket relay (`PlayerAskPayload` shape): open an
@@ -142,7 +142,9 @@ find in commit history, the changelog, or a backup of another module.
    (`relationships.systems[].compatibility`). The foundryvtt.com package pages reported wrong
    versions during this check and must not be trusted for it.
    - DAE v14 and Automated Conditions 5e v14: declare dnd5e 6.x. Usable.
-   - Midi QoL v14.0.12: declares dnd5e **5.2.4–5.3.99 only**. Not usable on 6.x.
+   - Midi QoL v14.0.12: declares dnd5e **5.2.4–5.3.99 only**. Not usable on 6.x. Re-checked
+     2026-09-26 after dnd5e 6.0.5 shipped (GitLab releases API + the release's `module.json`):
+     still v14.0.12, still 5.2.4–5.3.99.
    - Chris's Premades and Gambit's Premades: require Midi QoL (Gambit's is Foundry-13-only).
    - Consequence: unattended combat (step 7) waits. Everything else does not.
 
@@ -184,7 +186,7 @@ find in commit history, the changelog, or a backup of another module.
   knowledge pack, or a hooks revival before its trigger. If asked, point at items 6 and 8.
 - Do not depend on any third-party module (principle 0). Detect and enhance; never require.
 - `C:\Project\_research` is the Foundry / dnd5e **source corpus for verifying API signatures**
-  (`ftypes14/` types, `fvtt13/` client source, `dnd5e/` 6.0.3). Use it to check a call before
+  (`ftypes14/` types, `fvtt13/` client source, `dnd5e/` 6.0.5). Use it to check a call before
   coding a verb. Do not use it to learn rules into this module, and do not read its `_audit/`
   reports for direction — they served hooks.
 - Do not re-add: Chronicle (removed 2026-07-27); RAG-backed Tipster collections (rejected
@@ -245,7 +247,8 @@ item 4).
   `_hooks-era/` subfolder quarantines every artifact of the retired rules module (capability caches,
   sheet censuses, `noodlrHooks.*` probes); read its README, take no direction from its contents.
 - `C:\Project\_research\` — Foundry / dnd5e **source corpus**, read-only reference: `ftypes14/`
-  (v14 API types), `fvtt13/foundryvtt/` (v13 client source), `dnd5e/` (6.0.3 checkout). Verify a
+  (v14 API types), `fvtt13/foundryvtt/` (v13 client source), `dnd5e/` (a git clone, detached at
+  `release-6.0.5`; `git fetch --tags` then `git diff release-A release-B` compares releases). Verify a
   call's signature here before writing a verb against it. Its `_audit/` folder served hooks and is
   not direction for this repo.
 - `C:\Project\noodlr-hooks-55e\` — **archived read-only** (GitHub archive, 2026-09-20). Salvage
@@ -457,14 +460,24 @@ ride alongside it.
    `JournalEntry#show()`, `ImagePopout.shareImage`, the pull-to-scene socket event.
 3. **Step 2 — `noodlr-tools-dnd5e` verb pack** (new repo). `dnd5e.applications.Award.awardXP` /
    `.awardCurrency` are statics `(amount, destinations, {each, origin})`; `actor.initiateRest({type,
-   dialog:false, chat})`; `actor.applyDamage(damages, options)`. All verified in the 6.0.3 corpus.
+   dialog:false, chat})`; `actor.applyDamage(damages, options)`. All verified in the 6.0.3 corpus
+   and unchanged in 6.0.5. The pack declares **dnd5e minimum 6.0.4**: before it, a short or long
+   rest expired effects that had no expiry event (fixed in `Actor5e#_rest`, dnd5e #7492), so a
+   `rest` verb on 6.0.3 would delete effects nobody asked it to. Exhaustion level is
+   `system.attributes.exhaustion`, derived from the exhaustion effect's `system.level` since 6.0.4.
+   An ActiveEffect created without an `_id` is no longer reclassified as a condition (6.0.4), so
+   create status effects with `toggleStatusEffect` and restore them with `keepId: true` and no
+   workaround.
 4. **Step 3 — player verb subset** over the socket relay (`PlayerAskPayload` shape). Absorbs the
    old "player-initiated media through the GM relay" item: media requests become verbs whose
    `execute` runs on the GM client, which has `FILES_UPLOAD`.
 5. **Step 4 — naming the world + Tipster T2–T5** (speaker/party incl. `user.targets`, perceived
    others with the trust boundary and name/HP leak guards, GM omniscient view, terrain escape
    hatch). Perception is computed on the asking player's client (`token.isVisible` is authoritative
-   there) and validated on the GM. The resolver reads Regions / Notes / Drawings by name.
+   there) and validated on the GM. The resolver reads Regions / Notes / Drawings by name. Since
+   dnd5e 6.0.4 a token's sense-derived `sight` also carries the vision mode's own defaults; a
+   hand-built vision source (hooks salvage, `sight.ts`) must read the token's prepared `sight`,
+   never `_source.sight`.
 6. **Prompt defaults:** the `TBD_IGNORE_ME_FOR_NOW` placeholders in `src/prompts/fields.ts`
    (image positive/negative except Map's positive, `authorNote`, `postHistory`) need real text;
    the user is writing it. The verb manifest is a *new* prompt block, not one of these fields.
