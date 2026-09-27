@@ -2,6 +2,16 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.8.1
+
+**Checked against D&D 5e 6.0.5.** Nothing Noodlr reads changed between dnd5e 6.0.3 and 6.0.5, so no
+behaviour changes in this release. Going forward Noodlr supports only the latest official dnd5e
+release; update your game system alongside Noodlr.
+
+The README now describes where Noodlr is heading: a fixed set of reviewed, undoable actions ("verbs")
+the GM bot can take on the world — move a token, open a door, hand over an item — arriving in the
+next releases.
+
 ## 0.8.0
 
 **Noodlr no longer integrates with a rules module.** The companion project (Noodlr Hooks 5.5e) has been
