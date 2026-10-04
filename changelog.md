@@ -2,6 +2,15 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.8.2
+
+No behaviour changes. A note for D&D 5e 6.x tables that use Midi QoL: if Midi refuses to stay
+enabled, that is Foundry turning off a module that does not declare your dnd5e version, not
+Noodlr. Midi QoL and DAE ship their dnd5e 6 line as **14.6.x**, installed from the `dnd6` manifests
+(`https://gitlab.com/tposney/dae/raw/dnd6/package/module.json`, then
+`https://gitlab.com/tposney/midi-qol/raw/dnd6/package/module.json`); the default manifests stay on
+14.0.x, which is for dnd5e 5.x. Noodlr requires neither and works with or without them.
+
 ## 0.8.1
 
 **Checked against D&D 5e 6.0.5.** Nothing Noodlr reads changed between dnd5e 6.0.3 and 6.0.5, so no
