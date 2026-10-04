@@ -148,7 +148,14 @@ find in commit history, the changelog, or a backup of another module.
    - DAE v14 and Automated Conditions 5e v14: declare dnd5e 6.x. Usable.
    - Midi QoL v14.0.12: declares dnd5e **5.2.4–5.3.99 only**. Not usable on 6.x. Re-checked
      2026-09-26 after dnd5e 6.0.5 shipped (GitLab releases API + the release's `module.json`):
-     still v14.0.12, still 5.2.4–5.3.99.
+     still v14.0.12, still 5.2.4–5.3.99. Re-checked 2026-10-04 on the live world (harness
+     `probes/module-availability.js`): **v14.0.13 declares dnd5e 5.3.0–5.9.99**, still short of 6.x.
+     Foundry itself enforces this, so no amount of enabling helps: Manage Modules marks a module
+     whose system maximum is below the running system `enableable = false`, and the server's
+     `Setting` sanitiser rewrites `core.moduleConfiguration[id] = false` for every
+     system-incompatible module on each save, including the one at world launch. "Enabled it,
+     restarted, it is off again" is that, not noodlr. The trigger is Midi's own `module.json`
+     `relationships.systems` maximum reaching the current dnd5e.
    - Chris's Premades and Gambit's Premades: require Midi QoL (Gambit's is Foundry-13-only).
    - Consequence: unattended combat (step 7) waits. Everything else does not.
 
