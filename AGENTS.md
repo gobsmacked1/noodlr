@@ -580,6 +580,10 @@ npm run watch-player           # second Firefox, port 3112, log in as a player o
 - `POST http://127.0.0.1:3111/eval` (body = JavaScript) answers with the value **and** the console
   output the call produced. Also `GET /health`, `GET /tail?n=200&signal=1`, `POST /roll`,
   `POST /screenshot`. Player client: same endpoints on 3112. Never log a player into the GM profile.
+- Foundry's deprecation warnings log an Error object; since 2026-10-04 the harness expands it to
+  message + stack (before that the log shows a bare `WARNING Error`). `npm run deprecations` groups
+  them by the calling module; `probes/module-availability.js` (via `/eval`) reports each module's
+  version, active state, stored config and declared system range.
 - **Binds 127.0.0.1 only and must stay that way** — `/eval` is arbitrary JS in a logged-in session.
 - Playwright cannot attach to an already-open stock browser; the persistent profile is the
   mitigation. Set `$env:PLAYWRIGHT_BROWSERS_PATH = "$env:LOCALAPPDATA\ms-playwright"` before
