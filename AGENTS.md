@@ -113,8 +113,8 @@ find in commit history, the changelog, or a backup of another module.
       relying on it (world-setting writes are GAMEMASTER-only by default). The harness `/eval` port
       stays `127.0.0.1` diagnostics; the headless GM is a *Foundry client running noodlr*, not an
       external control API.
-   7. **Unattended combat — blocked.** Nothing on dnd5e 6.x resolves an attack without a human.
-      Until Midi QoL declares dnd5e 6.x the bot runs everything up to initiative (exploration,
+   7. **Unattended combat — trigger fired 2026-10-04 (Midi QoL 14.6.0, item 7), still last in
+      sequence.** Until steps 1–6 ship and Midi 14.6.x has run at the table, the bot runs everything up to initiative (exploration,
       social, travel, shopping, puzzles, rests) and hands combat to a human or narrates around it.
       When the trigger fires, the NPC tactics layer returns as its own small module (item 8), and
       the verb layer is what it will execute through.
@@ -154,10 +154,21 @@ find in commit history, the changelog, or a backup of another module.
      whose system maximum is below the running system `enableable = false`, and the server's
      `Setting` sanitiser rewrites `core.moduleConfiguration[id] = false` for every
      system-incompatible module on each save, including the one at world launch. "Enabled it,
-     restarted, it is off again" is that, not noodlr. The trigger is Midi's own `module.json`
-     `relationships.systems` maximum reaching the current dnd5e.
+     restarted, it is off again" is that, not noodlr.
+   - **The trigger fired the same day (2026-10-04): Midi QoL v14.6.0 and DAE v14.6.0** are the
+     author's official dnd5e 6 line, published as GitLab releases, both declaring dnd5e
+     6.0.0–6.999 verified 6.0.5, Foundry 14.368. Numbering is Foundry-major.dnd5e-major: 14.0.x
+     is the dnd5e 5.x line, 14.6.x the 6.x line. The default manifests stay on 14.0.x; install
+     the 6.x line from the `dnd6` branch manifests
+     (`https://gitlab.com/tposney/{dae,midi-qol}/raw/dnd6/package/module.json`), DAE first.
+     Day-zero and with breaking changes (DAE `@` references now follow dnd5e 6's per-change
+     Replacement setting; transfer-effect durations no longer run; `ATL.*` keys rewritten to
+     `token.*` on save). This unblocks step 7 but does not reorder item 5: steps 1–6 come first,
+     and the tactics module is planned against Midi 14.6.x only after it has run at the table.
+     Chris's / Gambit's Premades not re-checked against 14.6.x.
    - Chris's Premades and Gambit's Premades: require Midi QoL (Gambit's is Foundry-13-only).
-   - Consequence: unattended combat (step 7) waits. Everything else does not.
+   - Consequence as of 2026-09-19: unattended combat (step 7) waited. Superseded by the 14.6.0
+     entry above — it is now gated by sequence, not by Midi.
 
 8. **`noodlr-hooks-55e` is archived read-only on GitHub (2026-09-20), not deleted.** Its
    integration inside noodlr was removed in v0.8.0 (done record below). Two salvage lists, both
@@ -498,8 +509,9 @@ ride alongside it.
    transcript relay; lorebook / author's note / post-history injection at the table.
 8. **1.0.0** at the definition above (steps 1–4 smoke-tested).
 9. **Steps 5–6 — event-driven GM, headless host process; 2.0.0.**
-10. **Step 7 — unattended combat**: blocked on Midi QoL declaring dnd5e 6.x; then the tactics
-    module (READ FIRST item 8), which executes through the verb layer.
+10. **Step 7 — unattended combat**: Midi QoL 14.6.0 declares dnd5e 6.x (2026-10-04), so the
+    trigger has fired; it still follows steps 1–6. Then the tactics module (READ FIRST item 8),
+    built against Midi 14.6.x, which executes through the verb layer.
 
 Parked ideas live in `IDEAS.md`. Rules-automation ideas were removed from it on 2026-09-19.
 
