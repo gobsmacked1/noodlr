@@ -2,6 +2,13 @@
 
 All notable changes to Noodlr, newest first. Written for GMs rather than developers.
 
+## 0.8.3
+
+**Checked against D&D 5e 6.0.6.** Nothing Noodlr reads changed between dnd5e 6.0.5 and 6.0.6, so no
+behaviour changes in this release. If you use Midi QoL / DAE 14.6.x: their latest releases
+(14.6.2 / 14.6.1) require dnd5e **6.0.6**, so update the game system to 6.0.6 *first*, then update
+Midi and DAE — updating them first gets them disabled by Foundry again.
+
 ## 0.8.2
 
 No behaviour changes. A note for D&D 5e 6.x tables that use Midi QoL: if Midi refuses to stay
