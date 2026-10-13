@@ -7,7 +7,7 @@ find in commit history, the changelog, or a backup of another module.
 
 ## READ FIRST — where the project stands (decided 2026-09-19, direction widened 2026-09-20)
 
-1. **Platform: Foundry v14 + dnd5e 6.0.5 (from 6.0.3 on 2026-09-26), tracking each one's latest.**
+1. **Platform: Foundry v14 + dnd5e 6.0.6 (from 6.0.5 on 2026-10-13), tracking each one's latest.**
    **Only the latest official dnd5e release is supported (decided 2026-09-26)** — a server operator
    who wants noodlr's dnd5e features runs the current dnd5e. No compatibility shims, no version
    branches, no older clones kept for reference; when dnd5e ships, diff the new tag against the
@@ -88,7 +88,7 @@ find in commit history, the changelog, or a backup of another module.
       `remove_status`, `show_journal`, `show_image`, `pull_to_scene`, `whisper`. Undo window on the
       GM chat panel. Smoke-test at the table before step 2.
    2. **dnd5e verb pack (`noodlr-tools-dnd5e`)**: `award_xp`, `award_currency` (both
-      `dnd5e.applications.Award` statics, verified in 6.0.3 and unchanged in 6.0.5), `rest` (`initiateRest` with
+      `dnd5e.applications.Award` statics, verified in 6.0.3 and unchanged in 6.0.6), `rest` (`initiateRest` with
       `dialog:false`), `apply_damage` / `heal` on an explicit order, `advance_time`. Proves the
       registration API from outside the repo.
    3. **Player verb subset** through the existing socket relay (`PlayerAskPayload` shape): open an
@@ -157,7 +157,10 @@ find in commit history, the changelog, or a backup of another module.
      restarted, it is off again" is that, not noodlr.
    - **The trigger fired the same day (2026-10-04): Midi QoL v14.6.0 and DAE v14.6.0** are the
      author's official dnd5e 6 line, published as GitLab releases, both declaring dnd5e
-     6.0.0–6.999 verified 6.0.5, Foundry 14.368. Numbering is Foundry-major.dnd5e-major: 14.0.x
+     6.0.0–6.999 verified 6.0.5, Foundry 14.368. Updated 2026-10-12 to **Midi 14.6.2 / DAE 14.6.1**,
+     which declare dnd5e **minimum 6.0.6** — update dnd5e to 6.0.6 first, then Midi/DAE; updating
+     Midi first gets it disabled by the same system-compatibility enforcement that kept 14.0.x off.
+     Numbering is Foundry-major.dnd5e-major: 14.0.x
      is the dnd5e 5.x line, 14.6.x the 6.x line. The default manifests stay on 14.0.x; install
      the 6.x line from the `dnd6` branch manifests
      (`https://gitlab.com/tposney/{dae,midi-qol}/raw/dnd6/package/module.json`), DAE first.
@@ -208,7 +211,7 @@ find in commit history, the changelog, or a backup of another module.
   knowledge pack, or a hooks revival before its trigger. If asked, point at items 6 and 8.
 - Do not depend on any third-party module (principle 0). Detect and enhance; never require.
 - `C:\Project\_research` is the Foundry / dnd5e **source corpus for verifying API signatures**
-  (`ftypes14/` types, `fvtt13/` client source, `dnd5e/` 6.0.5). Use it to check a call before
+  (`ftypes14/` types, `fvtt13/` client source, `dnd5e/` 6.0.6). Use it to check a call before
   coding a verb. Do not use it to learn rules into this module, and do not read its `_audit/`
   reports for direction — they served hooks.
 - Do not re-add: Chronicle (removed 2026-07-27); RAG-backed Tipster collections (rejected
@@ -270,7 +273,7 @@ item 4).
   sheet censuses, `noodlrHooks.*` probes); read its README, take no direction from its contents.
 - `C:\Project\_research\` — Foundry / dnd5e **source corpus**, read-only reference: `ftypes14/`
   (v14 API types), `fvtt13/foundryvtt/` (v13 client source), `dnd5e/` (a git clone, detached at
-  `release-6.0.5`; `git fetch --tags` then `git diff release-A release-B` compares releases). Verify a
+  `release-6.0.6`; `git fetch --tags` then `git diff release-A release-B` compares releases). Verify a
   call's signature here before writing a verb against it. Its `_audit/` folder served hooks and is
   not direction for this repo.
 - `C:\Project\noodlr-hooks-55e\` — **archived read-only** (GitHub archive, 2026-09-20). Salvage
@@ -483,15 +486,18 @@ ride alongside it.
 3. **Step 2 — `noodlr-tools-dnd5e` verb pack** (new repo). `dnd5e.applications.Award.awardXP` /
    `.awardCurrency` are statics `(amount, destinations, {each, origin})`; `actor.initiateRest({type,
    dialog:false, chat})`; `actor.applyDamage(damages, options)`. All verified in the 6.0.3 corpus
-   and unchanged in 6.0.5. The pack's `relationships.systems` minimum is **the latest dnd5e release
-   at the time the pack ships** (6.0.5 today), raised with every dnd5e release it is verified
+   and unchanged in 6.0.6. The pack's `relationships.systems` minimum is **the latest dnd5e release
+   at the time the pack ships** (6.0.6 today), raised with every dnd5e release it is verified
    against. One concrete reason not to go lower: before 6.0.4 a short or long rest expired effects
    that had no expiry event (fixed in `Actor5e#_rest`, dnd5e #7492), so a `rest` verb on 6.0.3
    would delete effects nobody asked it to. Exhaustion level is
    `system.attributes.exhaustion`, derived from the exhaustion effect's `system.level` since 6.0.4.
    An ActiveEffect created without an `_id` is no longer reclassified as a condition (6.0.4), so
    create status effects with `toggleStatusEffect` and restore them with `keepId: true` and no
-   workaround.
+   workaround. Since 6.0.6, bulk updates on a synthetic (unlinked-token) actor can no longer pass
+   an unclean `_id` — another reason to apply damage/healing through the system's own
+   `applyDamage` rather than hand-built updates. 6.0.6 also back-fills the exhaustion effect's
+   `system.level` from the legacy `flags.dnd5e.exhaustionLevel` flag.
 4. **Step 3 — player verb subset** over the socket relay (`PlayerAskPayload` shape). Absorbs the
    old "player-initiated media through the GM relay" item: media requests become verbs whose
    `execute` runs on the GM client, which has `FILES_UPLOAD`.
